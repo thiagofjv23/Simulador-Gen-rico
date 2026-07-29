@@ -1,0 +1,809 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Simulador Genérico: calendário, competições territoriais, resultados e rankings persistentes."
+    />
+    <title>Simulador Genérico — Mundo, Competições e Rankings</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">SIMULADOR GENÉRICO</p>
+          <h1 id="world-name">Calendário</h1>
+        </div>
+
+        <div class="game-clock" aria-label="Data atual da simulação">
+          <span>DATA DA SIMULAÇÃO</span>
+          <strong id="game-date">—</strong>
+        </div>
+      </header>
+
+      <nav class="view-tabs" aria-label="Seções principais">
+        <button class="view-tab active" type="button" data-view="calendar">Calendário</button>
+        <button class="view-tab" type="button" data-view="competitions">
+          Competições
+          <span id="competitions-tab-count" class="tab-count">0</span>
+        </button>
+        <button class="view-tab" type="button" data-view="ranking">
+          Ranking
+          <span id="ranking-tab-count" class="tab-count">100</span>
+        </button>
+        <button class="view-tab" type="button" data-view="results">
+          Resultados
+          <span id="results-tab-count" class="tab-count">0</span>
+        </button>
+      </nav>
+
+      <main id="calendar-view" class="workspace app-view">
+        <section class="calendar-panel" aria-label="Calendário mensal">
+          <div class="calendar-toolbar">
+            <div class="month-navigation">
+              <button class="icon-button" id="previous-month" aria-label="Mês anterior">‹</button>
+              <button class="month-title" id="month-title" type="button" title="Voltar à data atual">
+                —
+              </button>
+              <button class="icon-button" id="next-month" aria-label="Próximo mês">›</button>
+            </div>
+
+            <div class="toolbar-actions">
+              <button class="button button-secondary" id="presets-button">Presets</button>
+              <button class="button button-secondary" id="today-button">Data atual</button>
+              <button class="button button-primary" id="new-event-button">+ Novo evento</button>
+            </div>
+          </div>
+
+          <div class="weekday-row" aria-hidden="true">
+            <span>SEG</span>
+            <span>TER</span>
+            <span>QUA</span>
+            <span>QUI</span>
+            <span>SEX</span>
+            <span>SÁB</span>
+            <span>DOM</span>
+          </div>
+
+          <div id="calendar-grid" class="calendar-grid" role="grid"></div>
+
+          <div class="calendar-legend" aria-label="Legenda">
+            <span><i class="legend-dot league"></i>Liga</span>
+            <span><i class="legend-dot cup"></i>Copa</span>
+            <span><i class="legend-dot meeting"></i>Meeting</span>
+            <span><i class="legend-dot championship"></i>Campeonato</span>
+            <span><i class="legend-dot qualifier"></i>Classificatória</span>
+          </div>
+        </section>
+
+        <aside class="sidebar">
+          <section class="sidebar-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">DIA SELECIONADO</p>
+                <h2 id="selected-date-title">—</h2>
+              </div>
+              <button class="text-button" id="add-on-selected-date">Adicionar</button>
+            </div>
+            <div id="selected-day-events" class="event-list"></div>
+          </section>
+
+          <section class="sidebar-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">AGENDA</p>
+                <h2>Próximos eventos</h2>
+              </div>
+            </div>
+            <div id="upcoming-events" class="event-list compact"></div>
+          </section>
+
+          <section class="sidebar-card advance-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">TEMPO</p>
+                <h2>Avançar simulação</h2>
+              </div>
+            </div>
+            <div class="advance-grid">
+              <button class="button button-secondary" data-advance-days="1">+1 dia</button>
+              <button class="button button-secondary" data-advance-days="7">+7 dias</button>
+              <button class="button button-accent" id="advance-next-event">Próximo evento</button>
+            </div>
+          </section>
+        </aside>
+      </main>
+
+      <main id="competitions-view" class="competitions-view app-view hidden">
+        <section class="competitions-header">
+          <div>
+            <p class="eyebrow">PASSOS 2, 4 E 5</p>
+            <h2>Sistema de competições</h2>
+            <p>
+              Defina a estrutura e a abrangência territorial dos campeonatos. Ao terminar
+              o último dia, somente atletas elegíveis daquele local podem competir.
+            </p>
+          </div>
+          <button class="button button-primary" id="new-competition-button">
+            + Nova competição
+          </button>
+        </section>
+
+        <section class="competition-stats" aria-label="Resumo das competições">
+          <article class="stat-card">
+            <span>COMPETIÇÕES</span>
+            <strong id="competitions-total">0</strong>
+          </article>
+          <article class="stat-card">
+            <span>ANUAIS</span>
+            <strong id="competitions-annual">0</strong>
+          </article>
+          <article class="stat-card">
+            <span>PRESTÍGIO MÉDIO</span>
+            <strong id="competitions-average-prestige">0</strong>
+          </article>
+        </section>
+
+        <section class="competitions-panel">
+          <div class="competitions-toolbar">
+            <div>
+              <p class="eyebrow">ESTRUTURA DO MUNDO</p>
+              <h2>Competições cadastradas</h2>
+            </div>
+            <label class="filter-field">
+              <span>Filtrar</span>
+              <input
+                id="competition-filter"
+                type="search"
+                placeholder="Nome, esporte ou modalidade"
+                autocomplete="off"
+              />
+            </label>
+          </div>
+          <div id="competitions-list" class="competitions-list"></div>
+        </section>
+      </main>
+
+      <main id="ranking-view" class="ranking-view app-view hidden">
+        <section class="competitions-header">
+          <div>
+            <p class="eyebrow">PASSOS 3, 4 E 5</p>
+            <h2>Rankings por esporte e modalidade</h2>
+            <p>
+              Escolha o esporte e a modalidade. Depois consulte a classificação
+              mundial ou limite a visão a um continente e a um país.
+            </p>
+          </div>
+        </section>
+
+        <section class="competition-stats" aria-label="Resumo do ranking">
+          <article class="stat-card">
+            <span>PESSOAS</span>
+            <strong id="ranking-total">100</strong>
+          </article>
+          <article class="stat-card">
+            <span>PAÍSES</span>
+            <strong id="ranking-countries">0</strong>
+          </article>
+          <article class="stat-card leader-card">
+            <span>LÍDER</span>
+            <strong id="ranking-leader">—</strong>
+          </article>
+        </section>
+
+        <section class="ranking-panel">
+          <div class="competitions-toolbar">
+            <div>
+              <p class="eyebrow">CLASSIFICAÇÃO</p>
+              <h2 id="ranking-scope-title">Ranking mundial</h2>
+            </div>
+            <div class="ranking-controls">
+              <label class="compact-field">
+                <span>Esporte</span>
+                <select id="ranking-sport"></select>
+              </label>
+              <label class="compact-field">
+                <span>Modalidade</span>
+                <select id="ranking-modality"></select>
+              </label>
+              <label class="compact-field">
+                <span>Abrangência</span>
+                <select id="ranking-scope">
+                  <option value="world">Mundial</option>
+                  <option value="continental">Continental</option>
+                  <option value="national">Nacional</option>
+                </select>
+              </label>
+              <label id="ranking-continent-field" class="compact-field hidden">
+                <span>Continente</span>
+                <select id="ranking-continent"></select>
+              </label>
+              <label id="ranking-country-field" class="compact-field hidden">
+                <span>País</span>
+                <select id="ranking-country"></select>
+              </label>
+              <label class="compact-field ranking-search-field">
+                <span>Filtrar</span>
+                <input
+                  id="ranking-filter"
+                  type="search"
+                  placeholder="Nome, país ou código"
+                  autocomplete="off"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div class="ranking-table-scroll">
+            <table class="ranking-table">
+              <thead>
+                <tr>
+                  <th scope="col">Pos.</th>
+                  <th scope="col">Mov.</th>
+                  <th scope="col">Pessoa</th>
+                  <th scope="col">País</th>
+                  <th scope="col">Idade</th>
+                  <th scope="col">Rating base</th>
+                  <th scope="col">Momentum</th>
+                  <th scope="col">Eventos</th>
+                  <th scope="col">Pontos</th>
+                </tr>
+              </thead>
+              <tbody id="ranking-list"></tbody>
+            </table>
+          </div>
+          <p id="ranking-empty" class="ranking-empty hidden">Nenhuma pessoa encontrada.</p>
+        </section>
+      </main>
+
+      <main id="results-view" class="results-view app-view hidden">
+        <section class="competitions-header">
+          <div>
+            <p class="eyebrow">PASSO 4</p>
+            <h2>Resultados das competições</h2>
+            <p>
+              Cada edição é simulada uma única vez no fim do seu último dia.
+              A classificação, os pontos e o novo ranking ficam preservados.
+            </p>
+          </div>
+        </section>
+
+        <section class="competition-stats" aria-label="Resumo dos resultados">
+          <article class="stat-card">
+            <span>EDIÇÕES SIMULADAS</span>
+            <strong id="results-total">0</strong>
+          </article>
+          <article class="stat-card leader-card">
+            <span>RESULTADO MAIS RECENTE</span>
+            <strong id="results-latest">—</strong>
+          </article>
+          <article class="stat-card">
+            <span>PARTICIPANTES POR EDIÇÃO</span>
+            <strong>Conforme as vagas</strong>
+          </article>
+        </section>
+
+        <section class="results-panel">
+          <div class="competitions-toolbar">
+            <div>
+              <p class="eyebrow">HISTÓRICO</p>
+              <h2>Resultados persistentes</h2>
+            </div>
+          </div>
+          <div id="results-list" class="results-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="start-dialog" class="modal start-modal" aria-labelledby="start-title">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">SIMULADOR GENÉRICO</p>
+            <h2 id="start-title">Como deseja começar?</h2>
+          </div>
+        </div>
+
+        <p class="modal-intro">
+          O jogo só acessará o save existente se você escolher continuar.
+          Um novo jogo começa com um banco de dados vazio.
+        </p>
+
+        <div class="start-actions">
+          <button class="start-option" id="continue-game-button" type="button">
+            <strong>Continuar save</strong>
+            <span>Carregar o mundo salvo neste navegador.</span>
+          </button>
+          <button class="start-option primary" id="new-game-button" type="button">
+            <strong>Novo jogo</strong>
+            <span>Apagar o save atual e criar um mundo vazio.</span>
+          </button>
+        </div>
+
+        <p id="start-error" class="form-error" role="alert"></p>
+      </div>
+    </dialog>
+
+    <dialog id="setup-dialog" class="modal" aria-labelledby="setup-title">
+      <form id="setup-form" class="modal-content">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">NOVO MUNDO</p>
+            <h2 id="setup-title">Onde a história começa?</h2>
+          </div>
+        </div>
+
+        <p class="modal-intro">
+          Escolha a data inicial. Depois disso, o relógio da simulação só avança quando você mandar.
+        </p>
+
+        <label class="field">
+          <span>Nome do mundo</span>
+          <input id="setup-world-name" name="worldName" value="Meu Mundo Esportivo" required maxlength="50" />
+        </label>
+
+        <label class="field">
+          <span>Data inicial</span>
+          <input id="setup-start-date" name="startDate" type="date" value="2026-01-01" required />
+        </label>
+
+        <p class="field-help">
+          O calendário e as competições começam vazios. O mundo será organizado em
+          continentes e países, e o ranking inicial será criado com 100 pessoas.
+        </p>
+
+        <div class="modal-actions">
+          <button class="button button-primary wide" type="submit">Criar mundo</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="preset-dialog" class="modal" aria-labelledby="preset-dialog-title">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">CALENDÁRIO</p>
+            <h2 id="preset-dialog-title">Adicionar preset</h2>
+          </div>
+          <button
+            class="icon-button close-button"
+            id="close-preset-dialog"
+            type="button"
+            aria-label="Fechar"
+          >×</button>
+        </div>
+
+        <p class="modal-intro">
+          Escolha um calendário pronto. Nada será adicionado até você confirmar.
+        </p>
+
+        <label class="field">
+          <span>Preset disponível</span>
+          <select id="preset-select"></select>
+        </label>
+
+        <section class="preset-summary" aria-live="polite">
+          <strong id="preset-name">—</strong>
+          <p id="preset-description">—</p>
+          <span id="preset-count">—</span>
+        </section>
+
+        <p id="preset-form-error" class="form-error" role="alert"></p>
+
+        <div class="modal-actions">
+          <button class="button button-secondary" id="cancel-preset-button" type="button">
+            Cancelar
+          </button>
+          <button class="button button-primary" id="apply-preset-button" type="button">
+            Adicionar ao calendário
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="event-dialog" class="modal" aria-labelledby="event-dialog-title">
+      <form id="event-form" class="modal-content">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">CALENDÁRIO</p>
+            <h2 id="event-dialog-title">Novo evento</h2>
+          </div>
+          <button class="icon-button close-button" id="close-event-dialog" type="button" aria-label="Fechar">×</button>
+        </div>
+
+        <input id="event-id" name="id" type="hidden" />
+
+        <label class="field">
+          <span>Nome do evento</span>
+          <input
+            id="event-name"
+            name="name"
+            placeholder="Ex.: Liga Nacional de Atletismo"
+            required
+            maxlength="80"
+            autocomplete="off"
+          />
+        </label>
+
+        <label class="field">
+          <span>Tipo</span>
+          <select id="event-type" name="type" required>
+            <option value="league">Liga</option>
+            <option value="cup">Copa</option>
+            <option value="meeting">Meeting</option>
+            <option value="championship">Campeonato</option>
+            <option value="qualifier">Classificatória</option>
+            <option value="games">Jogos multiesportivos</option>
+            <option value="other">Outro</option>
+          </select>
+        </label>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Início</span>
+            <input id="event-start-date" name="startDate" type="date" required />
+          </label>
+          <label class="field">
+            <span>Fim</span>
+            <input id="event-end-date" name="endDate" type="date" required />
+          </label>
+        </div>
+
+        <label class="check-field">
+          <input id="event-yearly" name="yearly" type="checkbox" />
+          <span>Repetir este evento todos os anos</span>
+        </label>
+
+        <label class="field">
+          <span>Observações <small>(opcional)</small></span>
+          <textarea
+            id="event-notes"
+            name="notes"
+            rows="3"
+            maxlength="240"
+            placeholder="Regras, participantes ou qualquer lembrete..."
+          ></textarea>
+        </label>
+
+        <p id="event-form-error" class="form-error" role="alert"></p>
+
+        <div class="modal-actions split">
+          <button class="button button-danger hidden" id="delete-event-button" type="button">Excluir</button>
+          <div class="action-group">
+            <button class="button button-secondary" id="cancel-event-button" type="button">Cancelar</button>
+            <button class="button button-primary" type="submit">Salvar evento</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="competition-dialog" class="modal modal-wide" aria-labelledby="competition-dialog-title">
+      <form id="competition-form" class="modal-content">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">SISTEMA DE COMPETIÇÕES</p>
+            <h2 id="competition-dialog-title">Nova competição</h2>
+          </div>
+          <button
+            class="icon-button close-button"
+            id="close-competition-dialog"
+            type="button"
+            aria-label="Fechar"
+          >×</button>
+        </div>
+
+        <input id="competition-id" name="id" type="hidden" />
+
+        <label class="field">
+          <span>Nome da competição</span>
+          <input
+            id="competition-name"
+            name="name"
+            placeholder="Ex.: Campeonato Nacional de Atletismo"
+            required
+            maxlength="100"
+            autocomplete="off"
+          />
+        </label>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Esporte</span>
+            <select id="competition-sport" name="sportId" required></select>
+          </label>
+          <label class="field">
+            <span>Modalidade</span>
+            <select
+              id="competition-discipline"
+              name="modalityId"
+              required
+            ></select>
+          </label>
+        </div>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Sistema de Pontuação</span>
+            <select id="competition-scoring-system" name="scoringSystemId" required></select>
+          </label>
+          <label class="field">
+            <span>Modelo da competição</span>
+            <select id="competition-model" name="competitionModel" required>
+              <option value="standalone">Evento independente</option>
+              <option value="season_stage">Etapa de temporada</option>
+            </select>
+          </label>
+        </div>
+
+        <p id="scoring-system-help" class="field-help">
+          Escolha como as posições serão convertidas em pontos.
+        </p>
+        <p id="competition-model-help" class="field-help">
+          Eventos independentes alimentam o ranking permanente da modalidade.
+        </p>
+
+        <section id="season-model-panel" class="rule-panel hidden">
+          <label class="field">
+            <span>Nome do campeonato anual</span>
+            <input
+              id="competition-season-name"
+              name="seasonName"
+              maxlength="100"
+              placeholder="Ex.: Campeonato Mundial de Fórmula 1"
+            />
+          </label>
+          <p class="field-help">
+            Todas as etapas com o mesmo nome somam pontos na mesma temporada.
+            A última etapa define o campeão; em 1º de janeiro a pontuação é zerada.
+          </p>
+        </section>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Tipo</span>
+            <select id="competition-type" name="type" required>
+              <option value="league">Liga</option>
+              <option value="cup">Copa</option>
+              <option value="meeting">Meeting</option>
+              <option value="championship" selected>Campeonato</option>
+              <option value="qualifier">Classificatória</option>
+              <option value="games">Jogos multiesportivos</option>
+              <option value="other">Outro</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Critério de classificação</span>
+            <select id="competition-qualification" name="qualification" required>
+              <option value="open">Aberta</option>
+              <option value="ranking">Por ranking</option>
+              <option value="qualifier">Por classificatória</option>
+              <option value="invitation">Por convite</option>
+              <option value="mixed">Mista</option>
+            </select>
+          </label>
+        </div>
+
+        <p id="qualification-help" class="field-help"></p>
+
+        <section id="mixed-qualification-panel" class="rule-panel hidden">
+          <label class="field">
+            <span>Combinação da classificação mista</span>
+            <select id="competition-mixed-combination" name="mixedCombination"></select>
+          </label>
+          <p class="field-help">
+            Escolha uma das 11 combinações possíveis. Cada método selecionado
+            precisa receber ao menos uma vaga.
+          </p>
+          <div id="mixed-slots-fields" class="field-row"></div>
+          <p id="mixed-slots-help" class="field-help">
+            Distribua todas as vagas entre os critérios. A soma deve ser igual
+            ao total de vagas da competição.
+          </p>
+        </section>
+
+        <section id="qualifier-link-panel" class="rule-panel hidden">
+          <div class="field-row">
+            <label class="field">
+              <span>Concede vagas para</span>
+              <select
+                id="competition-qualifier-target"
+                name="qualifierTargetCompetitionId"
+              ></select>
+            </label>
+            <label class="field">
+              <span>Vagas concedidas</span>
+              <input
+                id="competition-qualifier-slots"
+                name="qualifierSlots"
+                type="number"
+                min="1"
+                max="9999"
+                step="1"
+                value="1"
+              />
+            </label>
+          </div>
+          <p class="field-help">
+            Esta classificatória deve terminar antes do torneio de destino e
+            usar o mesmo esporte e modalidade. As melhores posições do resultado
+            receberão as vagas informadas.
+          </p>
+        </section>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Abrangência geográfica</span>
+            <select id="competition-geographic-scope" name="geographicScope" required>
+              <option value="world">Mundial</option>
+              <option value="continental">Continental</option>
+              <option value="national">Nacional</option>
+            </select>
+          </label>
+          <label id="competition-continent-field" class="field hidden">
+            <span>Continente</span>
+            <select id="competition-continent" name="continentId"></select>
+          </label>
+        </div>
+
+        <label id="competition-country-field" class="field hidden">
+          <span>País</span>
+          <select id="competition-country" name="countryId"></select>
+        </label>
+
+        <p id="geographic-scope-help" class="field-help">
+          Atletas de todos os países podem participar.
+        </p>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Início</span>
+            <input id="competition-start-date" name="startDate" type="date" required />
+          </label>
+          <label class="field">
+            <span>Fim</span>
+            <input id="competition-end-date" name="endDate" type="date" required />
+          </label>
+        </div>
+
+        <label class="check-field">
+          <input id="competition-yearly" name="yearly" type="checkbox" />
+          <span>Repetir esta competição todos os anos</span>
+        </label>
+
+        <div class="field-row three-columns">
+          <label class="field">
+            <span>Prestígio <small>(1–100)</small></span>
+            <input
+              id="competition-prestige"
+              name="prestige"
+              type="number"
+              min="1"
+              max="100"
+              step="1"
+              value="50"
+              required
+            />
+          </label>
+          <label class="field">
+            <span>Valor máximo de pontos</span>
+            <input
+              id="competition-ranking-points"
+              name="rankingPoints"
+              type="number"
+              min="1"
+              max="10000"
+              step="1"
+              value="100"
+              required
+            />
+            <small id="winner-points-help">
+              Nos sistemas proporcionais, este é o valor recebido pelo vencedor.
+            </small>
+          </label>
+          <label class="field">
+            <span>Vagas</span>
+            <input
+              id="competition-slots"
+              name="slots"
+              type="number"
+              min="2"
+              max="9999"
+              step="1"
+              value="16"
+              required
+            />
+          </label>
+        </div>
+
+        <label class="field">
+          <span>Observações <small>(opcional)</small></span>
+          <textarea
+            id="competition-notes"
+            name="notes"
+            rows="3"
+            maxlength="300"
+            placeholder="Regras ou detalhes importantes desta competição..."
+          ></textarea>
+        </label>
+
+        <p id="competition-form-error" class="form-error" role="alert"></p>
+
+        <div class="modal-actions split">
+          <button class="button button-danger hidden" id="delete-competition-button" type="button">
+            Excluir
+          </button>
+          <div class="action-group">
+            <button class="button button-secondary" id="cancel-competition-button" type="button">
+              Cancelar
+            </button>
+            <button class="button button-primary" type="submit">Salvar competição</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog
+      id="invitation-dialog"
+      class="modal modal-wide"
+      aria-labelledby="invitation-dialog-title"
+    >
+      <form id="invitation-form" class="modal-content">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">CONVITES — 10 DIAS ANTES</p>
+            <h2 id="invitation-dialog-title">Escolher participantes</h2>
+          </div>
+          <button
+            class="icon-button close-button"
+            id="close-invitation-dialog"
+            type="button"
+            aria-label="Fechar"
+          >×</button>
+        </div>
+
+        <p id="invitation-description" class="modal-intro"></p>
+
+        <div class="invitation-toolbar">
+          <label class="field">
+            <span>Filtrar ranking</span>
+            <input
+              id="invitation-filter"
+              type="search"
+              placeholder="Nome ou país"
+              autocomplete="off"
+            />
+          </label>
+          <strong id="invitation-counter">0 de 0 escolhidos</strong>
+        </div>
+
+        <p class="field-help">
+          Escolha atletas elegíveis no ranking deste esporte. A abrangência
+          mundial, continental ou nacional da competição continua sendo respeitada.
+        </p>
+
+        <div id="invitation-athletes" class="invitation-athletes"></div>
+        <p id="invitation-form-error" class="form-error" role="alert"></p>
+
+        <div class="modal-actions">
+          <button
+            class="button button-secondary"
+            id="cancel-invitation-button"
+            type="button"
+          >
+            Escolher depois
+          </button>
+          <button class="button button-primary" type="submit">
+            Confirmar participantes
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>

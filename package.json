@@ -1,0 +1,8 @@
+{
+  "name": "simulador-generico-formula1-2026",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
