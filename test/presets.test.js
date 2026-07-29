@@ -12,12 +12,13 @@ const FIA = presetById("fia-ecosystem-2026");
 const F1_MODALITY = "modality_motorsport_formula1";
 const F2_MODALITY = "modality_motorsport_formula2";
 const F3_MODALITY = "modality_motorsport_formula3";
+const FREC_MODALITY = "modality_motorsport_formula_regional";
 
 test("o catálogo de presets contém ATP e o Ecossistema FIA de 2026", () => {
   assert.equal(CALENDAR_PRESETS.length, 2);
   assert.equal(presetById("atp-world-tour-2026")?.competitions.length, 59);
   assert.ok(FIA);
-  assert.equal(buildPresetCompetitions(FIA).length, 24 + 14 + 10);
+  assert.equal(buildPresetCompetitions(FIA).length, 24 + 14 + 10 + 8);
 });
 
 test("a Fórmula 1 do ecossistema cria 24 etapas anuais de três dias", () => {
@@ -84,10 +85,27 @@ test("o ecossistema inclui F2 e F3 com etapas e pilotos de 2026", () => {
   assert.ok(people.every(({ name, teamName }) => name.endsWith(`(${teamName})`)));
 });
 
-test("todas as 48 etapas do ecossistema têm IDs estáveis e únicos", () => {
+test("o ecossistema inclui a Fórmula Regional de 2026 com 8 rodadas e 30 pilotos", () => {
+  const frec = buildPresetCompetitions(FIA)
+    .filter(({ modalityId }) => modalityId === FREC_MODALITY);
+  assert.equal(frec.length, 8);
+  assert.ok(frec.every(({ competitionModel }) => competitionModel === "season_stage"));
+  assert.ok(frec.every(({ scoringSystemId }) => scoringSystemId === "formula1-grand-prix"));
+  assert.ok(frec.every(({ discipline }) => discipline === "Fórmula Regional"));
+  assert.equal(frec[0].startDate, "2026-04-24");
+  assert.equal(frec.at(-1).endDate, "2026-09-13");
+  assert.equal(frec.at(-1).seasonFinalRound, true);
+
+  const people = buildPresetPeople(FIA, "2026-01-01T00:00:00.000Z")
+    .filter(({ modalityId }) => modalityId === FREC_MODALITY);
+  assert.equal(people.length, 30);
+  assert.ok(people.every(({ name, teamName }) => name.endsWith(`(${teamName})`)));
+});
+
+test("todas as 56 etapas do ecossistema têm IDs estáveis e únicos", () => {
   const competitions = buildPresetCompetitions(FIA);
-  assert.equal(competitions.length, 48);
-  assert.equal(new Set(competitions.map(({ id }) => id)).size, 48);
+  assert.equal(competitions.length, 56);
+  assert.equal(new Set(competitions.map(({ id }) => id)).size, 56);
   assert.ok(competitions.every(({ presetId }) => presetId === "fia-ecosystem-2026"));
 });
 

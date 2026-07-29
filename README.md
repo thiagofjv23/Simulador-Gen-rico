@@ -12,10 +12,10 @@ resultados e pontos das versões anteriores.
 - atletas vinculados a um único esporte e uma única modalidade;
 - rankings persistentes e independentes por esporte e modalidade;
 - rankings permanentes e rankings sazonais;
-- esporte `Automobilismo` com as modalidades `Fórmula 1`, `Fórmula 2` e `Fórmula 3`;
-- preset `Ecossistema FIA — 2026` com F1, F2 e F3 em um único preset multimodalidade;
-- 48 etapas de três dias e repetição anual (24 de F1, 14 de F2 e 10 de F3);
-- 74 pilotos de 2026 com a equipe exibida ao lado do nome;
+- esporte `Automobilismo` com as modalidades `Fórmula 1`, `Fórmula 2`, `Fórmula 3` e `Fórmula Regional`;
+- preset `Ecossistema FIA — 2026` reunindo F1, F2, F3 e Fórmula Regional em um único preset multimodalidade;
+- 56 etapas de três dias e repetição anual (24 de F1, 14 de F2, 10 de F3 e 8 de Fórmula Regional);
+- 104 pilotos de 2026 com a equipe exibida ao lado do nome;
 - classificação anual independente por categoria, campeão após a última etapa e
   zeramento automático em 1º de janeiro;
 - modelo de competição visível: `Evento independente` ou
@@ -109,7 +109,7 @@ zera pontos e participações antes da nova temporada.
 ## Preset Ecossistema FIA 2026
 
 O antigo preset de Fórmula 1 foi expandido para o **Ecossistema FIA — 2026**, um
-único preset que reúne as três categorias monopostos da FIA. Ele é
+único preset que reúne as categorias monopostos da FIA. Ele é
 **multimodalidade**: cada série carrega seus próprios pilotos, seu calendário e
 sua classificação anual independente.
 
@@ -118,11 +118,13 @@ sua classificação anual independente.
 | Fórmula 1 | `Fórmula 1` | 24 | 22 | 100 |
 | Fórmula 2 | `Fórmula 2` | 14 | 22 | 85 |
 | Fórmula 3 | `Fórmula 3` | 10 | 30 | 70 |
+| Fórmula Regional | `Fórmula Regional` | 8 | 30 | 55 |
 
-Total: **48 etapas anuais** e **74 pilotos**. Todas as séries usam o tipo `Liga`,
+Total: **56 etapas anuais** e **104 pilotos**. Todas as séries usam o tipo `Liga`,
 o modelo `Etapa de temporada`, a pontuação `25–18–15–12–10–8–6–4–2–1` e somam
 pontos em um campeonato anual próprio (`Campeonato Mundial de Fórmula 1`,
-`Campeonato de Fórmula 2 da FIA` e `Campeonato de Fórmula 3 da FIA`).
+`Campeonato de Fórmula 2 da FIA`, `Campeonato de Fórmula 3 da FIA` e
+`Campeonato de Fórmula Regional Europeu da FIA`).
 
 A Fórmula 1 mantém o calendário oficial de 24 etapas, de Melbourne em 6–8 de
 março a Abu Dhabi em 4–6 de dezembro, e o grid oficial de 22 pilotos:
@@ -134,6 +136,19 @@ reaproveita a janela de três dias do Grande Prêmio correspondente. Os grids de
 F2 (11 equipes × 2) e F3 (10 equipes × 3) são **aproximações** da temporada 2026,
 com nomes reais e equipes reais; os ratings são estimativas da força individual,
 como já ocorre na F1.
+
+A **Fórmula Regional** usa a FIA Formula Regional European Championship (FREC) de
+2026: as 8 rodadas oficiais (Red Bull Ring, Zandvoort, Spa-Francorchamps, Monza,
+Hungaroring, Paul Ricard, Imola e Hockenheim, de abril a setembro) e a entry list
+completa das 10 equipes com três pilotos cada (30 no total). Como a categoria tem
+circuitos e datas próprios, cada rodada define seu fim de semana diretamente. Os
+pilotos, equipes e o calendário são reais; apenas os ratings são aproximados.
+
+Fontes da Fórmula Regional 2026:
+
+<https://www.fia.com/news/fia-and-aci-announce-2026-fia-formula-regional-european-championship-calendar>
+
+<https://en.wikipedia.org/wiki/2026_Formula_Regional_European_Championship>
 
 Diretrizes mantidas em todas as séries:
 
@@ -305,10 +320,12 @@ novas nacionalidades forem introduzidas, sem alterar o mecanismo de campeonatos
 ou de rankings.
 
 O catálogo esportivo atual possui `Tênis > Simples masculino` e
-`Automobilismo > Fórmula 1`, `Fórmula 2` e `Fórmula 3`. Novos esportes,
-modalidades, sistemas de pontuação e presets podem ser acrescentados às listas
-próprias sem transformar seus nomes em campos livres.
+`Automobilismo > Fórmula 1`, `Fórmula 2`, `Fórmula 3` e `Fórmula Regional`. Novos
+esportes, modalidades, sistemas de pontuação e presets podem ser acrescentados às
+listas próprias sem transformar seus nomes em campos livres.
 
 Os grids de Fórmula 2 e Fórmula 3 de 2026 são aproximações: usam equipes reais e
 nomes reais do grid da categoria, mas as escalações exatas e os ratings são
-estimativas, coerentes com o caráter de simulação do preset.
+estimativas. Já a Fórmula Regional usa a entry list e o calendário oficiais da
+FREC 2026 — só os ratings são aproximados. Tudo coerente com o caráter de
+simulação do preset.

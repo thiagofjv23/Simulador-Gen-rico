@@ -173,3 +173,26 @@ O preset de Fórmula 1 virou o **Ecossistema FIA — 2026**, agora
 Cobertura em `test/presets.test.js` (F1, F2, F3 e IDs únicos das 48 etapas) e
 `test/sports.test.js`; `test/formula1-season.test.js` foi ajustado para a nova
 identidade do preset. Total após esta etapa: 84 testes aprovados.
+
+## 10. Fórmula Regional no Ecossistema FIA
+
+A quarta série do preset é a **Fórmula Regional**, usando a FIA Formula Regional
+European Championship (FREC) de 2026. Diferente de F2/F3, a categoria não corre
+nos fins de semana da F1, então o calendário tem circuitos e datas próprios.
+
+- Nova modalidade sazonal `modality_motorsport_formula_regional` no catálogo.
+- `FORMULA_REGIONAL_2026_ROUNDS`: 8 rodadas oficiais (Red Bull Ring 24–26/04,
+  Zandvoort 22–24/05, Spa 29–31/05, Monza 19–21/06, Hungaroring 03–05/07, Paul
+  Ricard 17–19/07, Imola 04–06/09, Hockenheim 11–13/09), cada uma com janela de
+  três dias definida diretamente.
+- `FORMULA_REGIONAL_2026_DRIVERS`: entry list completa de 10 equipes × 3 pilotos
+  (30 no total), com nacionalidades reais buscadas na temporada em andamento.
+  Pilotos, equipes e calendário são reais; apenas os ratings são aproximados.
+- Prestígio 55, abaixo da F3 (70), mantendo a hierarquia das categorias.
+
+Nenhuma mecânica fora do preset foi alterada. Cobertura adicional em
+`test/presets.test.js` (8 rodadas, 30 pilotos, IDs únicos das 56 etapas) e
+`test/sports.test.js`. Total após esta etapa: 85 testes aprovados.
+
+Fontes: calendário oficial FIA/ACI e a entry list de 2026 (FIA/ACI Sport,
+Formula Scout, Feeder Series e páginas das temporadas em andamento).
