@@ -329,3 +329,9 @@ nomes reais do grid da categoria, mas as escalações exatas e os ratings são
 estimativas. Já a Fórmula Regional usa a entry list e o calendário oficiais da
 FREC 2026 — só os ratings são aproximados. Tudo coerente com o caráter de
 simulação do preset.
+
+A **Fórmula 4** foi pesquisada, mas não entrou no preset: a temporada 2026 da
+Italian F4 tem um grid recorde de 49 pilotos e 13 equipes que muda a cada rodada,
+e não foi possível reunir a entry list completa e confiável (só o calendário de
+7 rodadas). Os detalhes do que foi encontrado e do que falta estão em
+`DOCUMENTACAO_MULTIESPORTE_FORMULA1.md` (seção 11).

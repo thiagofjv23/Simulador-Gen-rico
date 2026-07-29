@@ -196,3 +196,42 @@ Nenhuma mecânica fora do preset foi alterada. Cobertura adicional em
 
 Fontes: calendário oficial FIA/ACI e a entry list de 2026 (FIA/ACI Sport,
 Formula Scout, Feeder Series e páginas das temporadas em andamento).
+
+## 11. Fórmula 4 — avaliada, não incluída
+
+A Fórmula 4 foi pesquisada para entrar no Ecossistema FIA, mas **não foi incluída**
+por não ter sido possível reunir todos os dados confiáveis da temporada 2026,
+seguindo a diretriz de "na impossibilidade de encontrar todos os dados, não inclua
+a categoria e documente o que foi encontrado e o que está faltando".
+
+Referência escolhida: **FIA Italian F4 Championship 2026** (a F4 de referência,
+certificada pela FIA/WSK).
+
+O que foi encontrado:
+
+- **Calendário completo** — 7 rodadas, todas na Itália: Misano (8–10/05),
+  Vallelunga (22–24/05), Monza (19–21/06), Mugello (24–26/07), Imola (4–6/09),
+  Misano (18–20/09) e a final em Mugello (23–25/10).
+- **Estrutura do grid** — recorde histórico de **49 pilotos, 13 equipes e 27
+  nações**, com entry list que **varia a cada rodada** (47 na abertura, 49 em
+  Mugello). Equipes confirmadas incluem Prema, US Racing, Van Amersfoort Racing,
+  PHM Racing, Maffi Racing, Alpha 54 Racing, Trident, AKM Motorsport, Cram
+  Motorsport, Jenzer Motorsport e R-ace GP (ex-BVM), entre outras.
+
+O que está faltando para incluir com a mesma qualidade das outras categorias:
+
+- a **entry list completa e estável** — 1 a 2 equipes não foram confirmadas e
+  vários pilotos não puderam ser verificados;
+- as **nacionalidades** de boa parte dos 49 pilotos;
+- ao contrário de F1/F2/F3/Fórmula Regional (grids fixos de 2–3 pilotos por
+  equipe), a F4 tem grid grande e variável, que não encaixa no modelo de
+  participantes fixos por etapa sem aproximações relevantes.
+
+As páginas com a tabela completa (Wikipedia, Liquipedia, DriverDB, site oficial)
+retornaram HTTP 403 à leitura automatizada; os dados acima vieram de trechos de
+busca (FIA/ACI, Formula Scout, Feeder Series, Pit Debrief, f4championship.com).
+
+Caminho para incluir depois: assim que houver uma entry list fechada e confiável
+de 2026 — ou caso se aceite uma **aproximação** no mesmo formato de F2/F3 —, basta
+adicionar a modalidade `Fórmula 4` ao catálogo e uma nova série ao preset, sem
+tocar em nenhuma outra mecânica.
