@@ -1530,3 +1530,325 @@ h2 {
     display: none;
   }
 }
+
+/* ==========================================================================
+   Central dos Esportes — hub, notícias, melhores e vencedores
+   ========================================================================== */
+
+.hub-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  padding: 5px;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgb(18 26 46 / 80%);
+}
+
+.hub-tab {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  padding: 6px 16px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.hub-tab:hover {
+  color: var(--text);
+  background: var(--panel-2);
+}
+
+.hub-tab.active {
+  background: var(--accent);
+  color: #05231a;
+}
+
+.hub-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.hub-panel.hidden {
+  display: none;
+}
+
+.panel-heading {
+  margin-bottom: 12px;
+}
+
+.panel-heading h2 {
+  margin: 2px 0 0;
+  font-size: 1rem;
+}
+
+.central-news,
+.central-best,
+.central-winners {
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgb(18 26 46 / 94%);
+  box-shadow: var(--shadow);
+}
+
+.central-columns {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+}
+
+@media (max-width: 900px) {
+  .central-columns {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Notícias */
+
+.news-list {
+  display: grid;
+  gap: 10px;
+}
+
+.news-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 15px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-2);
+}
+
+.news-badge {
+  align-self: start;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgb(109 124 255 / 22%);
+  color: var(--primary-bright);
+  font-size: 0.62rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.news-season-finished .news-badge {
+  background: rgb(220 112 255 / 20%);
+  color: #e79bff;
+}
+
+.news-body {
+  min-width: 0;
+}
+
+.news-body strong {
+  display: block;
+  font-size: 0.92rem;
+}
+
+.news-body p {
+  margin: 3px 0 0;
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.news-meta {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.news-link {
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.news-link:hover {
+  border-color: var(--accent);
+  background: rgb(57 214 163 / 12%);
+}
+
+/* Os Melhores */
+
+.best-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.best-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+
+.best-item.top-1 {
+  box-shadow: inset 4px 0 #ffd76a;
+}
+
+.best-item.top-2 {
+  box-shadow: inset 4px 0 #cbd5e8;
+}
+
+.best-item.top-3 {
+  box-shadow: inset 4px 0 #c88a5b;
+}
+
+.best-rank {
+  min-width: 34px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.best-info {
+  min-width: 0;
+  display: grid;
+}
+
+.best-info strong {
+  font-size: 0.86rem;
+}
+
+.best-info span {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.best-rating {
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+/* Últimos vencedores */
+
+.winners-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (max-width: 560px) {
+  .winners-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.winner-square {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-2);
+}
+
+.winner-header {
+  display: grid;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.winner-header strong {
+  font-size: 0.84rem;
+  color: var(--text);
+}
+
+.winner-header span {
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+
+.winner-header:hover strong {
+  color: var(--accent);
+}
+
+.winner-podium {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.podium-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  background: rgb(11 16 32 / 55%);
+  font-size: 0.78rem;
+}
+
+.podium-1 {
+  box-shadow: inset 4px 0 #ffd76a;
+}
+
+.podium-2 {
+  box-shadow: inset 4px 0 #cbd5e8;
+}
+
+.podium-3 {
+  box-shadow: inset 4px 0 #c88a5b;
+}
+
+.podium-position {
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.podium-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.podium-country {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.winner-link {
+  justify-self: start;
+}
+
+/* Destaque temporário ao seguir um hiperlink de notícia */
+
+.result-card-highlight {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  transition: outline-color 0.4s ease;
+}

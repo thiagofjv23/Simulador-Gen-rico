@@ -278,6 +278,8 @@ export function simulateCompetition({
       id: `result_${competition.id}_${occurrenceStart}`,
       competitionId: competition.id,
       competitionName: competition.name,
+      sportId: competition.sportId ?? null,
+      modalityId: competition.modalityId ?? null,
       sport: competition.sport,
       discipline: competition.discipline,
       prestige: competition.prestige,

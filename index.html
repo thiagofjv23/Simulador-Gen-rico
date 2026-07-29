@@ -30,10 +30,7 @@
           Competições
           <span id="competitions-tab-count" class="tab-count">0</span>
         </button>
-        <button class="view-tab" type="button" data-view="ranking">
-          Ranking
-          <span id="ranking-tab-count" class="tab-count">100</span>
-        </button>
+        <button class="view-tab" type="button" data-view="sports">Central dos Esportes</button>
         <button class="view-tab" type="button" data-view="results">
           Resultados
           <span id="results-tab-count" class="tab-count">0</span>
@@ -167,7 +164,55 @@
         </section>
       </main>
 
-      <main id="ranking-view" class="ranking-view app-view hidden">
+      <main id="sports-view" class="sports-view app-view hidden">
+        <nav class="hub-tabs" aria-label="Seções da Central dos Esportes">
+          <button class="hub-tab active" type="button" data-hub="central">Visão geral</button>
+          <button class="hub-tab" type="button" data-hub="ranking">Rankings</button>
+        </nav>
+
+        <section id="hub-central" class="hub-panel">
+          <section class="competitions-header">
+            <div>
+              <p class="eyebrow">CENTRAL DOS ESPORTES</p>
+              <h2>Notícias do mundo esportivo</h2>
+              <p>
+                Acompanhe os eventos concluídos, os campeonatos encerrados e os
+                destaques de cada modalidade em um só lugar.
+              </p>
+            </div>
+            <button class="button button-primary" id="open-rankings-button" type="button">
+              Rankings por esporte e localidade →
+            </button>
+          </section>
+
+          <section class="central-news" aria-label="Notícias">
+            <div class="panel-heading">
+              <p class="eyebrow">NOTÍCIAS</p>
+              <h2>Últimos acontecimentos</h2>
+            </div>
+            <div id="central-news-list" class="news-list"></div>
+          </section>
+
+          <div class="central-columns">
+            <section class="central-best" aria-label="Os Melhores">
+              <div class="panel-heading">
+                <p class="eyebrow">OS MELHORES</p>
+                <h2>Maiores ratings</h2>
+              </div>
+              <ol id="central-best-list" class="best-list"></ol>
+            </section>
+
+            <section class="central-winners" aria-label="Últimos vencedores">
+              <div class="panel-heading">
+                <p class="eyebrow">ÚLTIMOS VENCEDORES</p>
+                <h2>Torneios recém-concluídos</h2>
+              </div>
+              <div id="central-winners-grid" class="winners-grid"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="hub-ranking" class="hub-panel hidden">
         <section class="competitions-header">
           <div>
             <p class="eyebrow">PASSOS 3, 4 E 5</p>
@@ -256,6 +301,7 @@
             </table>
           </div>
           <p id="ranking-empty" class="ranking-empty hidden">Nenhuma pessoa encontrada.</p>
+        </section>
         </section>
       </main>
 

@@ -22,6 +22,26 @@ resultados e pontos das versões anteriores.
   `Etapa de temporada`;
 - migração do IndexedDB para a versão 8 preservando os dados anteriores.
 
+## Central dos Esportes
+
+A antiga aba `Ranking` virou a **Central dos Esportes**, o elo principal do jogador
+com o mundo esportivo. Ao abri-la, a primeira tela é uma visão geral com:
+
+- **Notícias** geradas automaticamente a cada competição concluída. Toda edição
+  encerrada vira uma notícia de evento com hiperlink `Ver resultado`; todo
+  campeonato anual encerrado acrescenta uma notícia de campeão com hiperlink
+  `Ver ranking final`;
+- **Os Melhores**, os dez esportistas com os maiores ratings entre todos os
+  atletas já vinculados a um esporte, do maior para o menor;
+- **Últimos vencedores**, os quatro torneios mais recentes em quadrados
+  individuais, cada um mostrando o pódio dos três primeiros com hiperlink para o
+  resultado completo.
+
+A Central mantém um **seletor de rankings visível**. O botão
+`Rankings por esporte e localidade` e a aba `Rankings` levam à mesma tela de
+classificação por esporte, modalidade e abrangência territorial que já existia —
+agora acessada de dentro da Central.
+
 ## Sistema de pontuação
 
 O seletor `Sistema de Pontuação` aparece no cadastro de competições. Quando o
@@ -232,6 +252,7 @@ js/sports.js        Entidades de esportes e modalidades
 js/scoring.js       Sistemas de pontuação e distribuição por posição
 js/presets.js       Catálogo e gerador dos presets de calendário
 js/ranking.js       Pessoas, rankings esportivos, territoriais e sazonais
+js/newsroom.js      Notícias, melhores ratings e vencedores da Central
 js/simulation.js    Participantes, performance, pontos e reordenação
 js/app.js           Estado, convites, passagem do tempo e integração
 test/               Testes automatizados de todos os sistemas

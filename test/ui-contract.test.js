@@ -20,6 +20,23 @@ test("a tela de ranking permite escolher esporte e modalidade", async () => {
   assert.match(html, /id="ranking-modality"/);
 });
 
+test("a Central dos Esportes reúne notícias, melhores e vencedores", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("index.html", projectRoot), "utf8"),
+    readFile(new URL("js/app.js", projectRoot), "utf8"),
+  ]);
+  assert.match(html, /data-view="sports"/);
+  assert.match(html, /Central dos Esportes/);
+  assert.match(html, /id="hub-central"/);
+  assert.match(html, /id="hub-ranking"/);
+  assert.match(html, /id="central-news-list"/);
+  assert.match(html, /id="central-best-list"/);
+  assert.match(html, /id="central-winners-grid"/);
+  assert.match(html, /id="open-rankings-button"/);
+  assert.match(app, /buildNewsFeed/);
+  assert.match(app, /switchHub/);
+});
+
 test("a abertura oferece novo jogo ou continuar antes de acessar o save", async () => {
   const [html, app] = await Promise.all([
     readFile(new URL("index.html", projectRoot), "utf8"),

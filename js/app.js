@@ -99,6 +99,11 @@ import {
   scoringSystemDescription,
   scoringSystemLabel,
 } from "./scoring.js";
+import {
+  buildNewsFeed,
+  latestTournamentWinners,
+  topAthletesByRating,
+} from "./newsroom.js";
 
 const elements = {
   worldName: document.querySelector("#world-name"),
@@ -117,9 +122,18 @@ const elements = {
   advanceNextEvent: document.querySelector("#advance-next-event"),
   calendarView: document.querySelector("#calendar-view"),
   competitionsView: document.querySelector("#competitions-view"),
-  rankingView: document.querySelector("#ranking-view"),
+  sportsView: document.querySelector("#sports-view"),
   resultsView: document.querySelector("#results-view"),
   viewTabs: [...document.querySelectorAll("[data-view]")],
+  hubTabs: [...document.querySelectorAll("[data-hub]")],
+  hubPanels: {
+    central: document.querySelector("#hub-central"),
+    ranking: document.querySelector("#hub-ranking"),
+  },
+  openRankingsButton: document.querySelector("#open-rankings-button"),
+  centralNewsList: document.querySelector("#central-news-list"),
+  centralBestList: document.querySelector("#central-best-list"),
+  centralWinnersGrid: document.querySelector("#central-winners-grid"),
   competitionsTabCount: document.querySelector("#competitions-tab-count"),
   newCompetitionButton: document.querySelector("#new-competition-button"),
   competitionsTotal: document.querySelector("#competitions-total"),
@@ -127,7 +141,6 @@ const elements = {
   competitionsAveragePrestige: document.querySelector("#competitions-average-prestige"),
   competitionFilter: document.querySelector("#competition-filter"),
   competitionsList: document.querySelector("#competitions-list"),
-  rankingTabCount: document.querySelector("#ranking-tab-count"),
   rankingTotal: document.querySelector("#ranking-total"),
   rankingCountries: document.querySelector("#ranking-countries"),
   rankingLeader: document.querySelector("#ranking-leader"),
@@ -248,6 +261,7 @@ const state = {
   viewDate: new Date(2026, 0, 1, 12),
   selectedDate: "2026-01-01",
   activeView: "calendar",
+  activeHub: "central",
   advancing: false,
 };
 
@@ -912,7 +926,6 @@ function renderRanking() {
     : [];
   const stats = rankingStats(scopedRanking);
   elements.rankingTotal.textContent = stats.total;
-  elements.rankingTabCount.textContent = stats.total;
   elements.rankingCountries.textContent = stats.countries;
   elements.rankingLeader.textContent = stats.leader;
   const seasonYear = disciplineRanking[0]?.rankingModel === "seasonal"
@@ -1045,6 +1058,8 @@ function renderResults() {
   results.forEach((result) => {
     const card = document.createElement("article");
     card.className = "result-card";
+    card.id = `result-${result.id}`;
+    card.dataset.resultId = result.id;
 
     const heading = document.createElement("div");
     heading.className = "result-heading";
@@ -1151,6 +1166,7 @@ function render() {
   renderUpcomingEvents();
   renderCompetitions();
   renderRanking();
+  renderCentral();
   renderResults();
 }
 
@@ -1159,7 +1175,7 @@ function switchView(view) {
   const views = {
     calendar: elements.calendarView,
     competitions: elements.competitionsView,
-    ranking: elements.rankingView,
+    sports: elements.sportsView,
     results: elements.resultsView,
   };
   Object.entries(views).forEach(([viewName, viewElement]) => {
@@ -1170,6 +1186,204 @@ function switchView(view) {
     tab.classList.toggle("active", isActive);
     tab.setAttribute("aria-current", isActive ? "page" : "false");
   });
+}
+
+function switchHub(hub) {
+  if (!elements.hubPanels[hub]) return;
+  state.activeHub = hub;
+  Object.entries(elements.hubPanels).forEach(([hubName, panel]) => {
+    panel.classList.toggle("hidden", hubName !== hub);
+  });
+  elements.hubTabs.forEach((tab) => {
+    const isActive = tab.dataset.hub === hub;
+    tab.classList.toggle("active", isActive);
+    tab.setAttribute("aria-current", isActive ? "page" : "false");
+  });
+}
+
+// Abre a Central dos Esportes na aba de rankings, opcionalmente pré-selecionando
+// um esporte e uma modalidade (usado pelos hiperlinks das notícias).
+function openRankingFor({ sportId = "", modalityId = "" } = {}) {
+  switchView("sports");
+  switchHub("ranking");
+  if (sportId && [...elements.rankingSport.options].some(({ value }) => value === sportId)) {
+    elements.rankingSport.value = sportId;
+    updateRankingModalitySelect(modalityId);
+  }
+  elements.rankingScope.value = "world";
+  updateRankingGeographyFields();
+}
+
+// Leva o jogador ao resultado completo de uma edição, destacando a ficha.
+function goToResult(resultId) {
+  switchView("results");
+  const card = document.querySelector(`#result-${CSS.escape(resultId)}`);
+  if (!card) return;
+  card.scrollIntoView({ behavior: "smooth", block: "start" });
+  card.classList.add("result-card-highlight");
+  setTimeout(() => card.classList.remove("result-card-highlight"), 2000);
+}
+
+function followNewsLink(link) {
+  if (!link) return;
+  if (link.target === "result") {
+    goToResult(link.resultId);
+  } else if (link.target === "season-ranking") {
+    openRankingFor({ sportId: link.sportId, modalityId: link.modalityId });
+  }
+}
+
+function renderCentralNews() {
+  const news = buildNewsFeed(state.results, { limit: 12 });
+  elements.centralNewsList.replaceChildren();
+
+  if (!news.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent =
+      "Ainda não há notícias. Avance o calendário até o fim de uma competição para gerar os primeiros acontecimentos.";
+    elements.centralNewsList.append(empty);
+    return;
+  }
+
+  news.forEach((item) => {
+    const card = document.createElement("article");
+    card.className = `news-card news-${item.kind}`;
+
+    const badge = document.createElement("span");
+    badge.className = "news-badge";
+    badge.textContent = item.kind === "season-finished" ? "Campeonato" : "Evento";
+
+    const body = document.createElement("div");
+    body.className = "news-body";
+    const title = document.createElement("strong");
+    title.textContent = item.title;
+    const summary = document.createElement("p");
+    summary.textContent = item.summary;
+    const meta = document.createElement("span");
+    meta.className = "news-meta";
+    meta.textContent = [item.disciplineLabel, formatShortDate(item.date)]
+      .filter(Boolean)
+      .join(" · ");
+    body.append(title, summary, meta);
+
+    const linkButton = document.createElement("button");
+    linkButton.type = "button";
+    linkButton.className = "news-link";
+    linkButton.textContent = item.link.label;
+    linkButton.addEventListener("click", () => followNewsLink(item.link));
+
+    card.append(badge, body, linkButton);
+    elements.centralNewsList.append(card);
+  });
+}
+
+function renderCentralBest() {
+  const best = topAthletesByRating(state.people, { limit: 10 });
+  elements.centralBestList.replaceChildren();
+
+  if (!best.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent =
+      "Importe um preset para vincular atletas a um esporte e revelar os melhores ratings.";
+    elements.centralBestList.append(empty);
+    return;
+  }
+
+  best.forEach(({ rank, person }) => {
+    const item = document.createElement("li");
+    item.className = "best-item";
+    if (rank <= 3) item.classList.add(`top-${rank}`);
+
+    const position = document.createElement("span");
+    position.className = "best-rank";
+    position.textContent = `${rank}º`;
+
+    const info = document.createElement("div");
+    info.className = "best-info";
+    const name = document.createElement("strong");
+    name.textContent = person.name;
+    const meta = document.createElement("span");
+    meta.textContent = [person.countryCode, person.sport ?? sportNameFor(person)]
+      .filter(Boolean)
+      .join(" · ");
+    info.append(name, meta);
+
+    const rating = document.createElement("span");
+    rating.className = "best-rating";
+    rating.textContent = person.baseRating;
+
+    item.append(position, info, rating);
+    elements.centralBestList.append(item);
+  });
+}
+
+function sportNameFor(person) {
+  return sportById(person.sportId, state.sports)?.name ?? "";
+}
+
+function renderCentralWinners() {
+  const winners = latestTournamentWinners(state.results, { count: 4 });
+  elements.centralWinnersGrid.replaceChildren();
+
+  if (!winners.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "Nenhum torneio concluído até agora.";
+    elements.centralWinnersGrid.append(empty);
+    return;
+  }
+
+  winners.forEach((winner) => {
+    const square = document.createElement("article");
+    square.className = "winner-square";
+
+    const header = document.createElement("button");
+    header.type = "button";
+    header.className = "winner-header";
+    const name = document.createElement("strong");
+    name.textContent = winner.competitionName;
+    const meta = document.createElement("span");
+    meta.textContent = [winner.disciplineLabel, formatShortDate(winner.date)]
+      .filter(Boolean)
+      .join(" · ");
+    header.append(name, meta);
+    header.addEventListener("click", () => goToResult(winner.resultId));
+
+    const podium = document.createElement("ol");
+    podium.className = "winner-podium";
+    winner.podium.forEach((entry) => {
+      const row = document.createElement("li");
+      row.className = `podium-row podium-${entry.position}`;
+      const pos = document.createElement("span");
+      pos.className = "podium-position";
+      pos.textContent = `${entry.position}º`;
+      const athlete = document.createElement("span");
+      athlete.className = "podium-name";
+      athlete.textContent = entry.name;
+      const flag = document.createElement("span");
+      flag.className = "podium-country";
+      flag.textContent = entry.countryCode ?? "";
+      row.append(pos, athlete, flag);
+      podium.append(row);
+    });
+
+    const link = document.createElement("button");
+    link.type = "button";
+    link.className = "news-link winner-link";
+    link.textContent = "Ver resultado";
+    link.addEventListener("click", () => goToResult(winner.resultId));
+
+    square.append(header, podium, link);
+    elements.centralWinnersGrid.append(square);
+  });
+}
+
+function renderCentral() {
+  renderCentralNews();
+  renderCentralBest();
+  renderCentralWinners();
 }
 
 function selectDate(isoDate) {
@@ -2115,6 +2329,7 @@ function resetInMemoryState() {
   state.viewDate = new Date(2026, 0, 1, 12);
   state.selectedDate = "2026-01-01";
   state.activeView = "calendar";
+  state.activeHub = "central";
   state.advancing = false;
 }
 
@@ -2223,6 +2438,10 @@ function attachEventListeners() {
   elements.viewTabs.forEach((tab) => {
     tab.addEventListener("click", () => switchView(tab.dataset.view));
   });
+  elements.hubTabs.forEach((tab) => {
+    tab.addEventListener("click", () => switchHub(tab.dataset.hub));
+  });
+  elements.openRankingsButton.addEventListener("click", () => switchHub("ranking"));
   elements.previousMonth.addEventListener("click", () => changeMonth(-1));
   elements.nextMonth.addEventListener("click", () => changeMonth(1));
   elements.monthTitle.addEventListener("click", goToGameDate);
@@ -2351,6 +2570,7 @@ function initialize() {
   setupScoringSystemOptions();
   setupMixedQualificationOptions();
   setupPresetOptions();
+  switchHub(state.activeHub);
   elements.startDialog.showModal();
 }
 
