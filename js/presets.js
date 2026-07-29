@@ -104,6 +104,61 @@ const FORMULA_1_2026_GRANDS_PRIX = [
   finalRound: index === rounds.length - 1,
 }));
 
+// F2 e F3 correm nos fins de semana da F1, então cada etapa reaproveita as datas
+// (janela de três dias) do Grande Prêmio correspondente do calendário de 2026.
+const F1_ROUND_BY_ID = new Map(
+  FORMULA_1_2026_GRANDS_PRIX.map((round) => [round.id, round]),
+);
+
+function buildSupportRounds(seriesLabel, roundIds) {
+  return roundIds.map((roundId, index) => {
+    const grandPrix = F1_ROUND_BY_ID.get(roundId);
+    const city = grandPrix.city.split(",")[0];
+    return {
+      id: roundId,
+      name: `${seriesLabel} — ${city}`,
+      startDate: grandPrix.startDate,
+      endDate: grandPrix.endDate,
+      city: grandPrix.city,
+      category: "Rodada",
+      round: index + 1,
+      finalRound: index === roundIds.length - 1,
+    };
+  });
+}
+
+// Calendário de apoio de 14 rodadas da Fórmula 2 em 2026.
+const FORMULA_2_2026_ROUNDS = buildSupportRounds("Fórmula 2", [
+  "australia",
+  "bahrain",
+  "saudi-arabia",
+  "monaco",
+  "barcelona",
+  "austria",
+  "great-britain",
+  "belgium",
+  "hungary",
+  "netherlands",
+  "italy",
+  "azerbaijan",
+  "qatar",
+  "abu-dhabi",
+]);
+
+// Calendário de apoio de 10 rodadas da Fórmula 3 em 2026.
+const FORMULA_3_2026_ROUNDS = buildSupportRounds("Fórmula 3", [
+  "australia",
+  "bahrain",
+  "saudi-arabia",
+  "barcelona",
+  "monaco",
+  "austria",
+  "great-britain",
+  "belgium",
+  "hungary",
+  "italy",
+]);
+
 const F1_2026_DRIVERS = [
   ["max-verstappen", "Max Verstappen", "Red Bull Racing", "NED", "Países Baixos", "continent_europe", 28, 99, 3],
   ["isack-hadjar", "Isack Hadjar", "Red Bull Racing", "FRA", "França", "continent_europe", 21, 86, 1],
@@ -153,7 +208,122 @@ const F1_2026_DRIVERS = [
   sportId: "sport_motorsport",
   modalityId: "modality_motorsport_formula1",
   rosterType: "preset",
-  presetId: "formula1-2026",
+  presetId: "fia-ecosystem-2026",
+}));
+
+// Grid aproximado da Fórmula 2 de 2026: 11 equipes com dois pilotos cada. Os
+// ratings medem a força individual estimada, não a do carro, como na F1.
+const F2_2026_DRIVERS = [
+  ["fornaroli", "Leonardo Fornaroli", "Invicta Racing", "ITA", "Itália", "continent_europe", 21, 90, 2],
+  ["stanek", "Roman Staněk", "Invicta Racing", "CZE", "Tchéquia", "continent_europe", 22, 83, 0],
+  ["dunne", "Alex Dunne", "Rodin Motorsport", "IRL", "Irlanda", "continent_europe", 20, 89, 3],
+  ["cordeel", "Amaury Cordeel", "Rodin Motorsport", "BEL", "Bélgica", "continent_europe", 23, 80, -1],
+  ["crawford", "Jak Crawford", "DAMS Lucas Oil", "USA", "Estados Unidos", "continent_north_america", 21, 88, 2],
+  ["maini", "Kush Maini", "DAMS Lucas Oil", "IND", "Índia", "continent_asia", 25, 85, 0],
+  ["hauger", "Dennis Hauger", "Hitech TGR", "NOR", "Noruega", "continent_europe", 22, 88, 1],
+  ["browning", "Luke Browning", "Hitech TGR", "GBR", "Reino Unido", "continent_europe", 24, 86, 1],
+  ["camara", "Rafael Câmara", "Van Amersfoort Racing", "BRA", "Brasil", "continent_south_america", 20, 87, 3],
+  ["shields", "Cian Shields", "Van Amersfoort Racing", "GBR", "Reino Unido", "continent_europe", 21, 80, 0],
+  ["tsolov", "Nikola Tsolov", "ART Grand Prix", "BGR", "Bulgária", "continent_europe", 19, 87, 3],
+  ["van-hoepen", "Laurens van Hoepen", "ART Grand Prix", "NED", "Países Baixos", "continent_europe", 20, 82, 1],
+  ["verschoor", "Richard Verschoor", "MP Motorsport", "NED", "Países Baixos", "continent_europe", 25, 86, 0],
+  ["goethe", "Oliver Goethe", "MP Motorsport", "GER", "Alemanha", "continent_europe", 21, 85, 2],
+  ["beganovic", "Dino Beganović", "Prema Racing", "SWE", "Suécia", "continent_europe", 22, 86, 2],
+  ["montoya", "Sebastián Montoya", "Prema Racing", "COL", "Colômbia", "continent_south_america", 21, 84, 1],
+  ["marti", "Josep María Martí", "Campos Racing", "ESP", "Espanha", "continent_europe", 22, 84, 1],
+  ["boya", "Mari Boya", "Campos Racing", "ESP", "Espanha", "continent_europe", 21, 83, 1],
+  ["meguetounif", "Sami Meguetounif", "Trident", "FRA", "França", "continent_europe", 21, 83, 1],
+  ["esterson", "Max Esterson", "Trident", "USA", "Estados Unidos", "continent_north_america", 21, 81, 1],
+  ["durksen", "Joshua Dürksen", "AIX Racing", "PRY", "Paraguai", "continent_south_america", 23, 82, 0],
+  ["sztuka", "Kacper Sztuka", "AIX Racing", "POL", "Polônia", "continent_europe", 20, 82, 1],
+].map(([
+  id,
+  driverName,
+  teamName,
+  countryCode,
+  countryName,
+  continentId,
+  age,
+  baseRating,
+  momentum,
+]) => ({
+  id: `person_f2_${id}`,
+  name: `${driverName} (${teamName})`,
+  driverName,
+  teamName,
+  countryCode,
+  countryName,
+  countryId: `country_${countryCode.toLocaleLowerCase()}`,
+  continentId,
+  gender: "M",
+  age,
+  baseRating,
+  momentum,
+  sportId: "sport_motorsport",
+  modalityId: "modality_motorsport_formula2",
+  rosterType: "preset",
+  presetId: "fia-ecosystem-2026",
+}));
+
+// Grid aproximado da Fórmula 3 de 2026: 10 equipes com três pilotos cada.
+const F3_2026_DRIVERS = [
+  ["taponen", "Tuukka Taponen", "Prema Racing", "FIN", "Finlândia", "continent_europe", 18, 85, 3],
+  ["badoer", "Brando Badoer", "Prema Racing", "ITA", "Itália", "continent_europe", 19, 82, 1],
+  ["bedrin", "Nikita Bedrin", "Prema Racing", "ITA", "Itália", "continent_europe", 19, 80, 0],
+  ["wharton", "James Wharton", "Trident", "AUS", "Austrália", "continent_oceania", 19, 83, 2],
+  ["wurz", "Charlie Wurz", "Trident", "AUT", "Áustria", "continent_europe", 18, 79, 1],
+  ["leon", "Noel León", "Trident", "MEX", "México", "continent_north_america", 19, 78, 0],
+  ["ugochukwu", "Ugo Ugochukwu", "ART Grand Prix", "USA", "Estados Unidos", "continent_north_america", 18, 84, 3],
+  ["nael", "Théophile Naël", "ART Grand Prix", "FRA", "França", "continent_europe", 18, 80, 1],
+  ["seewooruthun", "Reza Seewooruthun", "ART Grand Prix", "FRA", "França", "continent_europe", 18, 78, 0],
+  ["mansell", "Christian Mansell", "Campos Racing", "AUS", "Austrália", "continent_oceania", 20, 79, 0],
+  ["hideg", "Ádám Hideg", "Campos Racing", "HUN", "Hungria", "continent_europe", 18, 77, 0],
+  ["bohra", "Nikhil Bohra", "Campos Racing", "IND", "Índia", "continent_asia", 17, 76, 1],
+  ["stenshorne", "Martinius Stenshorne", "Hitech TGR", "NOR", "Noruega", "continent_europe", 18, 82, 2],
+  ["gowda", "Dion Gowda", "Hitech TGR", "GBR", "Reino Unido", "continent_europe", 18, 78, 0],
+  ["das", "Cameron Das", "Hitech TGR", "USA", "Estados Unidos", "continent_north_america", 20, 76, 0],
+  ["spina", "Alfio Spina", "MP Motorsport", "ITA", "Itália", "continent_europe", 18, 77, 0],
+  ["inthraphuvasak", "Tasanapol Inthraphuvasak", "MP Motorsport", "THA", "Tailândia", "continent_asia", 18, 76, 0],
+  ["francot", "Reno Francot", "MP Motorsport", "NED", "Países Baixos", "continent_europe", 19, 77, 0],
+  ["slater", "Freddie Slater", "Van Amersfoort Racing", "GBR", "Reino Unido", "continent_europe", 17, 84, 3],
+  ["deligny", "Enzo Deligny", "Van Amersfoort Racing", "FRA", "França", "continent_europe", 17, 79, 1],
+  ["depalo", "Matteo De Palo", "Van Amersfoort Racing", "ITA", "Itália", "continent_europe", 18, 78, 0],
+  ["lacorte", "Nicola Lacorte", "AIX Racing", "ITA", "Itália", "continent_europe", 17, 79, 1],
+  ["nakamura", "Kean Nakamura-Berta", "AIX Racing", "JPN", "Japão", "continent_asia", 18, 80, 1],
+  ["delpino", "Bruno del Pino", "AIX Racing", "ESP", "Espanha", "continent_europe", 18, 77, 0],
+  ["olivieri", "Emanuele Olivieri", "DAMS Lucas Oil", "GBR", "Reino Unido", "continent_europe", 19, 78, 0],
+  ["domingues", "Ivan Domingues", "DAMS Lucas Oil", "POR", "Portugal", "continent_europe", 18, 76, 0],
+  ["stolcermanis", "Tomass Stolcermanis", "DAMS Lucas Oil", "LVA", "Letônia", "continent_europe", 18, 75, 0],
+  ["sharp", "Louis Sharp", "Rodin Motorsport", "NZL", "Nova Zelândia", "continent_oceania", 18, 80, 1],
+  ["voisin", "Callum Voisin", "Rodin Motorsport", "GBR", "Reino Unido", "continent_europe", 19, 80, 1],
+  ["mclaughlin", "Fionn McLaughlin", "Rodin Motorsport", "IRL", "Irlanda", "continent_europe", 18, 78, 0],
+].map(([
+  id,
+  driverName,
+  teamName,
+  countryCode,
+  countryName,
+  continentId,
+  age,
+  baseRating,
+  momentum,
+]) => ({
+  id: `person_f3_${id}`,
+  name: `${driverName} (${teamName})`,
+  driverName,
+  teamName,
+  countryCode,
+  countryName,
+  countryId: `country_${countryCode.toLocaleLowerCase()}`,
+  continentId,
+  gender: "M",
+  age,
+  baseRating,
+  momentum,
+  sportId: "sport_motorsport",
+  modalityId: "modality_motorsport_formula3",
+  rosterType: "preset",
+  presetId: "fia-ecosystem-2026",
 }));
 
 const CATEGORY_SETTINGS = {
@@ -180,23 +350,90 @@ export const CALENDAR_PRESETS = [
     competitions: ATP_2026_TOURNAMENTS,
   },
   {
-    id: "formula1-2026",
-    name: "Campeonato Mundial de Fórmula 1 — 2026",
+    id: "fia-ecosystem-2026",
+    name: "Ecossistema FIA — 2026",
     description:
-      "24 Grandes Prêmios oficiais, com três dias por etapa, os 22 pilotos de 2026 e classificação anual zerada a cada temporada.",
+      "Fórmula 1, Fórmula 2 e Fórmula 3 de 2026 em um único preset: 48 etapas anuais de três dias e 74 pilotos com a equipe ao lado do nome. Cada categoria mantém sua própria classificação anual, zerada a cada temporada.",
     sportId: "sport_motorsport",
-    modalityId: "modality_motorsport_formula1",
     sportName: "Automobilismo",
-    modalityName: "Fórmula 1",
-    scoringSystemId: "formula1-grand-prix",
-    competitionModel: "season_stage",
-    seasonId: "formula1-world-championship",
-    seasonName: "Campeonato Mundial de Fórmula 1",
-    sourceUrl: "https://www.formula1.com/en/latest/article/formula-1-reveals-calendar-for-2026-season.YctbMZWqBvrgyddrnauo8",
-    athletes: F1_2026_DRIVERS,
-    competitions: FORMULA_1_2026_GRANDS_PRIX,
+    sourceUrl: "https://www.fia.com/events",
+    series: [
+      {
+        modalityId: "modality_motorsport_formula1",
+        modalityName: "Fórmula 1",
+        scoringSystemId: "formula1-grand-prix",
+        competitionModel: "season_stage",
+        seasonId: "formula1-world-championship",
+        seasonName: "Campeonato Mundial de Fórmula 1",
+        prestige: 100,
+        rankingPoints: 25,
+        athletes: F1_2026_DRIVERS,
+        competitions: FORMULA_1_2026_GRANDS_PRIX,
+      },
+      {
+        modalityId: "modality_motorsport_formula2",
+        modalityName: "Fórmula 2",
+        scoringSystemId: "formula1-grand-prix",
+        competitionModel: "season_stage",
+        seasonId: "formula2-championship",
+        seasonName: "Campeonato de Fórmula 2 da FIA",
+        prestige: 85,
+        rankingPoints: 25,
+        athletes: F2_2026_DRIVERS,
+        competitions: FORMULA_2_2026_ROUNDS,
+      },
+      {
+        modalityId: "modality_motorsport_formula3",
+        modalityName: "Fórmula 3",
+        scoringSystemId: "formula1-grand-prix",
+        competitionModel: "season_stage",
+        seasonId: "formula3-championship",
+        seasonName: "Campeonato de Fórmula 3 da FIA",
+        prestige: 70,
+        rankingPoints: 25,
+        athletes: F3_2026_DRIVERS,
+        competitions: FORMULA_3_2026_ROUNDS,
+      },
+    ],
   },
 ];
+
+// Normaliza qualquer preset numa lista de séries. Presets antigos de uma única
+// modalidade (como o ATP) viram uma série; presets multimodalidade (como o
+// Ecossistema FIA) expõem cada categoria com seus próprios pilotos e etapas.
+export function presetSeries(preset) {
+  if (!preset) return [];
+  if (Array.isArray(preset.series)) {
+    return preset.series.map((series) => ({
+      sportId: series.sportId ?? preset.sportId,
+      sportName: series.sportName ?? preset.sportName,
+      modalityId: series.modalityId,
+      modalityName: series.modalityName,
+      scoringSystemId: series.scoringSystemId ?? preset.scoringSystemId ?? "generic-proportional",
+      competitionModel: series.competitionModel ?? preset.competitionModel ?? "standalone",
+      seasonId: series.seasonId ?? null,
+      seasonName: series.seasonName ?? null,
+      prestige: series.prestige,
+      rankingPoints: series.rankingPoints,
+      athletes: series.athletes ?? [],
+      competitions: series.competitions ?? [],
+    }));
+  }
+  return [{
+    sportId: preset.sportId,
+    sportName: preset.sportName,
+    modalityId: preset.modalityId,
+    modalityName: preset.modalityName,
+    scoringSystemId: preset.scoringSystemId ?? "generic-proportional",
+    competitionModel: preset.competitionModel ?? "standalone",
+    seasonId: preset.seasonId ?? null,
+    seasonName: preset.seasonName ?? null,
+    prestige: preset.prestige,
+    rankingPoints: preset.rankingPoints,
+    athletes: preset.athletes ?? [],
+    competitions: preset.competitions ?? [],
+  }];
+}
 
 export function presetById(presetId) {
   return CALENDAR_PRESETS.find((preset) => preset.id === presetId) ?? null;
@@ -205,62 +442,72 @@ export function presetById(presetId) {
 export function buildPresetCompetitions(preset, timestamp = new Date().toISOString()) {
   if (!preset) return [];
 
-  return preset.competitions.map((tournament) => {
-    const settings = CATEGORY_SETTINGS[tournament.category] ?? {
-      prestige: 100,
-      rankingPoints: 25,
-      slots: preset.athletes?.length ?? 22,
-    };
-    const stableId = `preset_${preset.id}_${tournament.id}`;
-    const isSeasonStage = preset.competitionModel === "season_stage";
-    return {
-      id: stableId,
-      calendarEventId: `event_${stableId}`,
-      presetId: preset.id,
-      name: tournament.name,
-      sportId: preset.sportId,
-      modalityId: preset.modalityId,
-      sport: preset.sportName,
-      discipline: preset.modalityName,
-      type: isSeasonStage ? "league" : "championship",
-      qualification: "ranking",
-      geographicScope: "world",
-      continentId: null,
-      countryId: null,
-      startDate: tournament.startDate,
-      endDate: tournament.endDate,
-      recurrence: isSeasonStage ? "yearly" : "none",
-      prestige: settings.prestige,
-      rankingPoints: settings.rankingPoints,
-      scoringSystemId: preset.scoringSystemId ?? "generic-proportional",
-      slots: settings.slots,
-      minimumRanking: null,
-      competitionModel: preset.competitionModel ?? "standalone",
-      seasonId: preset.seasonId ?? null,
-      seasonName: preset.seasonName ?? null,
-      seasonalRanking: isSeasonStage,
-      seasonRound: tournament.round ?? null,
-      seasonRoundCount: isSeasonStage ? preset.competitions.length : null,
-      seasonFinalRound: Boolean(tournament.finalRound),
-      participantIds: isSeasonStage
-        ? preset.athletes.map(({ id }) => id)
-        : null,
-      notes: [
-        tournament.city,
-        tournament.surface,
-        tournament.category,
-        tournament.round ? `Etapa ${tournament.round} de ${preset.competitions.length}` : null,
-      ].filter(Boolean).join(" · "),
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    };
+  const multiSeries = Array.isArray(preset.series);
+
+  return presetSeries(preset).flatMap((series) => {
+    const isSeasonStage = series.competitionModel === "season_stage";
+    // Em presets multimodalidade, o ID da etapa inclui a modalidade para não
+    // colidir entre categorias que compartilham o mesmo fim de semana.
+    const seriesKey = multiSeries ? `${series.modalityId}_` : "";
+
+    return series.competitions.map((tournament) => {
+      const settings = CATEGORY_SETTINGS[tournament.category] ?? {
+        prestige: series.prestige ?? 100,
+        rankingPoints: series.rankingPoints ?? 25,
+        slots: series.athletes?.length ?? 22,
+      };
+      const stableId = `preset_${preset.id}_${seriesKey}${tournament.id}`;
+      return {
+        id: stableId,
+        calendarEventId: `event_${stableId}`,
+        presetId: preset.id,
+        name: tournament.name,
+        sportId: series.sportId,
+        modalityId: series.modalityId,
+        sport: series.sportName,
+        discipline: series.modalityName,
+        type: isSeasonStage ? "league" : "championship",
+        qualification: "ranking",
+        geographicScope: "world",
+        continentId: null,
+        countryId: null,
+        startDate: tournament.startDate,
+        endDate: tournament.endDate,
+        recurrence: isSeasonStage ? "yearly" : "none",
+        prestige: settings.prestige,
+        rankingPoints: settings.rankingPoints,
+        scoringSystemId: series.scoringSystemId ?? "generic-proportional",
+        slots: settings.slots,
+        minimumRanking: null,
+        competitionModel: series.competitionModel ?? "standalone",
+        seasonId: series.seasonId ?? null,
+        seasonName: series.seasonName ?? null,
+        seasonalRanking: isSeasonStage,
+        seasonRound: tournament.round ?? null,
+        seasonRoundCount: isSeasonStage ? series.competitions.length : null,
+        seasonFinalRound: Boolean(tournament.finalRound),
+        participantIds: isSeasonStage
+          ? series.athletes.map(({ id }) => id)
+          : null,
+        notes: [
+          tournament.city,
+          tournament.surface,
+          tournament.category,
+          tournament.round ? `Etapa ${tournament.round} de ${series.competitions.length}` : null,
+        ].filter(Boolean).join(" · "),
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+    });
   });
 }
 
 export function buildPresetPeople(preset, timestamp = new Date().toISOString()) {
-  return (preset?.athletes ?? []).map((person) => ({
-    ...person,
-    createdAt: person.createdAt ?? timestamp,
-    updatedAt: timestamp,
-  }));
+  return presetSeries(preset)
+    .flatMap((series) => series.athletes)
+    .map((person) => ({
+      ...person,
+      createdAt: person.createdAt ?? timestamp,
+      updatedAt: timestamp,
+    }));
 }

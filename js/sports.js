@@ -26,6 +26,18 @@ export const MODALITIES = [
     name: "Fórmula 1",
     rankingModel: "seasonal",
   },
+  {
+    id: "modality_motorsport_formula2",
+    sportId: "sport_motorsport",
+    name: "Fórmula 2",
+    rankingModel: "seasonal",
+  },
+  {
+    id: "modality_motorsport_formula3",
+    sportId: "sport_motorsport",
+    name: "Fórmula 3",
+    rankingModel: "seasonal",
+  },
 ];
 
 export function modalitiesForSport(sportId, modalities = MODALITIES) {

@@ -143,3 +143,33 @@ A aba `Ranking` passou a ser a **Central dos Esportes**, um hub com sub-abas.
 
 Cobertura adicional em `test/newsroom.test.js` e `test/history.test.js`, além dos
 novos contratos de interface. Total após esta etapa: 82 testes aprovados.
+
+## 9. Ecossistema FIA (F1 + F2 + F3)
+
+O preset de Fórmula 1 virou o **Ecossistema FIA — 2026**, agora
+**multimodalidade**. Duas modalidades sazonais novas entraram no catálogo
+(`Fórmula 2` e `Fórmula 3`), ambas sob `Automobilismo`.
+
+- `js/presets.js` ganhou o conceito de **série**. `presetSeries(preset)` normaliza
+  qualquer preset numa lista de séries: presets antigos de uma modalidade (ATP)
+  viram uma série; o Ecossistema FIA expõe três (F1, F2, F3). `buildPresetCompetitions`
+  e `buildPresetPeople` iteram as séries, então cada categoria carrega seus
+  próprios pilotos, calendário, pontuação e temporada anual.
+- As etapas de F2 (14 rodadas) e F3 (10 rodadas) reaproveitam as datas do Grande
+  Prêmio correspondente da F1 via `buildSupportRounds`, garantindo janelas de três
+  dias já coerentes com o calendário. Para presets multimodalidade o ID da etapa
+  inclui a modalidade (`preset_<id>_<modalityId>_<round>`), evitando colisão entre
+  categorias que dividem o mesmo fim de semana. Presets de série única mantêm o ID
+  antigo.
+- Os grids de F2 (11 equipes × 2) e F3 (10 equipes × 3) seguem o mesmo formato de
+  nome da F1 (`Piloto (Equipe)`), com ratings aproximados. Total: 48 etapas e 74
+  pilotos.
+- `ensurePresetRoster` passou a construir um ranking por série. Os 100 atletas
+  genéricos, quando o Ecossistema é o primeiro preset importado, são vinculados
+  apenas à série principal (F1); F2 e F3 recebem somente seus próprios pilotos.
+- Nenhuma outra mecânica foi alterada: pontuação, simulação, geografia, convites
+  e a passagem do tempo continuam iguais.
+
+Cobertura em `test/presets.test.js` (F1, F2, F3 e IDs únicos das 48 etapas) e
+`test/sports.test.js`; `test/formula1-season.test.js` foi ajustado para a nova
+identidade do preset. Total após esta etapa: 84 testes aprovados.

@@ -12,12 +12,12 @@ resultados e pontos das versões anteriores.
 - atletas vinculados a um único esporte e uma única modalidade;
 - rankings persistentes e independentes por esporte e modalidade;
 - rankings permanentes e rankings sazonais;
-- esporte `Automobilismo` e modalidade `Fórmula 1`;
-- preset do Campeonato Mundial de Fórmula 1 de 2026;
-- 24 etapas oficiais com três dias cada e repetição anual;
-- 22 pilotos oficiais de 2026 com a equipe exibida ao lado do nome;
-- classificação anual da Fórmula 1, campeão após a última etapa e zeramento
-  automático em 1º de janeiro;
+- esporte `Automobilismo` com as modalidades `Fórmula 1`, `Fórmula 2` e `Fórmula 3`;
+- preset `Ecossistema FIA — 2026` com F1, F2 e F3 em um único preset multimodalidade;
+- 48 etapas de três dias e repetição anual (24 de F1, 14 de F2 e 10 de F3);
+- 74 pilotos de 2026 com a equipe exibida ao lado do nome;
+- classificação anual independente por categoria, campeão após a última etapa e
+  zeramento automático em 1º de janeiro;
 - modelo de competição visível: `Evento independente` ou
   `Etapa de temporada`;
 - migração do IndexedDB para a versão 8 preservando os dados anteriores.
@@ -106,34 +106,46 @@ O tênis usa ranking cumulativo. A Fórmula 1 usa ranking sazonal: todas as etap
 do ano somam pontos, a última registra o campeão e a virada para 1º de janeiro
 zera pontos e participações antes da nova temporada.
 
-## Preset Fórmula 1 2026
+## Preset Ecossistema FIA 2026
 
-O preset foi construído com o calendário oficial de 24 etapas publicado pela
-Fórmula 1, de Melbourne em 6–8 de março a Abu Dhabi em 4–6 de dezembro:
+O antigo preset de Fórmula 1 foi expandido para o **Ecossistema FIA — 2026**, um
+único preset que reúne as três categorias monopostos da FIA. Ele é
+**multimodalidade**: cada série carrega seus próprios pilotos, seu calendário e
+sua classificação anual independente.
+
+| Série | Modalidade | Etapas | Pilotos | Prestígio |
+| --- | --- | ---: | ---: | ---: |
+| Fórmula 1 | `Fórmula 1` | 24 | 22 | 100 |
+| Fórmula 2 | `Fórmula 2` | 14 | 22 | 85 |
+| Fórmula 3 | `Fórmula 3` | 10 | 30 | 70 |
+
+Total: **48 etapas anuais** e **74 pilotos**. Todas as séries usam o tipo `Liga`,
+o modelo `Etapa de temporada`, a pontuação `25–18–15–12–10–8–6–4–2–1` e somam
+pontos em um campeonato anual próprio (`Campeonato Mundial de Fórmula 1`,
+`Campeonato de Fórmula 2 da FIA` e `Campeonato de Fórmula 3 da FIA`).
+
+A Fórmula 1 mantém o calendário oficial de 24 etapas, de Melbourne em 6–8 de
+março a Abu Dhabi em 4–6 de dezembro, e o grid oficial de 22 pilotos:
 
 <https://www.formula1.com/en/latest/article/formula-1-reveals-calendar-for-2026-season.YctbMZWqBvrgyddrnauo8>
 
-O grid de 22 pilotos e suas associações às equipes segue a página oficial de
-pilotos de 2026:
+Como a F2 e a F3 correm nos fins de semana da F1, cada uma de suas rodadas
+reaproveita a janela de três dias do Grande Prêmio correspondente. Os grids de
+F2 (11 equipes × 2) e F3 (10 equipes × 3) são **aproximações** da temporada 2026,
+com nomes reais e equipes reais; os ratings são estimativas da força individual,
+como já ocorre na F1.
 
-<https://www.formula1.com/en/drivers>
+Diretrizes mantidas em todas as séries:
 
-As equipes aparecem somente como texto entre parênteses no nome do piloto.
-Nenhuma entidade ou mecânica de equipes foi criada nesta etapa.
+- as equipes aparecem somente como texto entre parênteses no nome do piloto,
+  no formato `Lewis Hamilton (Ferrari)`; nenhuma entidade ou mecânica de equipes
+  foi criada;
+- cada etapa dura três dias e repete as mesmas datas todos os anos;
+- cada fim de semana gera somente o resultado principal da corrida — as etapas
+  Sprint não viram competições separadas.
 
-Cada Grande Prêmio:
-
-- usa o tipo já existente `Liga`;
-- é marcado como `Etapa de temporada`;
-- dura três dias;
-- repete as mesmas datas todos os anos;
-- utiliza os 22 pilotos do preset;
-- distribui 25–18–15–12–10–8–6–4–2–1;
-- soma os pontos no `Campeonato Mundial de Fórmula 1`.
-
-As etapas Sprint do calendário real não foram transformadas em competições
-separadas: neste preset simplificado, cada fim de semana gera somente o
-resultado principal do Grande Prêmio.
+Presets antigos de uma única modalidade (como o ATP) continuam funcionando sem
+alteração: internamente eles são tratados como um preset de uma única série.
 
 ## Critérios de classificação preservados
 
@@ -293,6 +305,10 @@ novas nacionalidades forem introduzidas, sem alterar o mecanismo de campeonatos
 ou de rankings.
 
 O catálogo esportivo atual possui `Tênis > Simples masculino` e
-`Automobilismo > Fórmula 1`. Novos esportes, modalidades, sistemas de
-pontuação e presets podem ser acrescentados às listas próprias sem transformar
-seus nomes em campos livres.
+`Automobilismo > Fórmula 1`, `Fórmula 2` e `Fórmula 3`. Novos esportes,
+modalidades, sistemas de pontuação e presets podem ser acrescentados às listas
+próprias sem transformar seus nomes em campos livres.
+
+Os grids de Fórmula 2 e Fórmula 3 de 2026 são aproximações: usam equipes reais e
+nomes reais do grid da categoria, mas as escalações exatas e os ratings são
+estimativas, coerentes com o caráter de simulação do preset.

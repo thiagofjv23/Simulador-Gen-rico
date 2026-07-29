@@ -91,6 +91,7 @@ import {
   buildPresetCompetitions,
   buildPresetPeople,
   presetById,
+  presetSeries,
 } from "./presets.js";
 import {
   SCORING_SYSTEMS,
@@ -526,11 +527,15 @@ function updatePresetSummary() {
   const preset = presetById(elements.presetSelect.value);
   elements.presetName.textContent = preset?.name ?? "Nenhum preset selecionado";
   elements.presetDescription.textContent = preset?.description ?? "";
-  elements.presetCount.textContent = preset
-    ? `${preset.competitions.length} competições`
-      + (preset.athletes?.length ? ` · ${preset.athletes.length} atletas oficiais` : "")
-      + " prontos para importar"
-    : "—";
+  if (preset) {
+    const competitionCount = buildPresetCompetitions(preset).length;
+    const athleteCount = buildPresetPeople(preset).length;
+    elements.presetCount.textContent = `${competitionCount} competições`
+      + (athleteCount ? ` · ${athleteCount} atletas oficiais` : "")
+      + " prontos para importar";
+  } else {
+    elements.presetCount.textContent = "—";
+  }
   elements.applyPresetButton.disabled = !preset;
 }
 
@@ -2177,13 +2182,18 @@ async function handleDeleteCompetition() {
 async function ensurePresetRoster(preset) {
   if (!preset) return;
   const timestamp = new Date().toISOString();
+  const series = presetSeries(preset);
+  if (!series.length) return;
+  const primarySeries = series[0];
   let people = state.people;
   const assigningInitialSport = !state.world.initialSportPresetId;
 
+  // Os 100 atletas genéricos recebem, uma única vez, o esporte e a modalidade
+  // da série principal do primeiro preset importado.
   if (assigningInitialSport) {
     people = assignGenericPeopleToSport(people, {
-      sportId: preset.sportId,
-      modalityId: preset.modalityId,
+      sportId: primarySeries.sportId,
+      modalityId: primarySeries.modalityId,
       updatedAt: timestamp,
     });
     state.world.initialSportPresetId = preset.id;
@@ -2195,47 +2205,58 @@ async function ensurePresetRoster(preset) {
     .filter(({ id }) => !existingPersonIds.has(id));
   people = [...people, ...presetPeople];
 
-  const modality = modalityById(preset.modalityId, state.modalities);
-  const rankingModel = modality?.rankingModel ?? "cumulative";
-  const rankingId = rankingIdFor(preset.sportId, preset.modalityId);
-  const existingEntries = state.rankingEntries
-    .filter((entry) => entry.rankingId === rankingId);
-  const existingEntryIds = new Set(existingEntries.map(({ personId }) => personId));
-  let generatedEntries = buildInitialRanking(people, timestamp, {
-    rankingId,
-    sportId: preset.sportId,
-    modalityId: preset.modalityId,
-    rankingModel,
-    seasonYear: Number(state.world.currentDate.slice(0, 4)),
-    startAtZero: rankingModel === "seasonal",
-  });
-  if (assigningInitialSport && rankingModel === "cumulative") {
-    const legacyEntries = new Map(
+  const seasonYear = Number(state.world.currentDate.slice(0, 4));
+  const missingEntries = [];
+
+  // Cada série (F1, F2, F3, tênis...) mantém seu próprio ranking independente.
+  for (const seriesItem of series) {
+    const modality = modalityById(seriesItem.modalityId, state.modalities);
+    const rankingModel = modality?.rankingModel ?? "cumulative";
+    const rankingId = rankingIdFor(seriesItem.sportId, seriesItem.modalityId);
+    const existingEntryIds = new Set(
       state.rankingEntries
-        .filter(({ rankingId: legacyRankingId }) => legacyRankingId === "world")
-        .map((entry) => [entry.personId, entry]),
+        .filter((entry) => entry.rankingId === rankingId)
+        .map(({ personId }) => personId),
     );
-    generatedEntries = generatedEntries
-      .map((entry) => {
-        const legacy = legacyEntries.get(entry.personId);
-        return legacy
-          ? {
-            ...entry,
-            points: legacy.points,
-            eventsCount: legacy.eventsCount,
-            previousPosition: legacy.previousPosition,
-          }
-          : entry;
-      })
-      .sort((a, b) =>
-        b.points - a.points
-        || a.previousPosition - b.previousPosition
-        || a.personId.localeCompare(b.personId),
-      )
-      .map((entry, index) => ({ ...entry, position: index + 1 }));
+    let generatedEntries = buildInitialRanking(people, timestamp, {
+      rankingId,
+      sportId: seriesItem.sportId,
+      modalityId: seriesItem.modalityId,
+      rankingModel,
+      seasonYear,
+      startAtZero: rankingModel === "seasonal",
+    });
+    // Preserva o histórico do ranking "world" só quando o primeiro preset é
+    // cumulativo (caso do tênis), na sua série principal.
+    if (assigningInitialSport && seriesItem === primarySeries && rankingModel === "cumulative") {
+      const legacyEntries = new Map(
+        state.rankingEntries
+          .filter(({ rankingId: legacyRankingId }) => legacyRankingId === "world")
+          .map((entry) => [entry.personId, entry]),
+      );
+      generatedEntries = generatedEntries
+        .map((entry) => {
+          const legacy = legacyEntries.get(entry.personId);
+          return legacy
+            ? {
+              ...entry,
+              points: legacy.points,
+              eventsCount: legacy.eventsCount,
+              previousPosition: legacy.previousPosition,
+            }
+            : entry;
+        })
+        .sort((a, b) =>
+          b.points - a.points
+          || a.previousPosition - b.previousPosition
+          || a.personId.localeCompare(b.personId),
+        )
+        .map((entry, index) => ({ ...entry, position: index + 1 }));
+    }
+    missingEntries.push(
+      ...generatedEntries.filter(({ personId }) => !existingEntryIds.has(personId)),
+    );
   }
-  const missingEntries = generatedEntries
-    .filter(({ personId }) => !existingEntryIds.has(personId));
 
   if (presetPeople.length || people.some((person, index) => person !== state.people[index])) {
     await savePeople(people);

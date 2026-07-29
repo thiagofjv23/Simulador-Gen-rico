@@ -27,7 +27,7 @@ test("lista somente as modalidades vinculadas ao esporte escolhido", () => {
   assert.deepEqual(modalitiesForSport("sport_unknown"), []);
   assert.deepEqual(
     modalitiesForSport("sport_motorsport").map(({ name }) => name),
-    ["Fórmula 1"],
+    ["Fórmula 1", "Fórmula 2", "Fórmula 3"],
   );
 });
 

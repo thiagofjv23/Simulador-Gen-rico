@@ -14,18 +14,22 @@ import {
 import { simulateCompetition } from "../js/simulation.js";
 
 const timestamp = "2026-01-01T00:00:00.000Z";
-const preset = presetById("formula1-2026");
-const people = buildPresetPeople(preset, timestamp);
+const preset = presetById("fia-ecosystem-2026");
+const SPORT_ID = "sport_motorsport";
+const MODALITY_ID = "modality_motorsport_formula1";
+const people = buildPresetPeople(preset, timestamp)
+  .filter(({ modalityId }) => modalityId === MODALITY_ID);
 const entries = buildInitialRanking(people, timestamp, {
-  rankingId: rankingIdFor(preset.sportId, preset.modalityId),
-  sportId: preset.sportId,
-  modalityId: preset.modalityId,
+  rankingId: rankingIdFor(SPORT_ID, MODALITY_ID),
+  sportId: SPORT_ID,
+  modalityId: MODALITY_ID,
   rankingModel: "seasonal",
   seasonYear: 2026,
   startAtZero: true,
 });
 const ranking = combineRanking(people, entries);
-const competitions = buildPresetCompetitions(preset, timestamp);
+const competitions = buildPresetCompetitions(preset, timestamp)
+  .filter(({ modalityId }) => modalityId === MODALITY_ID);
 
 test("uma etapa da Fórmula 1 usa os 22 pilotos e distribui 101 pontos", () => {
   const competition = competitions[0];
