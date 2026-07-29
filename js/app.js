@@ -104,6 +104,11 @@ import {
   latestTournamentWinners,
   topAthletesByRating,
 } from "./newsroom.js";
+import {
+  athleteCompetitionHistory,
+  finishedEvents,
+  pastSeasons,
+} from "./history.js";
 
 const elements = {
   worldName: document.querySelector("#world-name"),
@@ -129,11 +134,18 @@ const elements = {
   hubPanels: {
     central: document.querySelector("#hub-central"),
     ranking: document.querySelector("#hub-ranking"),
+    champions: document.querySelector("#hub-champions"),
+    seasons: document.querySelector("#hub-seasons"),
   },
   openRankingsButton: document.querySelector("#open-rankings-button"),
   centralNewsList: document.querySelector("#central-news-list"),
   centralBestList: document.querySelector("#central-best-list"),
   centralWinnersGrid: document.querySelector("#central-winners-grid"),
+  championsFilter: document.querySelector("#champions-filter"),
+  championsList: document.querySelector("#champions-list"),
+  seasonsSport: document.querySelector("#seasons-sport"),
+  seasonsModality: document.querySelector("#seasons-modality"),
+  seasonsList: document.querySelector("#seasons-list"),
   competitionsTabCount: document.querySelector("#competitions-tab-count"),
   newCompetitionButton: document.querySelector("#new-competition-button"),
   competitionsTotal: document.querySelector("#competitions-total"),
@@ -266,6 +278,8 @@ const state = {
 };
 
 let toastTimer;
+// Somente um "details" de atleta fica aberto por vez, evitando poluir a tela.
+let activeAthleteDetail = null;
 
 function createId(prefix = "event") {
   return globalThis.crypto?.randomUUID?.()
@@ -417,6 +431,7 @@ function setupSportOptions() {
       : sportWithAthletes?.id ?? catalogDefault?.id ?? sports[0]?.id ?? "";
   updateModalitySelect();
   updateRankingModalitySelect();
+  setupSeasonsOptions();
 }
 
 function setupMixedQualificationOptions() {
@@ -949,6 +964,7 @@ function renderRanking() {
     ).includes(filter);
   });
 
+  closeAthleteDetail();
   elements.rankingList.replaceChildren();
   elements.rankingEmpty.classList.toggle("hidden", ranking.length > 0);
   elements.rankingEmpty.textContent = hasCompleteSelection
@@ -985,6 +1001,16 @@ function renderRanking() {
     const personId = document.createElement("span");
     personId.textContent = entry.person.id;
     person.append(personName, personId);
+    attachAthleteTrigger(person, entry.person.id, "ranking", (node) => {
+      const detailRow = document.createElement("tr");
+      detailRow.className = "athlete-detail-row";
+      const cell = document.createElement("td");
+      cell.colSpan = 9;
+      cell.append(node);
+      detailRow.append(cell);
+      row.after(detailRow);
+      return detailRow;
+    });
 
     const country = document.createElement("td");
     country.className = "ranking-country";
@@ -1167,6 +1193,8 @@ function render() {
   renderCompetitions();
   renderRanking();
   renderCentral();
+  renderChampions();
+  renderSeasons();
   renderResults();
 }
 
@@ -1280,6 +1308,7 @@ function renderCentralNews() {
 
 function renderCentralBest() {
   const best = topAthletesByRating(state.people, { limit: 10 });
+  closeAthleteDetail();
   elements.centralBestList.replaceChildren();
 
   if (!best.length) {
@@ -1315,6 +1344,13 @@ function renderCentralBest() {
     rating.textContent = person.baseRating;
 
     item.append(position, info, rating);
+    attachAthleteTrigger(item, person.id, "best", (node) => {
+      const detailItem = document.createElement("li");
+      detailItem.className = "athlete-detail-li";
+      detailItem.append(node);
+      item.after(detailItem);
+      return detailItem;
+    });
     elements.centralBestList.append(item);
   });
 }
@@ -1384,6 +1420,335 @@ function renderCentral() {
   renderCentralNews();
   renderCentralBest();
   renderCentralWinners();
+}
+
+// ---------------------------------------------------------------------------
+// Histórico: details de atleta, campeões passados e temporadas encerradas.
+// ---------------------------------------------------------------------------
+
+function closeAthleteDetail() {
+  if (!activeAthleteDetail) return;
+  activeAthleteDetail.removable?.remove();
+  activeAthleteDetail.trigger?.classList.remove("athlete-open");
+  activeAthleteDetail = null;
+}
+
+function personIsSeasonal(person) {
+  const modality = modalityById(person.modalityId, state.modalities);
+  const sport = sportById(person.sportId, state.sports);
+  return (modality?.rankingModel ?? sport?.rankingModel) === "seasonal";
+}
+
+function buildAthleteDetailNode(person) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "athlete-detail";
+  const seasonal = personIsSeasonal(person);
+
+  const heading = document.createElement("p");
+  heading.className = "athlete-detail-heading";
+  heading.textContent = seasonal
+    ? "Posição final em cada temporada"
+    : "Últimas competições";
+  wrapper.append(heading);
+
+  const history = athleteCompetitionHistory(state.results, person.id, {
+    seasonal,
+    limit: 10,
+  });
+
+  if (!history.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "Este atleta ainda não disputou competições concluídas.";
+    wrapper.append(empty);
+    return wrapper;
+  }
+
+  const list = document.createElement("ol");
+  list.className = "athlete-history";
+  history.forEach((entry) => {
+    const item = document.createElement("li");
+    item.className = "athlete-history-item";
+
+    const pos = document.createElement("span");
+    pos.className = "athlete-history-position";
+    if (entry.position <= 3) pos.classList.add(`top-${entry.position}`);
+    pos.textContent = `${entry.position}º`;
+
+    const info = document.createElement("div");
+    info.className = "athlete-history-info";
+    const title = document.createElement("strong");
+    title.textContent = entry.title;
+    const meta = document.createElement("span");
+    meta.textContent = [
+      entry.subtitle,
+      formatShortDate(entry.date),
+      `${entry.participants} part.`,
+      entry.points ? `${entry.points} pts` : null,
+    ].filter(Boolean).join(" · ");
+    info.append(title, meta);
+
+    const link = document.createElement("button");
+    link.type = "button";
+    link.className = "news-link athlete-history-link";
+    link.textContent = entry.type === "season" ? "Ver temporada" : "Ver resultado";
+    link.addEventListener("click", (clickEvent) => {
+      clickEvent.stopPropagation();
+      if (entry.link.target === "result") goToResult(entry.link.resultId);
+      else if (entry.link.target === "season") goToSeason(entry.link);
+    });
+
+    item.append(pos, info, link);
+    list.append(item);
+  });
+  wrapper.append(list);
+  return wrapper;
+}
+
+// Alterna o details do atleta; `insert` posiciona o nó e devolve o que remover.
+function toggleAthleteDetail(key, person, trigger, insert) {
+  if (activeAthleteDetail?.key === key) {
+    closeAthleteDetail();
+    return;
+  }
+  closeAthleteDetail();
+  const content = buildAthleteDetailNode(person);
+  const removable = insert(content) ?? content;
+  trigger?.classList.add("athlete-open");
+  activeAthleteDetail = { key, trigger, removable };
+}
+
+function renderChampions() {
+  const filter = normalizedSearch(elements.championsFilter.value.trim());
+  const events = finishedEvents(state.results).filter((event) => {
+    if (!filter) return true;
+    return normalizedSearch(
+      `${event.competitionName} ${event.sport} ${event.discipline} ${event.champion?.name ?? ""}`,
+    ).includes(filter);
+  });
+
+  elements.championsList.replaceChildren();
+
+  if (!events.length) {
+    const empty = document.createElement("div");
+    empty.className = "competitions-empty";
+    empty.innerHTML = `
+      <div>
+        <h3>Nenhum evento concluído</h3>
+        <p>Avance o calendário pelo último dia de uma competição para registrar o primeiro campeão.</p>
+      </div>
+    `;
+    elements.championsList.append(empty);
+    return;
+  }
+
+  events.forEach((event) => {
+    const card = document.createElement("article");
+    card.className = "champion-card";
+
+    const info = document.createElement("div");
+    info.className = "champion-info";
+    const eyebrow = document.createElement("p");
+    eyebrow.className = "eyebrow";
+    eyebrow.textContent = [event.sport, event.discipline].filter(Boolean).join(" · ");
+    const title = document.createElement("h3");
+    title.textContent = event.competitionName;
+    const champion = document.createElement("p");
+    champion.className = "champion-name";
+    champion.textContent = event.isSeasonFinal && event.seasonChampion
+      ? `Campeão ${event.year}: ${event.seasonChampion.name}`
+      : event.champion
+        ? `Campeão: ${event.champion.name}`
+        : "Sem campeão registrado";
+    const meta = document.createElement("p");
+    meta.className = "champion-meta";
+    meta.textContent = `${formatShortDate(event.date)} · ${event.participantCount} participantes`;
+    info.append(eyebrow, title, champion, meta);
+
+    const side = document.createElement("div");
+    side.className = "champion-side";
+    const badges = document.createElement("div");
+    badges.className = "competition-badges";
+    if (event.prestige != null) badges.append(createBadge(`Prestígio ${event.prestige}`, "prestige"));
+    if (event.isSeasonFinal) badges.append(createBadge("Fim de temporada", "simulated"));
+    const link = document.createElement("button");
+    link.type = "button";
+    link.className = "news-link";
+    link.textContent = "Ver resultado";
+    link.addEventListener("click", () => goToResult(event.resultId));
+    side.append(badges, link);
+
+    card.append(info, side);
+    elements.championsList.append(card);
+  });
+}
+
+function updateSeasonsModalitySelect(preferredValue = "") {
+  replaceSelectOptions(
+    elements.seasonsModality,
+    modalitiesForSport(elements.seasonsSport.value, state.modalities),
+    elements.seasonsSport.value ? "Todas as modalidades" : "Escolha primeiro o esporte",
+  );
+  if (
+    preferredValue
+    && [...elements.seasonsModality.options].some(({ value }) => value === preferredValue)
+  ) {
+    elements.seasonsModality.value = preferredValue;
+  }
+  elements.seasonsModality.disabled = !elements.seasonsSport.value;
+}
+
+function setupSeasonsOptions() {
+  const sports = [...state.sports].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  const preferredModality = elements.seasonsModality.value;
+  replaceSelectOptions(elements.seasonsSport, sports, "Todos os esportes");
+  // Sem escolha prévia, aponta para a modalidade da temporada mais recente.
+  if (!elements.seasonsSport.value) {
+    const latest = pastSeasons(state.results)[0];
+    if (latest?.sportId && sports.some(({ id }) => id === latest.sportId)) {
+      elements.seasonsSport.value = latest.sportId;
+      updateSeasonsModalitySelect(latest.modalityId ?? "");
+      return;
+    }
+  }
+  updateSeasonsModalitySelect(preferredModality);
+}
+
+function renderSeasons() {
+  const sportId = elements.seasonsSport.value;
+  const modalityId = elements.seasonsModality.value;
+  const seasons = pastSeasons(state.results).filter((season) =>
+    (!sportId || season.sportId === sportId)
+    && (!modalityId || season.modalityId === modalityId));
+
+  closeAthleteDetail();
+  elements.seasonsList.replaceChildren();
+
+  if (!seasons.length) {
+    const empty = document.createElement("div");
+    empty.className = "competitions-empty";
+    empty.innerHTML = `
+      <div>
+        <h3>Nenhuma temporada registrada</h3>
+        <p>Importe um preset sazonal (como a Fórmula 1) e conclua ao menos uma etapa para ver as classificações finais.</p>
+      </div>
+    `;
+    elements.seasonsList.append(empty);
+    return;
+  }
+
+  seasons.forEach((season) => {
+    const card = document.createElement("article");
+    card.className = "season-card";
+    card.id = `season-${season.key}`;
+    card.dataset.seasonKey = season.key;
+
+    const heading = document.createElement("div");
+    heading.className = "season-heading";
+    const titleArea = document.createElement("div");
+    const eyebrow = document.createElement("p");
+    eyebrow.className = "eyebrow";
+    eyebrow.textContent = [season.sport, season.discipline].filter(Boolean).join(" · ");
+    const title = document.createElement("h3");
+    title.textContent = `${season.seasonName} ${season.year}`;
+    const meta = document.createElement("p");
+    meta.className = "champion-meta";
+    meta.textContent = `${season.rounds} etapa${season.rounds === 1 ? "" : "s"}`
+      + (season.finished && season.champion
+        ? ` · Campeão: ${season.champion.name}`
+        : " · Em andamento");
+    titleArea.append(eyebrow, title, meta);
+    const badges = document.createElement("div");
+    badges.className = "competition-badges";
+    badges.append(createBadge(season.finished ? "Encerrada" : "Em andamento", season.finished ? "simulated" : ""));
+    heading.append(titleArea, badges);
+
+    const scroll = document.createElement("div");
+    scroll.className = "ranking-table-scroll";
+    const table = document.createElement("table");
+    table.className = "ranking-table season-table";
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th scope="col">Pos.</th>
+          <th scope="col">Pessoa</th>
+          <th scope="col">País</th>
+          <th scope="col">Etapas</th>
+          <th scope="col">Pontos</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    `;
+    const body = table.querySelector("tbody");
+    season.standings.forEach((row) => {
+      const tr = document.createElement("tr");
+      if (row.position <= 3) tr.classList.add(`top-${row.position}`);
+      const position = document.createElement("td");
+      position.className = "ranking-position";
+      position.textContent = row.position;
+      const person = document.createElement("td");
+      person.className = "ranking-person";
+      const name = document.createElement("strong");
+      name.textContent = row.name;
+      person.append(name);
+      attachAthleteTrigger(person, row.personId, `season-${season.key}`, (node) => {
+        const detailRow = document.createElement("tr");
+        detailRow.className = "athlete-detail-row";
+        const cell = document.createElement("td");
+        cell.colSpan = 5;
+        cell.append(node);
+        detailRow.append(cell);
+        tr.after(detailRow);
+        return detailRow;
+      });
+      const country = document.createElement("td");
+      country.textContent = row.countryCode ?? "";
+      const events = document.createElement("td");
+      events.textContent = row.events;
+      const points = document.createElement("td");
+      points.className = "ranking-points";
+      points.textContent = row.points.toLocaleString("pt-BR");
+      tr.append(position, person, country, events, points);
+      body.append(tr);
+    });
+
+    scroll.append(table);
+    card.append(heading, scroll);
+    elements.seasonsList.append(card);
+  });
+}
+
+// Torna uma célula/elemento clicável para abrir o details do atleta, se houver
+// pessoa correspondente no estado atual.
+function attachAthleteTrigger(triggerEl, personId, scope, insert) {
+  const person = state.people.find((candidate) => candidate.id === personId);
+  if (!person) return;
+  triggerEl.classList.add("athlete-trigger");
+  triggerEl.tabIndex = 0;
+  const key = `${scope}:${personId}`;
+  const activate = () => toggleAthleteDetail(key, person, triggerEl, insert);
+  triggerEl.addEventListener("click", activate);
+  triggerEl.addEventListener("keydown", (keyEvent) => {
+    if (keyEvent.key === "Enter" || keyEvent.key === " ") {
+      keyEvent.preventDefault();
+      activate();
+    }
+  });
+}
+
+function goToSeason(link) {
+  switchView("sports");
+  switchHub("seasons");
+  if (link.sportId && [...elements.seasonsSport.options].some(({ value }) => value === link.sportId)) {
+    elements.seasonsSport.value = link.sportId;
+    updateSeasonsModalitySelect(link.modalityId ?? "");
+  }
+  renderSeasons();
+  const card = document.querySelector(`#season-${CSS.escape(link.seasonKey ?? "")}`);
+  if (!card) return;
+  card.scrollIntoView({ behavior: "smooth", block: "start" });
+  card.classList.add("result-card-highlight");
+  setTimeout(() => card.classList.remove("result-card-highlight"), 2000);
 }
 
 function selectDate(isoDate) {
@@ -2442,6 +2807,12 @@ function attachEventListeners() {
     tab.addEventListener("click", () => switchHub(tab.dataset.hub));
   });
   elements.openRankingsButton.addEventListener("click", () => switchHub("ranking"));
+  elements.championsFilter.addEventListener("input", renderChampions);
+  elements.seasonsSport.addEventListener("change", () => {
+    updateSeasonsModalitySelect();
+    renderSeasons();
+  });
+  elements.seasonsModality.addEventListener("change", renderSeasons);
   elements.previousMonth.addEventListener("click", () => changeMonth(-1));
   elements.nextMonth.addEventListener("click", () => changeMonth(1));
   elements.monthTitle.addEventListener("click", goToGameDate);

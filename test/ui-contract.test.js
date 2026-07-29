@@ -37,6 +37,21 @@ test("a Central dos Esportes reúne notícias, melhores e vencedores", async () 
   assert.match(app, /switchHub/);
 });
 
+test("a Central expõe as telas de histórico de campeões e temporadas", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("index.html", projectRoot), "utf8"),
+    readFile(new URL("js/app.js", projectRoot), "utf8"),
+  ]);
+  assert.match(html, /data-hub="champions"/);
+  assert.match(html, /data-hub="seasons"/);
+  assert.match(html, /id="champions-list"/);
+  assert.match(html, /id="seasons-list"/);
+  assert.match(html, /id="seasons-sport"/);
+  assert.match(app, /finishedEvents/);
+  assert.match(app, /pastSeasons/);
+  assert.match(app, /athleteCompetitionHistory/);
+});
+
 test("a abertura oferece novo jogo ou continuar antes de acessar o save", async () => {
   const [html, app] = await Promise.all([
     readFile(new URL("index.html", projectRoot), "utf8"),

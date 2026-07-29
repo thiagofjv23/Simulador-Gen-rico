@@ -168,6 +168,8 @@
         <nav class="hub-tabs" aria-label="Seções da Central dos Esportes">
           <button class="hub-tab active" type="button" data-hub="central">Visão geral</button>
           <button class="hub-tab" type="button" data-hub="ranking">Rankings</button>
+          <button class="hub-tab" type="button" data-hub="champions">Campeões</button>
+          <button class="hub-tab" type="button" data-hub="seasons">Temporadas</button>
         </nav>
 
         <section id="hub-central" class="hub-panel">
@@ -302,6 +304,53 @@
           </div>
           <p id="ranking-empty" class="ranking-empty hidden">Nenhuma pessoa encontrada.</p>
         </section>
+        </section>
+
+        <section id="hub-champions" class="hub-panel hidden">
+          <section class="competitions-header">
+            <div>
+              <p class="eyebrow">HISTÓRICO</p>
+              <h2>Campeões e eventos passados</h2>
+              <p>
+                Reviva os eventos já concluídos deste mundo. Cada ficha mostra o
+                campeão e leva ao resultado completo daquela edição.
+              </p>
+            </div>
+            <label class="compact-field">
+              <span>Filtrar</span>
+              <input
+                id="champions-filter"
+                type="search"
+                placeholder="Nome, esporte ou competição"
+                autocomplete="off"
+              />
+            </label>
+          </section>
+          <div id="champions-list" class="champions-list"></div>
+        </section>
+
+        <section id="hub-seasons" class="hub-panel hidden">
+          <section class="competitions-header">
+            <div>
+              <p class="eyebrow">TEMPORADAS PASSADAS</p>
+              <h2>Classificações finais por esporte e modalidade</h2>
+              <p>
+                Veja a classificação final de cada temporada encerrada. Escolha o
+                esporte e a modalidade para navegar entre os campeonatos anuais.
+              </p>
+            </div>
+            <div class="ranking-controls">
+              <label class="compact-field">
+                <span>Esporte</span>
+                <select id="seasons-sport"></select>
+              </label>
+              <label class="compact-field">
+                <span>Modalidade</span>
+                <select id="seasons-modality"></select>
+              </label>
+            </div>
+          </section>
+          <div id="seasons-list" class="seasons-list"></div>
         </section>
       </main>
 

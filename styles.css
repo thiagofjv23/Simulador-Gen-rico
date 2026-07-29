@@ -1852,3 +1852,183 @@ h2 {
   outline-offset: 2px;
   transition: outline-color 0.4s ease;
 }
+
+/* ==========================================================================
+   Histórico — campeões, temporadas e details de atleta
+   ========================================================================== */
+
+.champions-list {
+  display: grid;
+  gap: 12px;
+}
+
+.champion-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 17px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgb(18 26 46 / 94%);
+  box-shadow: var(--shadow);
+}
+
+.champion-info {
+  min-width: 0;
+}
+
+.champion-info h3 {
+  margin: 3px 0 0;
+  font-size: 1rem;
+}
+
+.champion-name {
+  margin: 6px 0 0;
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+.champion-meta {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.champion-side {
+  display: grid;
+  gap: 8px;
+  justify-items: end;
+}
+
+.seasons-list {
+  display: grid;
+  gap: 14px;
+}
+
+.season-card {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgb(18 26 46 / 94%);
+  box-shadow: var(--shadow);
+}
+
+.season-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 17px;
+  border-bottom: 1px solid var(--line);
+}
+
+.season-heading h3 {
+  margin: 3px 0 0;
+  font-size: 1rem;
+}
+
+.season-table {
+  min-width: 520px;
+}
+
+/* Details de atleta */
+
+.athlete-trigger {
+  cursor: pointer;
+}
+
+.athlete-trigger:hover strong,
+.athlete-trigger.athlete-open strong {
+  color: var(--accent);
+}
+
+.best-item.athlete-trigger:hover,
+.best-item.athlete-open {
+  border-color: var(--accent);
+}
+
+.athlete-detail-li {
+  list-style: none;
+}
+
+.athlete-detail-row > td {
+  padding: 0 !important;
+  background: rgb(11 16 32 / 60%);
+}
+
+.athlete-detail {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+}
+
+.athlete-detail-heading {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.athlete-history {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.athlete-history-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--panel-2);
+}
+
+.athlete-history-position {
+  min-width: 38px;
+  padding: 3px 7px;
+  border-radius: 7px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--muted);
+}
+
+.athlete-history-position.top-1 {
+  color: #ffd76a;
+}
+
+.athlete-history-position.top-2 {
+  color: #cbd5e8;
+}
+
+.athlete-history-position.top-3 {
+  color: #c88a5b;
+}
+
+.athlete-history-info {
+  min-width: 0;
+  display: grid;
+}
+
+.athlete-history-info strong {
+  font-size: 0.82rem;
+}
+
+.athlete-history-info span {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.athlete-history-link {
+  padding: 5px 10px;
+  font-size: 0.68rem;
+}

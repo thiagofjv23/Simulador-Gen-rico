@@ -42,6 +42,32 @@ A Central mantém um **seletor de rankings visível**. O botão
 classificação por esporte, modalidade e abrangência territorial que já existia —
 agora acessada de dentro da Central.
 
+## Histórico esportivo
+
+A Central dos Esportes ganhou duas telas de histórico e um detalhamento por
+atleta, todos reconstruídos a partir dos resultados persistentes — nenhum dado
+extra é gravado.
+
+- **Campeões**: lista de todos os eventos já concluídos, do mais recente ao mais
+  antigo, com o campeão de cada edição e um hiperlink para o resultado completo.
+  Um filtro por nome, esporte ou competição facilita a navegação.
+- **Temporadas**: classificação final de cada campeonato anual encerrado,
+  dividida por esporte e modalidade. Os pontos de todas as etapas da temporada
+  são somados para remontar a tabela final, mesmo depois que o ranking sazonal
+  foi zerado no dia 1º de janeiro.
+- **Details do atleta**: em qualquer lista de atletas (ranking, Os Melhores ou
+  temporadas), um clique no nome abre um painel com as posições daquele atleta em
+  campeonatos passados. Apenas um details fica aberto por vez.
+
+O detalhamento respeita o **prestígio** das competições. Competições mais
+prestigiadas se mantêm visíveis por mais tempo e sobressaem às de menor
+prestígio quando é necessário encurtar a lista:
+
+- em modalidades sazonais (Fórmula 1), o atleta vê apenas a **posição final de
+  cada temporada**, nunca cada corrida isolada;
+- em modalidades cumulativas (tênis), o atleta vê no **máximo as 10 últimas
+  competições**, priorizando a ordem em que terminaram e o prestígio de cada uma.
+
 ## Sistema de pontuação
 
 O seletor `Sistema de Pontuação` aparece no cadastro de competições. Quando o
@@ -253,6 +279,7 @@ js/scoring.js       Sistemas de pontuação e distribuição por posição
 js/presets.js       Catálogo e gerador dos presets de calendário
 js/ranking.js       Pessoas, rankings esportivos, territoriais e sazonais
 js/newsroom.js      Notícias, melhores ratings e vencedores da Central
+js/history.js       Campeões passados, temporadas encerradas e trajetória do atleta
 js/simulation.js    Participantes, performance, pontos e reordenação
 js/app.js           Estado, convites, passagem do tempo e integração
 test/               Testes automatizados de todos os sistemas

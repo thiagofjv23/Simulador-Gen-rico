@@ -123,3 +123,23 @@ Foram verificados:
 - contratos da interface e todos os 54 testes anteriores.
 
 Resultado final: 69 testes aprovados.
+
+## 8. Central dos Esportes e histórico
+
+A aba `Ranking` passou a ser a **Central dos Esportes**, um hub com sub-abas.
+
+- `js/newsroom.js` gera, a partir dos resultados, as notícias de evento e de
+  campeonato encerrado, a lista dos dez maiores ratings (`Os Melhores`) e o
+  painel dos quatro últimos vencedores com pódio. Cada notícia e cada vencedor
+  levam ao resultado ou ao ranking final por hiperlink.
+- `js/history.js` reconstrói o histórico sem gravar nada novo: `finishedEvents`
+  alimenta a tela `Campeões`; `pastSeasons` soma os pontos de todas as etapas
+  para remontar a classificação final de cada temporada na tela `Temporadas`;
+  `athleteCompetitionHistory` monta o details de cada atleta respeitando o
+  prestígio — posição final por temporada nas modalidades sazonais e, no máximo,
+  as dez últimas competições nas cumulativas.
+- Os resultados passaram a registrar `sportId` e `modalityId`, permitindo que os
+  hiperlinks pré-selecionem o esporte e a modalidade corretos.
+
+Cobertura adicional em `test/newsroom.test.js` e `test/history.test.js`, além dos
+novos contratos de interface. Total após esta etapa: 82 testes aprovados.
