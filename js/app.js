@@ -2,6 +2,7 @@ import {
   deleteCompetitionWithEvent,
   deleteEvent,
   getAllEvents,
+  getAllClubs,
   getAllCompetitions,
   getAllContinents,
   getAllCompetitionEntries,
@@ -287,6 +288,7 @@ const state = {
   sports: [],
   modalities: [],
   people: [],
+  clubs: [],
   rankingEntries: [],
   ranking: [],
   results: [],
@@ -2171,6 +2173,12 @@ async function reloadResults() {
   state.results = await getAllResults();
 }
 
+// Carrega os clubes/equipes persistidos. A estrutura existe para os esportes de
+// equipe e mistos; enquanto nenhum clube é criado, a lista fica vazia.
+async function reloadClubs() {
+  state.clubs = await getAllClubs();
+}
+
 async function reloadCompetitionEntries() {
   state.competitionEntries = await getAllCompetitionEntries();
 }
@@ -2867,6 +2875,7 @@ function resetInMemoryState() {
   state.sports = [];
   state.modalities = [];
   state.people = [];
+  state.clubs = [];
   state.rankingEntries = [];
   state.ranking = [];
   state.results = [];
@@ -2885,6 +2894,7 @@ async function loadCurrentGame() {
     reloadCompetitionsAndEvents(),
     reloadResults(),
     reloadCompetitionEntries(),
+    reloadClubs(),
   ]);
   if (!state.world) return false;
 
@@ -2973,7 +2983,7 @@ async function handleSetup(submitEvent) {
   await ensureSports();
   await ensureGeography();
   await ensureInitialRanking();
-  await Promise.all([reloadResults(), reloadCompetitionEntries()]);
+  await Promise.all([reloadResults(), reloadCompetitionEntries(), reloadClubs()]);
   state.selectedDate = state.world.currentDate;
   state.viewDate = parseISODate(state.world.currentDate);
   elements.setupDialog.close();

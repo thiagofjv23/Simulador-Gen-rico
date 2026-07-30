@@ -1,21 +1,30 @@
+import { ENTITY_TYPES, DEFAULT_ENTITY_TYPE } from "./clubs.js";
+
+// Cada esporte declara o tipo de entidade que o disputa (entityType):
+//   - "atleta": só atletas individuais (tênis, atletismo)
+//   - "equipe": só equipes (futebol, basquete)
+//   - "mista":  atletas e equipes no mesmo campeonato (automobilismo)
 export const SPORTS = [
   {
     id: "sport_tennis",
     name: "Tênis",
     defaultScoringSystemId: "tennis-round-proportional",
     rankingModel: "cumulative",
+    entityType: "atleta",
   },
   {
     id: "sport_motorsport",
     name: "Automobilismo",
     defaultScoringSystemId: "formula1-grand-prix",
     rankingModel: "seasonal",
+    entityType: "mista",
   },
   {
     id: "sport_athletics",
     name: "Atletismo",
     defaultScoringSystemId: "generic-proportional",
     rankingModel: "rolling",
+    entityType: "atleta",
   },
 ];
 
@@ -123,6 +132,24 @@ export function modalityById(modalityId, modalities = MODALITIES) {
 export function defaultScoringSystemForSport(sportId, sports = SPORTS) {
   return sportById(sportId, sports)?.defaultScoringSystemId
     ?? "generic-proportional";
+}
+
+// Tipo de entidade (atleta/equipe/mista) que disputa o esporte, com um padrão
+// seguro para esportes sem o campo declarado.
+export function entityTypeForSport(sportId, sports = SPORTS) {
+  const entityType = sportById(sportId, sports)?.entityType;
+  return ENTITY_TYPES[entityType] ? entityType : DEFAULT_ENTITY_TYPE;
+}
+
+// Esportes que aceitam equipes (só de equipes ou mistos). Usado, por exemplo,
+// para filtrar os seletores da futura tela de Equipes.
+export function sportAllowsClubs(sportId, sports = SPORTS) {
+  return ENTITY_TYPES[entityTypeForSport(sportId, sports)].allowsClubs;
+}
+
+// Esportes que aceitam atletas individuais (só de atletas ou mistos).
+export function sportAllowsAthletes(sportId, sports = SPORTS) {
+  return ENTITY_TYPES[entityTypeForSport(sportId, sports)].allowsAthletes;
 }
 
 export function validateSportSelection(

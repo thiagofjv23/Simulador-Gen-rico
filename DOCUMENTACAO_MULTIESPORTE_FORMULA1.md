@@ -460,3 +460,47 @@ ver o ranking rolante do 100 m com 8 atletas e pontuação **média** (≤ 100, 
 soma), o resultado da corrida mostrando o tempo (`20.40 s · B1`) e o do salto
 mostrando a distância (`19.93 m`). Cobertura em `test/presets.test.js`. Total após
 esta etapa: 116 testes aprovados.
+
+## 21. Estrutura genérica de clubes/equipes — passo 1
+
+Base para os esportes disputados por equipes. Cada **esporte declara seu tipo de
+entidade** (campo `entityType` em `js/sports.js`), com três categorias:
+
+- **Atleta** — só atletas individuais disputam (tênis, atletismo).
+- **Equipe** — só equipes disputam; a equipe é simulada exatamente como um atleta
+  (ex.: futebol, basquete).
+- **Mista** — atletas e equipes convivem no mesmo campeonato; a pontuação da
+  equipe no ranking é a **soma dos pontos dos seus atletas membros** (automobilismo).
+
+O catálogo atual fica: **tênis = atleta**, **atletismo = atleta** e
+**automobilismo = mista**. Nenhum esporte é do tipo "equipe" ainda, mas o tipo já
+é suportado.
+
+Novo módulo **`js/clubs.js`** (funções puras, sem IndexedDB/DOM):
+
+- `ENTITY_TYPES` — metadados dos três tipos (rótulo, descrição e as flags
+  `allowsAthletes`/`allowsClubs`), fonte única para os helpers de esporte.
+- `createClub({...})` — normaliza uma equipe com **exatamente a mesma estrutura
+  de atributos de um atleta** (`baseRating`, `momentum`, `age`, país hidratado por
+  `hydratePersonGeography`, `sportId`, `modalityId`), marcada por `isClub: true` e
+  `entityType: "equipe"`. `memberPersonIds` guarda os atletas que compõem a equipe
+  na modalidade (usado no modelo misto).
+- `clubIdFor(sportId, slug)` — identificador estável (`club_<esporte>_<slug>`).
+- `sumMemberPoints(memberPersonIds, pointsByPersonId)` — soma os pontos dos
+  membros; base do ranking de equipe no modelo misto.
+- `validateClub`, `entityTypeInfo/Label`, `isEntityType`, `isClub`.
+
+Helpers em **`js/sports.js`**: `entityTypeForSport`, `sportAllowsClubs` e
+`sportAllowsAthletes` (usados adiante para filtrar os seletores da tela de Equipes).
+
+Persistência em **`js/db.js`**: novo store **`clubs`** (chave `id`, índices
+`name`/`sportId`/`modalityId`), com `getAllClubs`/`saveClubs`. **`DB_VERSION`
+subiu de 8 para 9**; o `upgradeneeded` cria o store sem tocar nos dados
+existentes. O `app.js` já carrega `state.clubs` (vazio até que clubes sejam
+criados nas próximas etapas), sem alterar nenhuma outra mecânica.
+
+Verificação: `test/clubs.test.js` (tipos de entidade, estrutura idêntica à do
+atleta, soma dos membros, validação) e `test/sports.test.js` atualizado com o
+`entityType` de cada esporte. Smoke de navegador confirma que o banco sobe na
+versão 9 com o store `clubs` criado e sem erros de console. Total após esta
+etapa: **125 testes aprovados**.

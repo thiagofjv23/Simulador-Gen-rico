@@ -24,6 +24,13 @@ test("o catálogo contém Tênis, Automobilismo e Atletismo como entidades", () 
   );
 });
 
+test("cada esporte declara o tipo de entidade que o disputa", () => {
+  assert.equal(SPORTS.find(({ id }) => id === "sport_tennis").entityType, "atleta");
+  assert.equal(SPORTS.find(({ id }) => id === "sport_athletics").entityType, "atleta");
+  // Automobilismo é misto: atletas e equipes convivem no mesmo campeonato.
+  assert.equal(SPORTS.find(({ id }) => id === "sport_motorsport").entityType, "mista");
+});
+
 test("o atletismo traz 24 modalidades individuais de ranking rolante", () => {
   const athletics = modalitiesForSport("sport_athletics");
   assert.equal(athletics.length, 24);

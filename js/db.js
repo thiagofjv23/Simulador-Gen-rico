@@ -1,9 +1,10 @@
 const DB_NAME = "simulador-generico";
-const DB_VERSION = 8;
+const DB_VERSION = 9;
 const WORLD_STORE = "world";
 const EVENTS_STORE = "events";
 const COMPETITIONS_STORE = "competitions";
 const PEOPLE_STORE = "people";
+const CLUBS_STORE = "clubs";
 const RANKINGS_STORE = "rankings";
 const RESULTS_STORE = "results";
 const CONTINENTS_STORE = "continents";
@@ -63,6 +64,15 @@ export function openDatabase() {
         people.createIndex("name", "name");
         people.createIndex("countryCode", "countryCode");
         people.createIndex("baseRating", "baseRating");
+      }
+
+      // Clubes/equipes: entidades com a mesma estrutura dos atletas, disputando
+      // esportes só de equipes ou mistos. Indexados por esporte e modalidade.
+      if (!database.objectStoreNames.contains(CLUBS_STORE)) {
+        const clubs = database.createObjectStore(CLUBS_STORE, { keyPath: "id" });
+        clubs.createIndex("name", "name");
+        clubs.createIndex("sportId", "sportId");
+        clubs.createIndex("modalityId", "modalityId");
       }
 
       if (!database.objectStoreNames.contains(RANKINGS_STORE)) {
@@ -282,6 +292,21 @@ export async function savePeople(people) {
   const transaction = database.transaction(PEOPLE_STORE, "readwrite");
   const store = transaction.objectStore(PEOPLE_STORE);
   people.forEach((person) => store.put(person));
+  await transactionDone(transaction);
+}
+
+export async function getAllClubs() {
+  const database = await openDatabase();
+  const transaction = database.transaction(CLUBS_STORE, "readonly");
+  return requestToPromise(transaction.objectStore(CLUBS_STORE).getAll());
+}
+
+export async function saveClubs(clubs) {
+  if (!clubs.length) return;
+  const database = await openDatabase();
+  const transaction = database.transaction(CLUBS_STORE, "readwrite");
+  const store = transaction.objectStore(CLUBS_STORE);
+  clubs.forEach((club) => store.put(club));
   await transactionDone(transaction);
 }
 
