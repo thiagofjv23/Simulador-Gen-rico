@@ -2087,11 +2087,26 @@ async function reloadRanking() {
 // usando a data atual como referência da janela móvel. É derivado dos resultados
 // persistidos, então não precisa ser gravado — basta refazer ao carregar, após
 // cada simulação e ao fim de cada avanço (marcas expiram com o tempo).
+//
+// Só recalcula modalidades que já têm resultado: as que ainda não competiram
+// mantêm o elenco inicial (entradas de roster), para que seus atletas continuem
+// elegíveis na primeira etapa — o ranking rolante só mostra quem tem marca.
 function recomputeRollingRankings(referenceDate = state.world?.currentDate) {
   if (!referenceDate) return;
+  const modalitiesWithResults = new Set(
+    state.results.map((result) => result.modalityId).filter(Boolean),
+  );
+  const rollingWithResults = state.modalities.filter(
+    (modality) => modality.rankingModel === "rolling"
+      && modalitiesWithResults.has(modality.id),
+  );
+  if (!rollingWithResults.length) return;
+
   state.rankingEntries = mergeRollingRanking(state.rankingEntries, state.results, {
     referenceDate,
     rankingIdFor,
+    modalities: rollingWithResults,
+    sports: state.sports,
   });
   state.ranking = combineRanking(state.people, state.rankingEntries);
 }
@@ -2310,7 +2325,13 @@ async function ensurePresetRoster(preset) {
   if (!series.length) return;
   const primarySeries = series[0];
   let people = state.people;
-  const assigningInitialSport = !state.world.initialSportPresetId;
+  // Modalidades rolantes (atletismo) trazem elenco próprio, então não absorvem
+  // os 100 atletas genéricos — eles continuam para o primeiro preset cumulativo
+  // ou sazonal (tênis/automobilismo).
+  const primaryRankingModel =
+    modalityById(primarySeries.modalityId, state.modalities)?.rankingModel ?? "cumulative";
+  const assigningInitialSport =
+    !state.world.initialSportPresetId && primaryRankingModel !== "rolling";
 
   // Os 100 atletas genéricos recebem, uma única vez, o esporte e a modalidade
   // da série principal do primeiro preset importado.

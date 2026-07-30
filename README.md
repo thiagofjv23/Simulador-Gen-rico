@@ -349,11 +349,20 @@ protótipo. Novos países podem ser acrescentados à entidade de geografia quand
 novas nacionalidades forem introduzidas, sem alterar o mecanismo de campeonatos
 ou de rankings.
 
-O catálogo esportivo atual possui `Tênis > Simples masculino` e
+O catálogo esportivo atual possui `Tênis > Simples masculino`,
 `Automobilismo > Fórmula 1`, `Fórmula 2`, `Fórmula 3`, `Fórmula Regional Europeia`
-e `Fórmula Regional Oriente Médio`. Novos esportes, modalidades, sistemas de
-pontuação e presets podem ser acrescentados às listas próprias sem transformar
-seus nomes em campos livres.
+e `Fórmula Regional Oriente Médio`, e `Atletismo` com 24 modalidades individuais
+olímpicas. Novos esportes, modalidades, sistemas de pontuação e presets podem ser
+acrescentados às listas próprias sem transformar seus nomes em campos livres.
+
+O atletismo usa um terceiro modelo de ranking, o **rolante**: o ranking é a média
+das melhores marcas dentro de uma janela móvel (ver `js/athletics.js`). O preset
+`Liga Mundial de Atletismo — 2026` traz um elenco inicial de 48 atletas reais em
+6 provas (100 m, 800 m, 1500 m, salto em distância, salto em altura e arremesso
+de peso) por 5 encontros, já usando os formatos e métricas de etapa (baterias com
+tempo nas corridas; ranqueamento individual com distância nos saltos e arremesso).
+Os nomes e nacionalidades são reais; os ratings, aproximados. É um elenco inicial,
+expansível às demais modalidades.
 
 Os grids de Fórmula 2 e Fórmula 3 de 2026 são aproximações: usam equipes reais e
 nomes reais do grid da categoria, mas as escalações exatas e os ratings são

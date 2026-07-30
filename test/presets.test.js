@@ -15,9 +15,10 @@ const F3_MODALITY = "modality_motorsport_formula3";
 const FREC_MODALITY = "modality_motorsport_formula_regional";
 const FRECME_MODALITY = "modality_motorsport_formula_regional_middle_east";
 
-test("o catálogo de presets contém ATP e o Ecossistema FIA de 2026", () => {
-  assert.equal(CALENDAR_PRESETS.length, 2);
+test("o catálogo de presets contém ATP, Ecossistema FIA e Atletismo de 2026", () => {
+  assert.equal(CALENDAR_PRESETS.length, 3);
   assert.equal(presetById("atp-world-tour-2026")?.competitions.length, 59);
+  assert.ok(presetById("world-athletics-2026"));
   assert.ok(FIA);
   assert.equal(buildPresetCompetitions(FIA).length, 24 + 14 + 10 + 8 + 4);
 });
@@ -140,6 +141,32 @@ test("todas as 60 etapas do ecossistema têm IDs estáveis e únicos", () => {
   assert.equal(competitions.length, 60);
   assert.equal(new Set(competitions.map(({ id }) => id)).size, 60);
   assert.ok(competitions.every(({ presetId }) => presetId === "fia-ecosystem-2026"));
+});
+
+test("o catálogo inclui a Liga Mundial de Atletismo com formato/métrica por prova", () => {
+  const preset = presetById("world-athletics-2026");
+  assert.ok(preset);
+  const competitions = buildPresetCompetitions(preset);
+  // 6 provas x 5 encontros.
+  assert.equal(competitions.length, 30);
+  assert.equal(new Set(competitions.map(({ id }) => id)).size, 30);
+  assert.ok(competitions.every(({ sportId }) => sportId === "sport_athletics"));
+  assert.ok(competitions.every(({ competitionModel }) => competitionModel === "standalone"));
+
+  const race = competitions.find(({ modalityId }) => modalityId === "modality_athletics_100m");
+  assert.equal(race.eventFormat, "heats");
+  assert.equal(race.resultMetric, "direct-mark");
+  assert.equal(race.markType, "time");
+
+  const jump = competitions.find(({ modalityId }) => modalityId === "modality_athletics_long_jump");
+  assert.equal(jump.eventFormat, "individual-ranking");
+  assert.equal(jump.resultMetric, "direct-mark");
+  assert.equal(jump.markType, "distance");
+
+  const people = buildPresetPeople(preset, "2026-01-01T00:00:00.000Z");
+  assert.equal(people.length, 48); // 6 provas x 8 atletas
+  assert.ok(people.every(({ sportId }) => sportId === "sport_athletics"));
+  assert.equal(people.find(({ name }) => name === "Noah Lyles").baseRating, 95);
 });
 
 test("converte o preset em competições mundiais de tênis com IDs estáveis", () => {

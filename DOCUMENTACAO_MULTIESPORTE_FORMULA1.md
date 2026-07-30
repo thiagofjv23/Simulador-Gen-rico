@@ -432,3 +432,31 @@ Nada fora disso mudou: tênis, F1 e as Regionais seguem intactos, e um smoke de
 navegador confirma que o Atletismo aparece nos seletores (ranking e gerador de
 competições) e que avançar o tempo recalcula sem erros. Total mantido: 115 testes
 aprovados (a integração é no `app.js`, coberta pelo módulo puro e pelo smoke).
+
+## 20. Elenco inicial do atletismo — Liga Mundial 2026
+
+Preset `world-athletics-2026`, tornando o esporte jogável de imediato:
+
+- **6 provas × 5 encontros = 30 competições** e **48 atletas reais** (8 por prova):
+  100 m, 800 m, 1500 m, salto em distância, salto em altura e arremesso de peso,
+  em Doha, Roma, Oslo, Paris e a final de Zurique. Nomes/nacionalidades reais,
+  ratings aproximados (elenco inicial, expansível às 24 modalidades).
+- Cada prova declara sua **resolução de etapa**: corridas usam baterias + marca
+  direta de tempo; saltos e arremesso usam ranqueamento individual + marca direta
+  de distância. `presetSeries`/`buildPresetCompetitions` passaram a propagar
+  `eventFormat`/`resultMetric`/`markType`/`heatSize` (só o atletismo os usa; os
+  demais presets continuam no padrão).
+- **Bootstrapping resolvido**: `recomputeRollingRankings` só recalcula as
+  modalidades que já têm resultado, então provas ainda não disputadas mantêm o
+  elenco inicial (entradas de roster) e seus atletas permanecem elegíveis na
+  primeira etapa. Com 8 atletas por prova e 8 vagas, todos correm em cada encontro
+  e o ranking rolante se popula por completo.
+- **Genéricos preservados**: como o atletismo é rolante e traz elenco próprio,
+  `ensurePresetRoster` não vincula os 100 atletas genéricos a ele — eles seguem
+  reservados ao primeiro preset cumulativo/sazonal.
+
+Smoke de navegador ponta a ponta: importar o preset, avançar pelos encontros e
+ver o ranking rolante do 100 m com 8 atletas e pontuação **média** (≤ 100, não
+soma), o resultado da corrida mostrando o tempo (`20.40 s · B1`) e o do salto
+mostrando a distância (`19.93 m`). Cobertura em `test/presets.test.js`. Total após
+esta etapa: 116 testes aprovados.

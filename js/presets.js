@@ -581,6 +581,174 @@ const FORMULA_REGIONAL_ME_2026_DRIVERS = [
   presetId: "fia-ecosystem-2026",
 }));
 
+// ---------------------------------------------------------------------------
+// Atletismo — Liga Mundial 2026 (elenco inicial). Nomes reais e nacionalidades
+// reais; ratings aproximados. Cada prova é uma modalidade com seu próprio
+// ranking rolante e resolução de etapa (baterias + tempo nas corridas;
+// ranqueamento individual + distância nos saltos e arremesso).
+// ---------------------------------------------------------------------------
+const ATHLETICS_MEETINGS = [
+  ["doha", "Doha", "2026-05-15", "2026-05-15"],
+  ["rome", "Roma", "2026-06-04", "2026-06-04"],
+  ["oslo", "Oslo", "2026-06-18", "2026-06-18"],
+  ["paris", "Paris", "2026-07-03", "2026-07-03"],
+  ["zurich", "Zurique", "2026-08-28", "2026-08-28"],
+];
+
+function athleticsRounds(eventLabel) {
+  return ATHLETICS_MEETINGS.map(([id, city, startDate, endDate], index, all) => ({
+    id,
+    name: `${eventLabel} — ${city}`,
+    startDate,
+    endDate,
+    city,
+    category: "Etapa",
+    round: index + 1,
+    finalRound: index === all.length - 1,
+  }));
+}
+
+function athleticsRoster(modalityId, slug, rows) {
+  return rows.map(([id, name, countryCode, countryName, continentId, age, baseRating, momentum]) => ({
+    id: `person_ath_${slug}_${id}`,
+    name,
+    driverName: name,
+    countryCode,
+    countryName,
+    countryId: `country_${countryCode.toLocaleLowerCase()}`,
+    continentId,
+    gender: "M",
+    age,
+    baseRating,
+    momentum,
+    sportId: "sport_athletics",
+    modalityId,
+    rosterType: "preset",
+    presetId: "world-athletics-2026",
+  }));
+}
+
+const ATHLETICS_SERIES = [
+  {
+    modalityId: "modality_athletics_100m",
+    modalityName: "100 metros rasos",
+    label: "100 m",
+    eventFormat: "heats",
+    resultMetric: "direct-mark",
+    markType: "time",
+    heatSize: 8,
+    athletes: athleticsRoster("modality_athletics_100m", "100m", [
+      ["lyles", "Noah Lyles", "USA", "Estados Unidos", "continent_north_america", 28, 95, 2],
+      ["tebogo", "Letsile Tebogo", "BWA", "Botsuana", "continent_africa", 22, 93, 3],
+      ["thompson", "Kishane Thompson", "JAM", "Jamaica", "continent_north_america", 24, 92, 3],
+      ["seville", "Oblique Seville", "JAM", "Jamaica", "continent_north_america", 24, 89, 1],
+      ["bednarek", "Kenny Bednarek", "USA", "Estados Unidos", "continent_north_america", 27, 88, 1],
+      ["coleman", "Christian Coleman", "USA", "Estados Unidos", "continent_north_america", 30, 87, 0],
+      ["simbine", "Akani Simbine", "RSA", "África do Sul", "continent_africa", 32, 87, 0],
+      ["omanyala", "Ferdinand Omanyala", "KEN", "Quênia", "continent_africa", 30, 86, 0],
+    ]),
+  },
+  {
+    modalityId: "modality_athletics_800m",
+    modalityName: "800 metros",
+    label: "800 m",
+    eventFormat: "heats",
+    resultMetric: "direct-mark",
+    markType: "time",
+    heatSize: 8,
+    athletes: athleticsRoster("modality_athletics_800m", "800m", [
+      ["wanyonyi", "Emmanuel Wanyonyi", "KEN", "Quênia", "continent_africa", 21, 94, 3],
+      ["arop", "Marco Arop", "CAN", "Canadá", "continent_north_america", 27, 91, 1],
+      ["sedjati", "Djamel Sedjati", "DZA", "Argélia", "continent_africa", 26, 90, 1],
+      ["hoppel", "Bryce Hoppel", "USA", "Estados Unidos", "continent_north_america", 28, 88, 1],
+      ["attaoui", "Mohamed Attaoui", "ESP", "Espanha", "continent_europe", 23, 85, 2],
+      ["pattison", "Ben Pattison", "GBR", "Reino Unido", "continent_europe", 24, 84, 1],
+      ["tual", "Gabriel Tual", "FRA", "França", "continent_europe", 27, 84, 0],
+      ["burgin", "Max Burgin", "GBR", "Reino Unido", "continent_europe", 24, 83, 0],
+    ]),
+  },
+  {
+    modalityId: "modality_athletics_1500m",
+    modalityName: "1500 metros",
+    label: "1500 m",
+    eventFormat: "heats",
+    resultMetric: "direct-mark",
+    markType: "time",
+    heatSize: 8,
+    athletes: athleticsRoster("modality_athletics_1500m", "1500m", [
+      ["ingebrigtsen", "Jakob Ingebrigtsen", "NOR", "Noruega", "continent_europe", 25, 95, 1],
+      ["kerr", "Josh Kerr", "GBR", "Reino Unido", "continent_europe", 28, 93, 1],
+      ["hocker", "Cole Hocker", "USA", "Estados Unidos", "continent_north_america", 24, 92, 2],
+      ["nuguse", "Yared Nuguse", "USA", "Estados Unidos", "continent_north_america", 26, 90, 1],
+      ["laros", "Niels Laros", "NLD", "Países Baixos", "continent_europe", 20, 88, 3],
+      ["habz", "Azeddine Habz", "FRA", "França", "continent_europe", 32, 86, 1],
+      ["cheruiyot", "Timothy Cheruiyot", "KEN", "Quênia", "continent_africa", 30, 85, 0],
+      ["nordas", "Narve Gilje Nordås", "NOR", "Noruega", "continent_europe", 27, 84, 0],
+    ]),
+  },
+  {
+    modalityId: "modality_athletics_long_jump",
+    modalityName: "Salto em distância",
+    label: "Salto em distância",
+    eventFormat: "individual-ranking",
+    resultMetric: "direct-mark",
+    markType: "distance",
+    athletes: athleticsRoster("modality_athletics_long_jump", "lj", [
+      ["tentoglou", "Miltiadis Tentoglou", "GRC", "Grécia", "continent_europe", 27, 94, 1],
+      ["furlani", "Mattia Furlani", "ITA", "Itália", "continent_europe", 21, 92, 3],
+      ["pinnock", "Wayne Pinnock", "JAM", "Jamaica", "continent_north_america", 25, 91, 2],
+      ["ehammer", "Simon Ehammer", "CHE", "Suíça", "continent_europe", 26, 87, 1],
+      ["gayle", "Tajay Gayle", "JAM", "Jamaica", "continent_north_america", 30, 86, 0],
+      ["shi", "Shi Yuhao", "CHN", "China", "continent_asia", 25, 83, 0],
+      ["adcock", "Liam Adcock", "AUS", "Austrália", "continent_oceania", 30, 82, 0],
+      ["saraboyukov", "Bozhidar Saraboyukov", "BGR", "Bulgária", "continent_europe", 21, 81, 1],
+    ]),
+  },
+  {
+    modalityId: "modality_athletics_high_jump",
+    modalityName: "Salto em altura",
+    label: "Salto em altura",
+    eventFormat: "individual-ranking",
+    resultMetric: "direct-mark",
+    markType: "distance",
+    athletes: athleticsRoster("modality_athletics_high_jump", "hj", [
+      ["kerr", "Hamish Kerr", "NZL", "Nova Zelândia", "continent_oceania", 29, 91, 2],
+      ["harrison", "JuVaughn Harrison", "USA", "Estados Unidos", "continent_north_america", 27, 90, 1],
+      ["woo", "Sanghyeok Woo", "KOR", "Coreia do Sul", "continent_asia", 30, 90, 0],
+      ["mcewen", "Shelby McEwen", "USA", "Estados Unidos", "continent_north_america", 30, 89, 1],
+      ["doroshchuk", "Oleh Doroshchuk", "UKR", "Ucrânia", "continent_europe", 24, 88, 2],
+      ["barshim", "Mutaz Essa Barshim", "QAT", "Catar", "continent_asia", 35, 86, -1],
+      ["potye", "Tobias Potye", "DEU", "Alemanha", "continent_europe", 31, 83, 0],
+      ["beckford", "Romaine Beckford", "JAM", "Jamaica", "continent_north_america", 26, 82, 1],
+    ]),
+  },
+  {
+    modalityId: "modality_athletics_shot_put",
+    modalityName: "Arremesso de peso",
+    label: "Arremesso de peso",
+    eventFormat: "individual-ranking",
+    resultMetric: "direct-mark",
+    markType: "distance",
+    athletes: athleticsRoster("modality_athletics_shot_put", "sp", [
+      ["crouser", "Ryan Crouser", "USA", "Estados Unidos", "continent_north_america", 33, 96, 0],
+      ["fabbri", "Leonardo Fabbri", "ITA", "Itália", "continent_europe", 29, 92, 2],
+      ["kovacs", "Joe Kovacs", "USA", "Estados Unidos", "continent_north_america", 37, 90, 0],
+      ["otterdahl", "Payton Otterdahl", "USA", "Estados Unidos", "continent_north_america", 30, 88, 1],
+      ["walsh", "Tom Walsh", "NZL", "Nova Zelândia", "continent_oceania", 34, 87, 0],
+      ["campbell", "Rajindra Campbell", "JAM", "Jamaica", "continent_north_america", 27, 86, 1],
+      ["munoz", "Uziel Muñoz", "MEX", "México", "continent_north_america", 30, 84, 0],
+      ["steen", "Roger Steen", "USA", "Estados Unidos", "continent_north_america", 26, 83, 1],
+    ]),
+  },
+].map((series) => ({
+  scoringSystemId: "generic-proportional",
+  competitionModel: "standalone",
+  prestige: 80,
+  rankingPoints: 100,
+  ...series,
+  competitions: athleticsRounds(series.label),
+}));
+
 const CATEGORY_SETTINGS = {
   "ATP 250": { prestige: 55, rankingPoints: 250, slots: 28 },
   "ATP 500": { prestige: 75, rankingPoints: 500, slots: 32 },
@@ -683,6 +851,16 @@ export const CALENDAR_PRESETS = [
       },
     ],
   },
+  {
+    id: "world-athletics-2026",
+    name: "Liga Mundial de Atletismo — 2026",
+    description:
+      "Circuito de 5 encontros (Doha, Roma, Oslo, Paris e a final de Zurique) com 6 provas — 100 m, 800 m, 1500 m, salto em distância, salto em altura e arremesso de peso — e 48 atletas reais. Cada prova tem ranking rolante próprio (média das melhores marcas na janela) e resolução de etapa: baterias com tempo nas corridas, marca direta de distância nos saltos e arremesso.",
+    sportId: "sport_athletics",
+    sportName: "Atletismo",
+    sourceUrl: "https://worldathletics.org/",
+    series: ATHLETICS_SERIES,
+  },
 ];
 
 // Normaliza qualquer preset numa lista de séries. Presets antigos de uma única
@@ -704,6 +882,12 @@ export function presetSeries(preset) {
       // a lado com rankings próprios, como a Fórmula Regional Europeia e a do
       // Oriente Médio, ambas no Tier 4).
       tier: series.tier ?? null,
+      // Resolução de etapa por modalidade (ex.: 100 m = baterias + marca direta
+      // de tempo). Ausente = padrão individual/tabela do motor.
+      eventFormat: series.eventFormat ?? null,
+      resultMetric: series.resultMetric ?? null,
+      markType: series.markType ?? null,
+      heatSize: series.heatSize ?? null,
       prestige: series.prestige,
       rankingPoints: series.rankingPoints,
       // Quando verdadeiro, pilotos com o mesmo nome de outra série são o mesmo
@@ -723,6 +907,10 @@ export function presetSeries(preset) {
     seasonId: preset.seasonId ?? null,
     seasonName: preset.seasonName ?? null,
     tier: preset.tier ?? null,
+    eventFormat: preset.eventFormat ?? null,
+    resultMetric: preset.resultMetric ?? null,
+    markType: preset.markType ?? null,
+    heatSize: preset.heatSize ?? null,
     prestige: preset.prestige,
     rankingPoints: preset.rankingPoints,
     linkExistingByName: false,
@@ -821,6 +1009,10 @@ export function buildPresetCompetitions(preset, timestamp = new Date().toISOStri
         prestige: settings.prestige,
         rankingPoints: settings.rankingPoints,
         scoringSystemId: series.scoringSystemId ?? "generic-proportional",
+        eventFormat: series.eventFormat ?? null,
+        resultMetric: series.resultMetric ?? null,
+        markType: series.markType ?? null,
+        heatSize: series.heatSize ?? null,
         slots: settings.slots,
         minimumRanking: null,
         competitionModel: series.competitionModel ?? "standalone",
