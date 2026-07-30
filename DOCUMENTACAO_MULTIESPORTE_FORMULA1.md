@@ -413,3 +413,22 @@ direta (tempo); salto em distância → ranqueamento individual + marca direta
 
 Cobertura em `test/athletics.test.js` e `test/sports.test.js` (3º esporte, 24
 modalidades rolantes). Total após esta etapa: 115 testes aprovados.
+
+## 19. Integração do ranking rolante no app
+
+`mergeRollingRanking` foi ligado ao `app.js` por `recomputeRollingRankings`, que
+recalcula em memória só as modalidades rolantes a partir dos resultados, usando a
+data atual como referência da janela. Como o ranking rolante é **derivado dos
+resultados**, ele não é gravado à parte — é refeito nos três momentos em que pode
+mudar:
+
+- ao **carregar** o save (`loadCurrentGame`);
+- depois de **cada dia simulado** (`processSimulationDate`), para a seleção das
+  próximas etapas já usar a média correta;
+- ao **fim de cada avanço** (`advanceTime`), pois marcas podem sair da janela com
+  o passar do tempo mesmo sem novas competições.
+
+Nada fora disso mudou: tênis, F1 e as Regionais seguem intactos, e um smoke de
+navegador confirma que o Atletismo aparece nos seletores (ranking e gerador de
+competições) e que avançar o tempo recalcula sem erros. Total mantido: 115 testes
+aprovados (a integração é no `app.js`, coberta pelo módulo puro e pelo smoke).

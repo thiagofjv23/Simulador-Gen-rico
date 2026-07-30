@@ -69,6 +69,7 @@ import {
   qualifierParticipantIdsFor,
   simulateCompetition,
 } from "./simulation.js";
+import { mergeRollingRanking } from "./athletics.js";
 import {
   CONTINENTS,
   COUNTRIES,
@@ -2082,6 +2083,19 @@ async function reloadRanking() {
   state.ranking = combineRanking(state.people, state.rankingEntries);
 }
 
+// Recalcula em memória os rankings rolantes (atletismo) a partir dos resultados,
+// usando a data atual como referência da janela móvel. É derivado dos resultados
+// persistidos, então não precisa ser gravado — basta refazer ao carregar, após
+// cada simulação e ao fim de cada avanço (marcas expiram com o tempo).
+function recomputeRollingRankings(referenceDate = state.world?.currentDate) {
+  if (!referenceDate) return;
+  state.rankingEntries = mergeRollingRanking(state.rankingEntries, state.results, {
+    referenceDate,
+    rankingIdFor,
+  });
+  state.ranking = combineRanking(state.people, state.rankingEntries);
+}
+
 async function reloadGeography() {
   [state.continents, state.countries] = await Promise.all([
     getAllContinents(),
@@ -2723,6 +2737,10 @@ async function processSimulationDate(isoDate) {
     simulatedCount += 1;
   }
 
+  // Depois de simular o dia, refaz os rankings rolantes (atletismo) para que a
+  // seleção das próximas etapas já use os pontos corretos por média na janela.
+  if (simulatedCount) recomputeRollingRankings(isoDate);
+
   return simulatedCount;
 }
 
@@ -2756,6 +2774,9 @@ async function advanceTime(days) {
   state.advancing = true;
   try {
     const { simulatedCount, advancedDays, pausedForInvitation } = await advanceDays(days);
+    // Refaz os rankings rolantes com a data final: marcas antigas podem ter
+    // saído da janela mesmo sem novas competições.
+    recomputeRollingRankings(state.world.currentDate);
     goToGameDate();
     const resultMessage = simulatedCount
       ? ` ${simulatedCount} competição${simulatedCount === 1 ? "" : "ões"} simulada${simulatedCount === 1 ? "" : "s"}.`
@@ -2852,6 +2873,7 @@ async function loadCurrentGame() {
   await ensureInitialRanking();
   await ensureRosterForImportedPresets();
   await resetSeasonRankingsIfNeeded(state.world.currentDate);
+  recomputeRollingRankings(state.world.currentDate);
   state.selectedDate = state.world.currentDate;
   state.viewDate = parseISODate(state.world.currentDate);
   switchView(state.activeView);
