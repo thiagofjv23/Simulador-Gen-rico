@@ -321,3 +321,26 @@ resultado final. O primeiro passo é o **Formato da Prova**, em `js/eventformat.
 
 Cobertura em `test/eventformat.test.js` (formato por formato, invariantes de
 posição, determinismo). Total após esta etapa: 97 testes aprovados.
+
+## 15. Resolução de etapa — Sistema de Pontuação e Métrica
+
+O segundo passo é como o resultado de cada participante é medido e pontuado
+dentro da etapa, em `js/metric.js` (depois que o formato já definiu a ordem).
+
+`RESULT_METRICS` traz as três métricas, e `applyResultMetric` decora a
+classificação do formato:
+
+- **Marca direta** — o resultado é o próprio número (tempo em s, distância em m
+  ou peso em kg). `computeMark` é uma transformação determinística e **monótona**
+  da performance, então a marca sempre combina com a posição; `MARK_TYPES` define
+  a direção (menor é melhor no tempo, maior na distância e no peso).
+- **Placar de jogo** — vitória/empate/derrota rendem pontos (padrão 3/1/0,
+  configurável) a partir do registro de confrontos do formato.
+- **Tabela de posição** — cada colocação vale pontos fixos (padrão 10-8-6-...).
+
+A métrica **não reordena**: a ordem vem do formato, que já é coerente com a
+marca. Estes pontos de evento são exibidos no resultado e não se confundem com
+os pontos de ranking (que seguem em `js/scoring.js`, por posição final).
+
+Cobertura em `test/metric.test.js` (as três métricas, monotonia da marca,
+coerência com a posição). Total após esta etapa: 103 testes aprovados.

@@ -113,7 +113,7 @@ function resolveIndividual(participants) {
   }));
 }
 
-function resolveHeats(participants, random, heatSize) {
+function resolveHeats(participants, heatSize) {
   const size = Math.max(2, Math.floor(heatSize) || 8);
   const seeded = [...participants].sort(bySeed);
   const heatCount = Math.max(1, Math.ceil(seeded.length / size));
@@ -127,23 +127,24 @@ function resolveHeats(participants, random, heatSize) {
     heats[heatIndex].push(participant);
   });
 
-  const raced = [];
+  // A marca é absoluta (como o tempo), então a classificação geral sai da
+  // performance; a bateria é o agrupamento, com posição dentro do grupo.
+  const heatInfo = new Map();
   heats.forEach((heat, heatIndex) => {
-    const ordered = heat
-      .map((participant) => ({ ...participant, attempt: noisy(participant.performance, random) }))
-      .sort((a, b) => b.attempt - a.attempt || bySeed(a, b));
-    ordered.forEach((participant, positionInHeat) => {
-      raced.push({ ...participant, heatNumber: heatIndex + 1, heatPosition: positionInHeat + 1 });
+    [...heat].sort(bySeed).forEach((participant, positionInHeat) => {
+      heatInfo.set(participant.personId, {
+        heatNumber: heatIndex + 1,
+        heatPosition: positionInHeat + 1,
+      });
     });
   });
 
-  raced.sort((a, b) => b.attempt - a.attempt || bySeed(a, b));
-  return raced.map((participant, index) => ({
+  return [...participants].sort(bySeed).map((participant, index) => ({
     personId: participant.personId,
     performance: participant.performance,
     position: index + 1,
-    heatNumber: participant.heatNumber,
-    heatPosition: participant.heatPosition,
+    heatNumber: heatInfo.get(participant.personId).heatNumber,
+    heatPosition: heatInfo.get(participant.personId).heatPosition,
     heatCount,
   }));
 }
@@ -362,7 +363,7 @@ export function resolveStage({
 
   switch (chosen) {
     case "heats":
-      return resolveHeats(participants, random, heatSize);
+      return resolveHeats(participants, heatSize);
     case "round-robin":
       return resolveRoundRobin(participants, random, matchPoints, allowDraw);
     case "single-elimination":
