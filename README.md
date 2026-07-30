@@ -330,6 +330,8 @@ js/competition.js   Critérios, combinações, vínculos e validações
 js/geography.js     Mundo, continentes, países e barreiras territoriais
 js/sports.js        Entidades de esportes e modalidades
 js/scoring.js       Sistemas de pontuação e distribuição por posição
+js/eventformat.js   Formato da prova: como os atletas se enfrentam na etapa
+js/metric.js        Métrica do resultado: marca, placar de jogo e tabela de posição
 js/presets.js       Catálogo e gerador dos presets de calendário
 js/ranking.js       Pessoas, rankings esportivos, territoriais e sazonais
 js/newsroom.js      Notícias, melhores ratings e vencedores da Central

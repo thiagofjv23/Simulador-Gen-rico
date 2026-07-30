@@ -296,3 +296,28 @@ aprovados.
 
 Fontes do ranking ATP 2026: rankings ao vivo da ATP e cobertura da temporada
 (ATP Tour, Olympics.com, Tennis Abstract).
+
+## 14. Resolução de etapa — Formato da Prova
+
+Preparando o motor para novos esportes, começou a lógica de resolução de etapa:
+o que acontece dentro do evento para se chegar ao resultado, e não só o
+resultado final. O primeiro passo é o **Formato da Prova**, em `js/eventformat.js`
+(puro e determinístico via sorteador injetado).
+
+`EVENT_FORMATS` traz seis formatos, e `resolveStage` devolve a classificação
+(posições 1..N) mais os dados estruturais do confronto:
+
+- **Ranqueamento individual** — todos fazem a mesma prova; ranqueia-se pela marca.
+- **Baterias / corridas** — divide em grupos (serpentina por semente), corre cada
+  bateria e junta tudo; expõe `heatNumber`/`heatPosition`.
+- **Todos contra todos** — cada par joga (`resolveMatch`); classifica por pontos,
+  com registro de vitórias/empates/derrotas.
+- **Eliminação simples** — chave 1x1; uma derrota elimina; posição pela rodada de
+  eliminação; o campeão soma mais vitórias.
+- **Eliminação dupla** — só sai quem perde duas vezes (chave de vencedores +
+  repescagem, agrupando por número de derrotas).
+- **Sistema suíço** — rodadas fixas, emparelhando pontuações parecidas sem
+  eliminação e evitando revanches.
+
+Cobertura em `test/eventformat.test.js` (formato por formato, invariantes de
+posição, determinismo). Total após esta etapa: 97 testes aprovados.
