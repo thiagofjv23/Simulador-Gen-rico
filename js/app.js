@@ -101,6 +101,18 @@ import {
   scoringSystemLabel,
 } from "./scoring.js";
 import {
+  EVENT_FORMATS,
+  eventFormatById,
+  eventFormatLabel,
+} from "./eventformat.js";
+import {
+  MARK_TYPES,
+  RESULT_METRICS,
+  markTypeById,
+  resultMetricById,
+  resultMetricLabel,
+} from "./metric.js";
+import {
   buildNewsFeed,
   latestTournamentWinners,
   topAthletesByRating,
@@ -215,6 +227,14 @@ const elements = {
   winnerPointsHelp: document.querySelector("#winner-points-help"),
   competitionModel: document.querySelector("#competition-model"),
   competitionModelHelp: document.querySelector("#competition-model-help"),
+  competitionEventFormat: document.querySelector("#competition-event-format"),
+  competitionResultMetric: document.querySelector("#competition-result-metric"),
+  eventFormatHelp: document.querySelector("#event-format-help"),
+  resultMetricHelp: document.querySelector("#result-metric-help"),
+  competitionMarkTypeField: document.querySelector("#competition-mark-type-field"),
+  competitionMarkType: document.querySelector("#competition-mark-type"),
+  competitionHeatSizeField: document.querySelector("#competition-heat-size-field"),
+  competitionHeatSize: document.querySelector("#competition-heat-size"),
   seasonModelPanel: document.querySelector("#season-model-panel"),
   competitionSeasonName: document.querySelector("#competition-season-name"),
   competitionType: document.querySelector("#competition-type"),
@@ -365,6 +385,38 @@ function setupScoringSystemOptions() {
     SCORING_SYSTEMS,
     "Escolha o sistema de pontuação",
   );
+}
+
+function fillSelectOptions(select, items) {
+  select.replaceChildren();
+  items.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = item.id;
+    option.textContent = item.name;
+    select.append(option);
+  });
+}
+
+function setupEventFormatOptions() {
+  fillSelectOptions(elements.competitionEventFormat, EVENT_FORMATS);
+  fillSelectOptions(elements.competitionResultMetric, RESULT_METRICS);
+  fillSelectOptions(elements.competitionMarkType, MARK_TYPES);
+}
+
+// Mostra a explicação (janelinha de contexto) de cada opção e revela os campos
+// dependentes: tipo de marca (marca direta) e tamanho da bateria (baterias).
+function updateEventFormatFields() {
+  const format = elements.competitionEventFormat.value || "individual-ranking";
+  const metric = elements.competitionResultMetric.value || "position-table";
+  elements.eventFormatHelp.textContent = eventFormatById(format)?.description ?? "";
+  elements.resultMetricHelp.textContent = resultMetricById(metric)?.description ?? "";
+
+  const usesMark = metric === "direct-mark";
+  const usesHeats = format === "heats";
+  elements.competitionMarkTypeField.classList.toggle("hidden", !usesMark);
+  elements.competitionHeatSizeField.classList.toggle("hidden", !usesHeats);
+  elements.competitionMarkType.disabled = !usesMark;
+  elements.competitionHeatSize.disabled = !usesHeats;
 }
 
 function updateScoringSystem({
@@ -813,6 +865,8 @@ function renderCompetitionCard(competition) {
     createBadge(competitionModelLabel(
       competition.competitionModel ?? "standalone",
     )),
+    createBadge(eventFormatLabel(competition.eventFormat ?? "individual-ranking")),
+    createBadge(resultMetricLabel(competition.resultMetric ?? "position-table")),
   );
   if (competition.competitionModel === "season_stage") {
     const seasonMetadata = seasonMetadataFor(competition);
@@ -1903,10 +1957,15 @@ function resetCompetitionForm(defaultDate) {
   elements.competitionQualifierSlots.value = 1;
   elements.competitionContinent.value = "";
   updateCountrySelect(elements.competitionContinent, elements.competitionCountry);
+  elements.competitionEventFormat.value = "individual-ranking";
+  elements.competitionResultMetric.value = "position-table";
+  elements.competitionMarkType.value = "time";
+  elements.competitionHeatSize.value = 8;
   elements.deleteCompetitionButton.classList.add("hidden");
   elements.competitionFormError.textContent = "";
   updateScoringSystem({ preferredValue: "generic-proportional" });
   updateCompetitionModelFields();
+  updateEventFormatFields();
   updateQualificationFields();
   updateCompetitionGeographyFields();
 }
@@ -1945,11 +2004,22 @@ function openCompetitionDialog(competitionId = null, defaultDate = state.selecte
     });
     elements.competitionSlots.value = competition.slots;
     elements.competitionNotes.value = competition.notes ?? "";
+    elements.competitionEventFormat.value = eventFormatById(competition.eventFormat)
+      ? competition.eventFormat
+      : "individual-ranking";
+    elements.competitionResultMetric.value = resultMetricById(competition.resultMetric)
+      ? competition.resultMetric
+      : "position-table";
+    elements.competitionMarkType.value = markTypeById(competition.markType)
+      ? competition.markType
+      : "time";
+    elements.competitionHeatSize.value = competition.heatSize ?? 8;
     elements.competitionMixedCombination.value =
       competition.mixedCombination ?? MIXED_QUALIFICATION_COMBINATIONS[0]?.id ?? "";
     elements.competitionQualifierSlots.value = competition.qualifierSlots ?? 1;
     elements.deleteCompetitionButton.classList.remove("hidden");
     updateCompetitionModelFields();
+    updateEventFormatFields();
     updateQualificationFields({
       mixedSlots: competition.mixedSlots ?? null,
       qualifierTargetId: competition.qualifierTargetCompetitionId ?? "",
@@ -2094,6 +2164,14 @@ async function handleCompetitionSubmit(submitEvent) {
     sport: selectedSport?.name ?? "",
     discipline: selectedModality?.name ?? "",
     scoringSystemId: elements.competitionScoringSystem.value,
+    eventFormat: elements.competitionEventFormat.value || "individual-ranking",
+    resultMetric: elements.competitionResultMetric.value || "position-table",
+    markType: elements.competitionResultMetric.value === "direct-mark"
+      ? elements.competitionMarkType.value
+      : null,
+    heatSize: elements.competitionEventFormat.value === "heats"
+      ? Number(elements.competitionHeatSize.value) || 8
+      : null,
     competitionModel,
     seasonId: competitionModel === "season_stage"
       ? existing?.seasonId
@@ -2902,6 +2980,8 @@ function attachEventListeners() {
     "change",
     updateCompetitionModelFields,
   );
+  elements.competitionEventFormat.addEventListener("change", updateEventFormatFields);
+  elements.competitionResultMetric.addEventListener("change", updateEventFormatFields);
   elements.competitionGeographicScope.addEventListener(
     "change",
     () => updateCompetitionGeographyFields(),
@@ -2968,6 +3048,7 @@ function attachEventListeners() {
 function initialize() {
   attachEventListeners();
   setupScoringSystemOptions();
+  setupEventFormatOptions();
   setupMixedQualificationOptions();
   setupPresetOptions();
   switchHub(state.activeHub);

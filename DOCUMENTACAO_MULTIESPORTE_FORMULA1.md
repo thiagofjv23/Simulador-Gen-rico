@@ -344,3 +344,25 @@ os pontos de ranking (que seguem em `js/scoring.js`, por posição final).
 
 Cobertura em `test/metric.test.js` (as três métricas, monotonia da marca,
 coerência com a posição). Total após esta etapa: 103 testes aprovados.
+
+## 16. Formato e métrica selecionáveis no gerador de competições
+
+O cadastro de competição (nosso gerador de etapas) ganhou dois seletores novos,
+logo abaixo do sistema de pontuação:
+
+- **Formato da prova** — os seis formatos de `EVENT_FORMATS`.
+- **Sistema de pontuação e métrica** — as três métricas de `RESULT_METRICS`.
+
+Cada seletor tem uma **janelinha de contexto** (`#event-format-help` e
+`#result-metric-help`) que, via `updateEventFormatFields`, explica ao jogador
+para que serve a opção escolhida. Dois campos dependentes aparecem só quando
+fazem sentido: **tipo de marca** (tempo/distância/peso) na marca direta e
+**participantes por bateria** no formato de baterias.
+
+As escolhas são gravadas na competição (`eventFormat`, `resultMetric`,
+`markType`, `heatSize`), validadas em `js/competition.js` (aceitando ausência
+como padrão, para não quebrar competições antigas) e exibidas como selo na ficha
+da competição. Nada além do gerador de competições foi tocado.
+
+Cobertura de contrato em `test/ui-contract.test.js`. Total após esta etapa: 104
+testes aprovados.

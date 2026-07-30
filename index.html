@@ -640,6 +640,43 @@
           Eventos independentes alimentam o ranking permanente da modalidade.
         </p>
 
+        <div class="field-row">
+          <label class="field">
+            <span>Formato da prova</span>
+            <select id="competition-event-format" name="eventFormat" required></select>
+          </label>
+          <label class="field">
+            <span>Sistema de pontuação e métrica</span>
+            <select id="competition-result-metric" name="resultMetric" required></select>
+          </label>
+        </div>
+
+        <p id="event-format-help" class="field-help">
+          Define como os atletas se enfrentam na etapa para se chegar ao resultado.
+        </p>
+        <p id="result-metric-help" class="field-help">
+          Define como o resultado de cada participante é medido e pontuado dentro da etapa.
+        </p>
+
+        <div class="field-row">
+          <label id="competition-mark-type-field" class="field hidden">
+            <span>Tipo de marca</span>
+            <select id="competition-mark-type" name="markType"></select>
+          </label>
+          <label id="competition-heat-size-field" class="field hidden">
+            <span>Participantes por bateria</span>
+            <input
+              id="competition-heat-size"
+              name="heatSize"
+              type="number"
+              min="2"
+              max="9999"
+              step="1"
+              value="8"
+            />
+          </label>
+        </div>
+
         <section id="season-model-panel" class="rule-panel hidden">
           <label class="field">
             <span>Nome do campeonato anual</span>

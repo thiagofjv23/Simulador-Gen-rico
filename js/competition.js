@@ -4,6 +4,8 @@ import {
 } from "./geography.js";
 import { validateSportSelection } from "./sports.js";
 import { scoringSystemById, scoringSystemLabel } from "./scoring.js";
+import { eventFormatById } from "./eventformat.js";
+import { markTypeById, resultMetricById } from "./metric.js";
 
 export const COMPETITION_MODELS = {
   standalone: {
@@ -217,6 +219,17 @@ export function validateCompetition(competition, { competitions = [] } = {}) {
   }
   if (!scoringSystemById(competition.scoringSystemId ?? "generic-proportional")) {
     errors.push("Escolha um sistema de pontuação válido.");
+  }
+  if (competition.eventFormat && !eventFormatById(competition.eventFormat)) {
+    errors.push("Escolha um formato de prova válido.");
+  }
+  if (competition.resultMetric && !resultMetricById(competition.resultMetric)) {
+    errors.push("Escolha um sistema de pontuação e métrica válido.");
+  }
+  if (competition.resultMetric === "direct-mark"
+    && competition.markType
+    && !markTypeById(competition.markType)) {
+    errors.push("Escolha um tipo de marca válido.");
   }
   if (!COMPETITION_MODELS[competition.competitionModel ?? "standalone"]) {
     errors.push("Escolha um modelo de competição válido.");

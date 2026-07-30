@@ -14,6 +14,22 @@ test("o formulário de competição usa seletores de esporte e modalidade", asyn
   assert.match(html, /id="scoring-system-help"/);
 });
 
+test("o cadastro de competição permite escolher formato de prova e métrica", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("index.html", projectRoot), "utf8"),
+    readFile(new URL("js/app.js", projectRoot), "utf8"),
+  ]);
+  assert.match(html, /<select id="competition-event-format"[^>]*name="eventFormat"/);
+  assert.match(html, /<select id="competition-result-metric"[^>]*name="resultMetric"/);
+  assert.match(html, /id="competition-mark-type"/);
+  assert.match(html, /id="competition-heat-size"/);
+  assert.match(html, /id="event-format-help"/);
+  assert.match(html, /id="result-metric-help"/);
+  // A janelinha de contexto explica cada opção ao jogador.
+  assert.match(app, /updateEventFormatFields/);
+  assert.match(app, /eventFormatById\(format\)\?\.description/);
+});
+
 test("a tela de ranking permite escolher esporte e modalidade", async () => {
   const html = await readFile(new URL("index.html", projectRoot), "utf8");
   assert.match(html, /id="ranking-sport"/);
