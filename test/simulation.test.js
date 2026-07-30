@@ -251,3 +251,94 @@ test("a mesma edição e o mesmo estado anterior não mudam ao recarregar", () =
   });
   assert.deepEqual(first, second);
 });
+
+// --- Passo 2: rating de equipe no modelo misto ---------------------------
+
+const mixedBase = {
+  ...competition,
+  id: "competition_mixed",
+  slots: 8,
+};
+
+test("o modelo independent (padrão) não altera a performance dos atletas", () => {
+  const baseline = simulateCompetition({
+    competition: mixedBase,
+    occurrenceStart: "2028-08-01",
+    occurrenceEnd: "2028-08-01",
+    ranking,
+  });
+  // Modelo independent com um mapa de rating de equipe: como não influencia, o
+  // resultado é idêntico ao da simulação sem qualquer equipe.
+  const teamMap = new Map(ranking.slice(0, 8).map(({ personId }) => [personId, 99]));
+  const independent = simulateCompetition({
+    competition: { ...mixedBase, teamRatingModel: "independent", teamWeight: 60 },
+    occurrenceStart: "2028-08-01",
+    occurrenceEnd: "2028-08-01",
+    ranking,
+    teamRatingByPersonId: teamMap,
+  });
+  assert.deepEqual(
+    independent.result.standings.map((s) => [s.personId, s.performance]),
+    baseline.result.standings.map((s) => [s.personId, s.performance]),
+  );
+  assert.equal(independent.result.teamWeight, 0);
+});
+
+test("peso 0 ou mapa vazio no modelo weighted preserva o resultado original", () => {
+  const baseline = simulateCompetition({
+    competition: mixedBase,
+    occurrenceStart: "2028-08-02",
+    occurrenceEnd: "2028-08-02",
+    ranking,
+  });
+  const zeroWeight = simulateCompetition({
+    competition: { ...mixedBase, teamRatingModel: "weighted", teamWeight: 0 },
+    occurrenceStart: "2028-08-02",
+    occurrenceEnd: "2028-08-02",
+    ranking,
+    teamRatingByPersonId: new Map(ranking.slice(0, 8).map(({ personId }) => [personId, 10])),
+  });
+  const emptyMap = simulateCompetition({
+    competition: { ...mixedBase, teamRatingModel: "weighted", teamWeight: 60 },
+    occurrenceStart: "2028-08-02",
+    occurrenceEnd: "2028-08-02",
+    ranking,
+    teamRatingByPersonId: new Map(),
+  });
+  const performances = (sim) => sim.result.standings.map((s) => [s.personId, s.performance]);
+  assert.deepEqual(performances(zeroWeight), performances(baseline));
+  assert.deepEqual(performances(emptyMap), performances(baseline));
+});
+
+test("o modelo weighted mistura o rating da equipe na performance do atleta", () => {
+  // Uma equipe forte (99) eleva a performance; uma fraca (10) reduz. Comparamos
+  // a performance de um mesmo atleta entre os dois cenários.
+  const strongTeam = new Map(ranking.map(({ personId }) => [personId, 99]));
+  const weakTeam = new Map(ranking.map(({ personId }) => [personId, 10]));
+  const weighted = { ...mixedBase, teamRatingModel: "weighted", teamWeight: 60 };
+
+  const strong = simulateCompetition({
+    competition: weighted,
+    occurrenceStart: "2028-08-03",
+    occurrenceEnd: "2028-08-03",
+    ranking,
+    teamRatingByPersonId: strongTeam,
+  });
+  const weak = simulateCompetition({
+    competition: weighted,
+    occurrenceStart: "2028-08-03",
+    occurrenceEnd: "2028-08-03",
+    ranking,
+    teamRatingByPersonId: weakTeam,
+  });
+
+  const strongByPerson = new Map(strong.result.standings.map((s) => [s.personId, s.performance]));
+  const weakByPerson = new Map(weak.result.standings.map((s) => [s.personId, s.performance]));
+  // A variação diária é idêntica (mesma semente), então a diferença vem só do
+  // rating da equipe: com equipe forte, cada atleta rende mais.
+  for (const [personId, strongPerf] of strongByPerson) {
+    assert.ok(strongPerf > weakByPerson.get(personId));
+  }
+  assert.equal(strong.result.teamRatingModel, "weighted");
+  assert.equal(strong.result.teamWeight, 60);
+});

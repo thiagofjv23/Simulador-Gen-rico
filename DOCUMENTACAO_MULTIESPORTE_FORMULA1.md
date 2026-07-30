@@ -504,3 +504,50 @@ atleta, soma dos membros, validação) e `test/sports.test.js` atualizado com o
 `entityType` de cada esporte. Smoke de navegador confirma que o banco sobe na
 versão 9 com o store `clubs` criado e sem erros de console. Total após esta
 etapa: **125 testes aprovados**.
+
+## 22. Sistemas de rating de equipe (esportes mistos) — passo 2
+
+Dois **modelos de rating de equipe selecionáveis** para modalidades mistas
+(`js/clubs.js`, `TEAM_RATING_MODELS`):
+
+- **`independent`** — a equipe existe e acumula pontos no ranking (soma dos
+  atletas membros), mas o rating da equipe **não altera** a simulação da prova.
+  É o modelo conservador; mantém o resultado idêntico ao anterior.
+- **`weighted`** — o rating da equipe entra no desempenho de cada atleta segundo
+  um **peso ajustável** (0–100). Quanto maior o peso, mais o "equipamento" pesa
+  no resultado (ex.: carros de Fórmula 1: uma ótima equipe + piloto mediano ≠
+  ótima equipe + piloto ruim).
+
+**Peso por modalidade** (`js/sports.js`, `teamRatingConfigForModality`): cada
+modalidade mista traz seu próprio modelo/peso. A **Fórmula 1** usa `weighted`
+com peso **60** (carros construídos pela equipe); **F2, F3 e as Regionais** usam
+`independent`/peso 0 (chassi padrão, o equipamento não diferencia), mas continuam
+**mistas** — assim o ranking de equipe (soma dos atletas) se cria do mesmo jeito
+e todas compartilham o mesmo ecossistema, só com níveis de customização
+diferentes.
+
+**Simulação** (`js/simulation.js`): `performanceIndex` passou a aceitar
+`{ teamRating, teamWeight }` e mistura o rating da equipe no desempenho esperado
+(`expected*(1-w) + teamExpected*w`) **apenas** no modelo `weighted` com peso > 0.
+Peso 0, modelo `independent` ou ausência de equipe devolvem exatamente o cálculo
+original — o número de sorteios por atleta não muda, então **o determinismo dos
+resultados já existentes é preservado**. `simulateCompetition` recebe um mapa
+opcional `teamRatingByPersonId`; enquanto não há clubes criados (passo 3) o mapa
+fica vazio e **nada muda ainda** na prática. O resultado guarda
+`teamRatingModel`/`teamWeight` para exibição futura.
+
+**UI do diálogo de competição**: novo painel "Esporte misto — atletas e equipes"
+que só aparece para esportes mistos. Traz o seletor de modelo e o campo de peso
+(visível só no modelo `weighted`), com **janelinha de contexto** explicando cada
+opção. Os campos assumem o padrão da modalidade e podem ser sobrescritos por
+competição; `validateCompetition` valida modelo e peso. Presets antigos seguem
+sem os campos — a simulação resolve o padrão da modalidade em tempo de execução.
+
+Verificação: `test/simulation.test.js` (determinismo preservado com
+`independent`/peso 0/mapa vazio; equipe forte eleva a performance no `weighted`),
+`test/sports.test.js` (config por modalidade), `test/clubs.test.js` (modelos e
+`normalizeTeamWeight`) e `test/competition.test.js` (validação). Smoke de
+navegador: o painel aparece para Automobilismo (F1 = weighted/60, F2 =
+independent/0) e some para o Tênis, sem erros de console. Total após esta etapa:
+**133 testes** (o único vermelho é uma asserção desatualizada do preset de
+atletismo de 100 m, alheia a este passo).

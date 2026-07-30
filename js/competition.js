@@ -6,6 +6,7 @@ import { validateSportSelection } from "./sports.js";
 import { scoringSystemById, scoringSystemLabel } from "./scoring.js";
 import { eventFormatById } from "./eventformat.js";
 import { markTypeById, resultMetricById } from "./metric.js";
+import { MAX_TEAM_WEIGHT, isTeamRatingModel } from "./clubs.js";
 
 export const COMPETITION_MODELS = {
   standalone: {
@@ -233,6 +234,17 @@ export function validateCompetition(competition, { competitions = [] } = {}) {
   }
   if (!COMPETITION_MODELS[competition.competitionModel ?? "standalone"]) {
     errors.push("Escolha um modelo de competição válido.");
+  }
+  if (competition.teamRatingModel && !isTeamRatingModel(competition.teamRatingModel)) {
+    errors.push("Escolha um modelo de rating de equipe válido.");
+  }
+  if (
+    competition.teamWeight != null
+    && (!Number.isInteger(competition.teamWeight)
+      || competition.teamWeight < 0
+      || competition.teamWeight > MAX_TEAM_WEIGHT)
+  ) {
+    errors.push(`O peso da equipe deve ser um inteiro entre 0 e ${MAX_TEAM_WEIGHT}.`);
   }
   if (competition.competitionModel === "season_stage") {
     if (!competition.seasonName?.trim()) {

@@ -42,6 +42,27 @@ test("aceita uma competição completa e válida", () => {
   assert.deepEqual(validateCompetition(validCompetition), []);
 });
 
+test("aceita um modelo de rating de equipe válido com peso no intervalo", () => {
+  assert.deepEqual(
+    validateCompetition({
+      ...validCompetition,
+      teamRatingModel: "weighted",
+      teamWeight: 60,
+    }),
+    [],
+  );
+});
+
+test("rejeita modelo de rating de equipe ou peso inválidos", () => {
+  const errors = validateCompetition({
+    ...validCompetition,
+    teamRatingModel: "desconhecido",
+    teamWeight: 150,
+  }).join(" ");
+  assert.match(errors, /modelo de rating de equipe/i);
+  assert.match(errors, /peso da equipe/i);
+});
+
 test("rejeita datas invertidas", () => {
   const invalid = {
     ...validCompetition,

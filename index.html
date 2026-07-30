@@ -677,6 +677,29 @@
           </label>
         </div>
 
+        <section id="team-rating-panel" class="rule-panel hidden">
+          <p class="eyebrow">ESPORTE MISTO — ATLETAS E EQUIPES</p>
+          <div class="field-row">
+            <label class="field">
+              <span>Rating de equipe na etapa</span>
+              <select id="competition-team-rating-model" name="teamRatingModel"></select>
+            </label>
+            <label id="competition-team-weight-field" class="field">
+              <span>Peso da equipe <small>(0–100)</small></span>
+              <input
+                id="competition-team-weight"
+                name="teamWeight"
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                value="0"
+              />
+            </label>
+          </div>
+          <p id="team-rating-help" class="field-help"></p>
+        </section>
+
         <section id="season-model-panel" class="rule-panel hidden">
           <label class="field">
             <span>Nome do campeonato anual</span>

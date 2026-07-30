@@ -38,16 +38,31 @@ function ageModifier(age) {
   return clamp(1.2 - Math.abs(age - 26) * 0.16, -1.2, 1.2);
 }
 
-function performanceIndex(person, random) {
-  const expectedPerformance =
+function expectedPerformance(person) {
+  return (
     50
     + person.baseRating * 0.48
     + person.momentum * 0.55
-    + ageModifier(person.age);
+    + ageModifier(person.age)
+  );
+}
+
+// Desempenho de um participante na etapa. No modelo misto "weighted", o rating
+// da equipe é misturado ao do atleta segundo o peso (0–100): peso 0 (ou sem
+// equipe) devolve exatamente o cálculo original, preservando o determinismo dos
+// resultados já existentes.
+function performanceIndex(person, random, { teamRating = null, teamWeight = 0 } = {}) {
+  let expected = expectedPerformance(person);
+
+  if (teamRating != null && teamWeight > 0) {
+    const weight = clamp(Number(teamWeight), 0, 100) / 100;
+    const teamExpected = 50 + Number(teamRating) * 0.48;
+    expected = expected * (1 - weight) + teamExpected * weight;
+  }
 
   // Três sorteios somados concentram a variação perto de zero.
   const dailyVariation = (random() + random() + random() - 1.5) * 4;
-  return Number(clamp(expectedPerformance + dailyVariation, 0, 100).toFixed(2));
+  return Number(clamp(expected + dailyVariation, 0, 100).toFixed(2));
 }
 
 export function rankingPointsForPosition(
@@ -174,6 +189,9 @@ export function simulateCompetition({
   ranking,
   invitedPersonIds = [],
   qualifierPersonIds = [],
+  // Rating da equipe de cada atleta (personId -> rating), usado só no modelo
+  // misto "weighted". Vazio por padrão: sem equipes, o cálculo é o original.
+  teamRatingByPersonId = new Map(),
 }) {
   const participants = selectParticipants(ranking, competition, {
     invitedPersonIds,
@@ -202,6 +220,13 @@ export function simulateCompetition({
   ].join("|");
   const random = createRandom(hashString(seedSource));
 
+  // Peso efetivo da equipe na etapa (modelo misto). Só o modelo "weighted" com
+  // peso > 0 mistura o rating da equipe; caso contrário nada muda.
+  const teamRatingModel = competition.teamRatingModel ?? "independent";
+  const teamWeight = teamRatingModel === "weighted"
+    ? clamp(Number(competition.teamWeight) || 0, 0, 100)
+    : 0;
+
   // A performance é sorteada na ordem dos participantes (preserva o determinismo
   // dos resultados já existentes). O formato/métrica só entram quando a
   // competição os define — sem eles, o comportamento é idêntico ao anterior.
@@ -212,7 +237,10 @@ export function simulateCompetition({
     baseRating: entry.person.baseRating,
     momentum: entry.person.momentum,
     previousRankingPosition: entry.position,
-    performance: performanceIndex(entry.person, random),
+    performance: performanceIndex(entry.person, random, {
+      teamRating: teamWeight > 0 ? teamRatingByPersonId.get(entry.personId) ?? null : null,
+      teamWeight,
+    }),
   }));
 
   const eventFormat = competition.eventFormat ?? null;
@@ -322,6 +350,8 @@ export function simulateCompetition({
       eventFormat,
       resultMetric,
       markType: resultMetric === "direct-mark" ? markType : null,
+      teamRatingModel,
+      teamWeight,
       qualification: competition.qualification ?? "ranking",
       competitionModel: competition.competitionModel ?? "standalone",
       seasonId: competition.seasonId ?? null,

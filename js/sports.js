@@ -1,4 +1,10 @@
-import { ENTITY_TYPES, DEFAULT_ENTITY_TYPE } from "./clubs.js";
+import {
+  ENTITY_TYPES,
+  DEFAULT_ENTITY_TYPE,
+  TEAM_RATING_MODELS,
+  DEFAULT_TEAM_RATING_MODEL,
+  normalizeTeamWeight,
+} from "./clubs.js";
 
 // Cada esporte declara o tipo de entidade que o disputa (entityType):
 //   - "atleta": só atletas individuais (tênis, atletismo)
@@ -82,35 +88,51 @@ export const MODALITIES = [
     name: "Simples masculino",
     rankingModel: "cumulative",
   },
+  // Automobilismo é misto (atletas + equipes). A Fórmula 1 tem carros
+  // construídos pela própria equipe, então o rating da equipe influencia a
+  // etapa (modelo "weighted", peso alto). As categorias de monoposto padrão
+  // (F2, F3 e Regionais) usam o mesmo chassi para todos, então a equipe não
+  // influencia a prova (modelo "independent", peso 0) — mas continuam mistas,
+  // para que o ranking de equipe (soma dos atletas) se crie do mesmo jeito.
   {
     id: "modality_motorsport_formula1",
     sportId: "sport_motorsport",
     name: "Fórmula 1",
     rankingModel: "seasonal",
+    teamRatingModel: "weighted",
+    teamWeight: 60,
   },
   {
     id: "modality_motorsport_formula2",
     sportId: "sport_motorsport",
     name: "Fórmula 2",
     rankingModel: "seasonal",
+    teamRatingModel: "independent",
+    teamWeight: 0,
   },
   {
     id: "modality_motorsport_formula3",
     sportId: "sport_motorsport",
     name: "Fórmula 3",
     rankingModel: "seasonal",
+    teamRatingModel: "independent",
+    teamWeight: 0,
   },
   {
     id: "modality_motorsport_formula_regional",
     sportId: "sport_motorsport",
     name: "Fórmula Regional Europeia",
     rankingModel: "seasonal",
+    teamRatingModel: "independent",
+    teamWeight: 0,
   },
   {
     id: "modality_motorsport_formula_regional_middle_east",
     sportId: "sport_motorsport",
     name: "Fórmula Regional Oriente Médio",
     rankingModel: "seasonal",
+    teamRatingModel: "independent",
+    teamWeight: 0,
   },
   ...ATHLETICS_MODALITIES,
 ];
@@ -150,6 +172,18 @@ export function sportAllowsClubs(sportId, sports = SPORTS) {
 // Esportes que aceitam atletas individuais (só de atletas ou mistos).
 export function sportAllowsAthletes(sportId, sports = SPORTS) {
   return ENTITY_TYPES[entityTypeForSport(sportId, sports)].allowsAthletes;
+}
+
+// Configuração de rating de equipe de uma modalidade: o modelo (independent ou
+// weighted) e o peso efetivo. No modelo independent o peso é sempre 0. Serve de
+// padrão para as competições da modalidade; cada competição pode sobrescrever.
+export function teamRatingConfigForModality(modalityId, modalities = MODALITIES) {
+  const modality = modalityById(modalityId, modalities);
+  const model = TEAM_RATING_MODELS[modality?.teamRatingModel]
+    ? modality.teamRatingModel
+    : DEFAULT_TEAM_RATING_MODEL;
+  const weight = model === "weighted" ? normalizeTeamWeight(modality?.teamWeight ?? 0) : 0;
+  return { teamRatingModel: model, teamWeight: weight };
 }
 
 export function validateSportSelection(

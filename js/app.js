@@ -87,7 +87,14 @@ import {
   modalityById,
   sportById,
   defaultScoringSystemForSport,
+  entityTypeForSport,
+  teamRatingConfigForModality,
 } from "./sports.js";
+import {
+  TEAM_RATING_MODELS,
+  teamRatingModelInfo,
+  normalizeTeamWeight,
+} from "./clubs.js";
 import {
   CALENDAR_PRESETS,
   buildPresetCompetitions,
@@ -237,6 +244,11 @@ const elements = {
   competitionMarkType: document.querySelector("#competition-mark-type"),
   competitionHeatSizeField: document.querySelector("#competition-heat-size-field"),
   competitionHeatSize: document.querySelector("#competition-heat-size"),
+  teamRatingPanel: document.querySelector("#team-rating-panel"),
+  competitionTeamRatingModel: document.querySelector("#competition-team-rating-model"),
+  competitionTeamWeightField: document.querySelector("#competition-team-weight-field"),
+  competitionTeamWeight: document.querySelector("#competition-team-weight"),
+  teamRatingHelp: document.querySelector("#team-rating-help"),
   seasonModelPanel: document.querySelector("#season-model-panel"),
   competitionSeasonName: document.querySelector("#competition-season-name"),
   competitionType: document.querySelector("#competition-type"),
@@ -404,6 +416,51 @@ function setupEventFormatOptions() {
   fillSelectOptions(elements.competitionEventFormat, EVENT_FORMATS);
   fillSelectOptions(elements.competitionResultMetric, RESULT_METRICS);
   fillSelectOptions(elements.competitionMarkType, MARK_TYPES);
+}
+
+function setupTeamRatingOptions() {
+  fillSelectOptions(
+    elements.competitionTeamRatingModel,
+    Object.values(TEAM_RATING_MODELS).map(({ id, label }) => ({ id, name: label })),
+  );
+}
+
+// O painel de rating de equipe só aparece para esportes mistos (atletas +
+// equipes). O campo de peso só faz sentido no modelo "weighted"; no modelo
+// "independent" ele fica oculto. A janelinha de contexto explica cada escolha.
+function updateTeamRatingFields() {
+  const sportId = elements.competitionSport.value;
+  const isMixed = sportId ? entityTypeForSport(sportId, state.sports) === "mista" : false;
+  elements.teamRatingPanel.classList.toggle("hidden", !isMixed);
+
+  const model = elements.competitionTeamRatingModel.value || "independent";
+  const usesWeight = model === "weighted";
+  elements.competitionTeamWeightField.classList.toggle("hidden", !usesWeight);
+  elements.competitionTeamWeight.disabled = !usesWeight || !isMixed;
+
+  const info = teamRatingModelInfo(model);
+  elements.teamRatingHelp.textContent = isMixed
+    ? usesWeight
+      ? `${info.description} Peso 0 equivale a não influenciar; quanto maior, mais o equipamento pesa.`
+      : info.description
+    : "";
+}
+
+// Aplica os padrões de rating de equipe da modalidade selecionada (cada
+// modalidade mista traz seu próprio modelo e peso). `preferred` permite
+// restaurar os valores salvos de uma competição ao editá-la.
+function applyModalityTeamRatingDefaults(preferred = null) {
+  const config = teamRatingConfigForModality(
+    elements.competitionDiscipline.value,
+    state.modalities,
+  );
+  const model = preferred?.teamRatingModel ?? config.teamRatingModel;
+  elements.competitionTeamRatingModel.value = TEAM_RATING_MODELS[model]
+    ? model
+    : "independent";
+  const weight = preferred?.teamWeight ?? config.teamWeight;
+  elements.competitionTeamWeight.value = normalizeTeamWeight(weight);
+  updateTeamRatingFields();
 }
 
 // Mostra a explicação (janelinha de contexto) de cada opção e revela os campos
@@ -1996,11 +2053,14 @@ function resetCompetitionForm(defaultDate) {
   elements.competitionResultMetric.value = "position-table";
   elements.competitionMarkType.value = "time";
   elements.competitionHeatSize.value = 8;
+  elements.competitionTeamRatingModel.value = "independent";
+  elements.competitionTeamWeight.value = 0;
   elements.deleteCompetitionButton.classList.add("hidden");
   elements.competitionFormError.textContent = "";
   updateScoringSystem({ preferredValue: "generic-proportional" });
   updateCompetitionModelFields();
   updateEventFormatFields();
+  applyModalityTeamRatingDefaults();
   updateQualificationFields();
   updateCompetitionGeographyFields();
 }
@@ -2049,6 +2109,10 @@ function openCompetitionDialog(competitionId = null, defaultDate = state.selecte
       ? competition.markType
       : "time";
     elements.competitionHeatSize.value = competition.heatSize ?? 8;
+    applyModalityTeamRatingDefaults({
+      teamRatingModel: competition.teamRatingModel ?? null,
+      teamWeight: competition.teamWeight ?? null,
+    });
     elements.competitionMixedCombination.value =
       competition.mixedCombination ?? MIXED_QUALIFICATION_COMBINATIONS[0]?.id ?? "";
     elements.competitionQualifierSlots.value = competition.qualifierSlots ?? 1;
@@ -2224,6 +2288,9 @@ async function handleCompetitionSubmit(submitEvent) {
     elements.competitionDiscipline.value,
     state.modalities,
   );
+  const isMixedSport = selectedSport
+    ? entityTypeForSport(selectedSport.id, state.sports) === "mista"
+    : false;
   const competition = {
     id: existing?.id ?? createId("competition"),
     calendarEventId: existing?.calendarEventId ?? createId("event"),
@@ -2241,6 +2308,12 @@ async function handleCompetitionSubmit(submitEvent) {
     heatSize: elements.competitionEventFormat.value === "heats"
       ? Number(elements.competitionHeatSize.value) || 8
       : null,
+    teamRatingModel: isMixedSport ? elements.competitionTeamRatingModel.value : null,
+    teamWeight: isMixedSport && elements.competitionTeamRatingModel.value === "weighted"
+      ? normalizeTeamWeight(elements.competitionTeamWeight.value)
+      : isMixedSport
+        ? 0
+        : null,
     competitionModel,
     seasonId: competitionModel === "season_stage"
       ? existing?.seasonId
@@ -2723,6 +2796,34 @@ async function resetSeasonRankingsIfNeeded(isoDate) {
   return changedEntries.length;
 }
 
+// Modelo/peso de equipe efetivos de uma competição: usa o que a competição
+// gravou (via diálogo) ou, na falta, o padrão da modalidade.
+function resolveTeamRatingConfig(competition) {
+  if (competition.teamRatingModel) {
+    return {
+      teamRatingModel: competition.teamRatingModel,
+      teamWeight: competition.teamRatingModel === "weighted"
+        ? normalizeTeamWeight(competition.teamWeight ?? 0)
+        : 0,
+    };
+  }
+  return teamRatingConfigForModality(competition.modalityId, state.modalities);
+}
+
+// Rating de equipe por atleta (personId -> baseRating do clube) na modalidade.
+// Enquanto não houver clubes criados (passo 3), o mapa fica vazio e a simulação
+// não muda.
+function teamRatingByPersonIdFor({ sportId, modalityId }) {
+  const map = new Map();
+  for (const club of state.clubs) {
+    if (club.sportId !== sportId || club.modalityId !== modalityId) continue;
+    for (const personId of club.memberPersonIds ?? []) {
+      map.set(personId, club.baseRating);
+    }
+  }
+  return map;
+}
+
 async function processSimulationDate(isoDate) {
   const scheduled = occurrencesBetween(state.competitions, isoDate, isoDate)
     .filter((competition) => competition.occurrenceEnd === isoDate)
@@ -2734,9 +2835,11 @@ async function processSimulationDate(isoDate) {
     if (state.results.some((result) => result.id === resultId)) continue;
 
     const entry = competitionEntryFor(occurrence.id, occurrence.occurrenceStart);
+    const teamConfig = resolveTeamRatingConfig(occurrence);
     const competitionWithSeason = {
       ...occurrence,
       ...seasonMetadataFor(occurrence),
+      ...teamConfig,
     };
     const competitionRanking = rankingForSport(
       state.ranking,
@@ -2754,6 +2857,9 @@ async function processSimulationDate(isoDate) {
         competitions: state.competitions,
         results: state.results,
       }),
+      teamRatingByPersonId: teamConfig.teamWeight > 0
+        ? teamRatingByPersonIdFor(occurrence)
+        : new Map(),
     });
     await saveCompetitionResult(result, rankingEntries);
     state.results.push(result);
@@ -3048,11 +3154,13 @@ function attachEventListeners() {
     updateModalitySelect();
     updateScoringSystem({ useSportDefault: true });
     updateQualifierTargetOptions();
+    applyModalityTeamRatingDefaults();
   });
-  elements.competitionDiscipline.addEventListener(
-    "change",
-    () => updateQualifierTargetOptions(),
-  );
+  elements.competitionDiscipline.addEventListener("change", () => {
+    updateQualifierTargetOptions();
+    applyModalityTeamRatingDefaults();
+  });
+  elements.competitionTeamRatingModel.addEventListener("change", updateTeamRatingFields);
   elements.competitionScoringSystem.addEventListener(
     "change",
     () => updateScoringSystem(),
@@ -3134,6 +3242,7 @@ function initialize() {
   attachEventListeners();
   setupScoringSystemOptions();
   setupEventFormatOptions();
+  setupTeamRatingOptions();
   setupMixedQualificationOptions();
   setupPresetOptions();
   switchHub(state.activeHub);

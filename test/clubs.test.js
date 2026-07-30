@@ -4,13 +4,20 @@ import assert from "node:assert/strict";
 import {
   ENTITY_TYPES,
   DEFAULT_ENTITY_TYPE,
+  TEAM_RATING_MODELS,
+  DEFAULT_TEAM_RATING_MODEL,
+  MAX_TEAM_WEIGHT,
   clubIdFor,
   createClub,
   entityTypeInfo,
   entityTypeLabel,
   isClub,
   isEntityType,
+  isTeamRatingModel,
+  normalizeTeamWeight,
   sumMemberPoints,
+  teamRatingModelInfo,
+  teamRatingModelLabel,
   validateClub,
 } from "../js/clubs.js";
 import {
@@ -100,6 +107,26 @@ test("a pontuação de uma equipe mista é a soma dos pontos dos membros", () =>
   assert.equal(sumMemberPoints([], points), 0);
   // Também aceita um objeto simples em vez de Map.
   assert.equal(sumMemberPoints(["person_c"], { person_c: 40 }), 40);
+});
+
+test("existem dois modelos de rating de equipe: independent e weighted", () => {
+  assert.deepEqual(Object.keys(TEAM_RATING_MODELS), ["independent", "weighted"]);
+  assert.equal(TEAM_RATING_MODELS.independent.affectsSimulation, false);
+  assert.equal(TEAM_RATING_MODELS.weighted.affectsSimulation, true);
+  assert.equal(DEFAULT_TEAM_RATING_MODEL, "independent");
+  assert.equal(MAX_TEAM_WEIGHT, 100);
+  assert.equal(teamRatingModelLabel("weighted"), TEAM_RATING_MODELS.weighted.label);
+  assert.equal(teamRatingModelInfo("inexistente").id, "independent");
+  assert.equal(isTeamRatingModel("weighted"), true);
+  assert.equal(isTeamRatingModel("outro"), false);
+});
+
+test("normalizeTeamWeight prende o peso ao intervalo 0–100 inteiro", () => {
+  assert.equal(normalizeTeamWeight(60), 60);
+  assert.equal(normalizeTeamWeight(-5), 0);
+  assert.equal(normalizeTeamWeight(150), 100);
+  assert.equal(normalizeTeamWeight(42.7), 43);
+  assert.equal(normalizeTeamWeight("abc"), 0);
 });
 
 test("validateClub exige identificador, nome e esporte", () => {

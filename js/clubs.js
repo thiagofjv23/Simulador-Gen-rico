@@ -47,6 +47,52 @@ export const ENTITY_TYPES = {
 
 export const DEFAULT_ENTITY_TYPE = "atleta";
 
+// Sistemas de rating de equipe para modalidades mistas. São os dois modelos
+// selecionáveis descritos no passo 2:
+//   - "independent": a equipe existe e acumula pontos no ranking (soma dos
+//     atletas membros), mas o rating da equipe NÃO altera a simulação da prova.
+//   - "weighted": o rating da equipe entra no desempenho de cada atleta segundo
+//     o peso da equipe (teamWeight). Quanto maior o peso, mais o "equipamento"
+//     pesa no resultado (ex.: carros de Fórmula 1).
+export const TEAM_RATING_MODELS = {
+  independent: {
+    id: "independent",
+    label: "Equipe não influencia a etapa",
+    description:
+      "A equipe acumula pontos no ranking (soma dos atletas membros), mas o rating da equipe não altera a simulação da prova.",
+    affectsSimulation: false,
+  },
+  weighted: {
+    id: "weighted",
+    label: "Equipe influencia a etapa (com peso)",
+    description:
+      "O rating da equipe entra no desempenho de cada atleta segundo o peso da equipe. Quanto maior o peso, mais o equipamento pesa no resultado (ex.: carros de Fórmula 1).",
+    affectsSimulation: true,
+  },
+};
+
+export const DEFAULT_TEAM_RATING_MODEL = "independent";
+export const MAX_TEAM_WEIGHT = 100;
+
+export function teamRatingModelInfo(modelId) {
+  return TEAM_RATING_MODELS[modelId] ?? TEAM_RATING_MODELS[DEFAULT_TEAM_RATING_MODEL];
+}
+
+export function teamRatingModelLabel(modelId) {
+  return teamRatingModelInfo(modelId).label;
+}
+
+export function isTeamRatingModel(modelId) {
+  return Boolean(TEAM_RATING_MODELS[modelId]);
+}
+
+// Normaliza o peso da equipe para um inteiro em [0, 100].
+export function normalizeTeamWeight(value) {
+  const number = Math.round(Number(value));
+  if (!Number.isFinite(number)) return 0;
+  return Math.min(MAX_TEAM_WEIGHT, Math.max(0, number));
+}
+
 export function entityTypeInfo(entityTypeId) {
   return ENTITY_TYPES[entityTypeId] ?? ENTITY_TYPES[DEFAULT_ENTITY_TYPE];
 }
