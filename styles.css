@@ -2032,3 +2032,11 @@ h2 {
   padding: 5px 10px;
   font-size: 0.68rem;
 }
+
+/* Coluna de resultado da etapa (marca, placar ou pontos por colocação) */
+.result-outcome {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  white-space: nowrap;
+}

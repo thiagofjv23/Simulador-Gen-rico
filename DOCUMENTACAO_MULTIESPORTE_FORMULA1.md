@@ -366,3 +366,26 @@ da competição. Nada além do gerador de competições foi tocado.
 
 Cobertura de contrato em `test/ui-contract.test.js`. Total após esta etapa: 104
 testes aprovados.
+
+## 17. Integração no motor e verificação dos presets
+
+Para o formato/métrica saírem do papel, `simulateCompetition` passou a usar a
+resolução de etapa, com **compatibilidade total**: uma competição **sem**
+`eventFormat`/`resultMetric` (todos os presets e tudo que já existia) segue o
+caminho antigo, byte a byte — mesma ordenação, mesmos campos, mesmo consumo do
+sorteador. Só quando a competição define um formato não-individual é que
+`resolveStage` entra; só quando define uma métrica é que `applyResultMetric`
+decora a classificação com marca, registro ou pontos de evento. O resultado
+guarda `eventFormat`, `resultMetric` e `markType`, e a tela de Resultados ganha
+uma coluna "Resultado" (e selos) **apenas** quando há métrica.
+
+**Verificação dos presets**: como os presets não definem esses campos, eles
+continuam funcionando sem qualquer ajuste — a resolução padrão reproduz o
+comportamento anterior. Confirmado pelos testes (todos os antigos seguem verdes)
+e por um teste de navegador: um preset simula sem a coluna "Resultado", enquanto
+uma competição de baterias com marca direta mostra o tempo (ex.: `20.00 s · B1`).
+Nenhum preset precisou de mudança.
+
+Cobertura em `test/simulation.test.js` (baterias com marca, todos contra todos
+com placar, e a garantia de que sem configuração o resultado não muda). Total
+após esta etapa: 107 testes aprovados.

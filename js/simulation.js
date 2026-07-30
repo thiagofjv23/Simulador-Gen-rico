@@ -7,6 +7,8 @@ import {
   slotsForQualificationMethod,
 } from "./competition.js";
 import { pointsForPosition, scoringSystemLabel } from "./scoring.js";
+import { resolveStage } from "./eventformat.js";
+import { applyResultMetric } from "./metric.js";
 
 function clamp(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value));
@@ -200,30 +202,56 @@ export function simulateCompetition({
   ].join("|");
   const random = createRandom(hashString(seedSource));
 
-  const standings = participants
-    .map((entry) => ({
-      personId: entry.personId,
-      name: entry.person.name,
-      countryCode: entry.person.countryCode,
-      baseRating: entry.person.baseRating,
-      momentum: entry.person.momentum,
-      previousRankingPosition: entry.position,
-      performance: performanceIndex(entry.person, random),
-    }))
-    .sort((a, b) =>
-      b.performance - a.performance
-      || a.previousRankingPosition - b.previousRankingPosition
-      || a.personId.localeCompare(b.personId),
-    )
-    .map((standing, index) => ({
-      ...standing,
-      position: index + 1,
-      pointsAwarded: rankingPointsForPosition(
-        winnerPoints,
-        index + 1,
-        scoringSystemId,
-      ),
-    }));
+  // A performance é sorteada na ordem dos participantes (preserva o determinismo
+  // dos resultados já existentes). O formato/métrica só entram quando a
+  // competição os define — sem eles, o comportamento é idêntico ao anterior.
+  const evaluated = participants.map((entry) => ({
+    personId: entry.personId,
+    name: entry.person.name,
+    countryCode: entry.person.countryCode,
+    baseRating: entry.person.baseRating,
+    momentum: entry.person.momentum,
+    previousRankingPosition: entry.position,
+    performance: performanceIndex(entry.person, random),
+  }));
+
+  const eventFormat = competition.eventFormat ?? null;
+  const resultMetric = competition.resultMetric ?? null;
+  const markType = competition.markType ?? "time";
+
+  let ordered;
+  if (eventFormat && eventFormat !== "individual-ranking") {
+    const stage = resolveStage({
+      participants: evaluated.map((entry) => ({ ...entry, seed: entry.previousRankingPosition })),
+      format: eventFormat,
+      metric: resultMetric ?? "position-table",
+      markType,
+      heatSize: competition.heatSize ?? 8,
+      random,
+    });
+    const byPersonId = new Map(evaluated.map((entry) => [entry.personId, entry]));
+    ordered = stage.map((entry) => ({ ...byPersonId.get(entry.personId), ...entry }));
+  } else {
+    ordered = [...evaluated]
+      .sort((a, b) =>
+        b.performance - a.performance
+        || a.previousRankingPosition - b.previousRankingPosition
+        || a.personId.localeCompare(b.personId))
+      .map((standing, index) => ({ ...standing, position: index + 1 }));
+  }
+
+  const decorated = resultMetric
+    ? applyResultMetric(ordered, { metric: resultMetric, markType })
+    : ordered;
+
+  const standings = decorated.map((standing) => ({
+    ...standing,
+    pointsAwarded: rankingPointsForPosition(
+      winnerPoints,
+      standing.position,
+      scoringSystemId,
+    ),
+  }));
 
   const pointsByPerson = new Map(
     standings.map(({ personId, pointsAwarded }) => [personId, pointsAwarded]),
@@ -291,6 +319,9 @@ export function simulateCompetition({
       winnerPoints,
       scoringSystemId,
       scoringSystemName: scoringSystemLabel(scoringSystemId),
+      eventFormat,
+      resultMetric,
+      markType: resultMetric === "direct-mark" ? markType : null,
       qualification: competition.qualification ?? "ranking",
       competitionModel: competition.competitionModel ?? "standalone",
       seasonId: competition.seasonId ?? null,

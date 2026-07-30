@@ -1114,6 +1114,22 @@ function formatRankingChange(change) {
   return "—";
 }
 
+// Texto do resultado de cada participante conforme a métrica escolhida.
+function standingOutcomeText(result, standing) {
+  if (result.resultMetric === "direct-mark" && standing.markLabel) {
+    return standing.heatNumber
+      ? `${standing.markLabel} · B${standing.heatNumber}`
+      : standing.markLabel;
+  }
+  if (result.resultMetric === "match-score" && standing.recordLabel) {
+    return `${standing.recordLabel} · ${standing.eventPoints ?? 0} pts`;
+  }
+  if (Number.isFinite(standing.eventPoints)) {
+    return `${standing.eventPoints} pts`;
+  }
+  return "—";
+}
+
 function renderResults() {
   const results = [...state.results].sort((a, b) =>
     b.occurrenceEnd.localeCompare(a.occurrenceEnd)
@@ -1165,6 +1181,12 @@ function renderResults() {
       createBadge(geographicScopeLabel(result), "geography"),
       createBadge(`Prestígio ${result.prestige}`, "prestige"),
     );
+    if (result.eventFormat && result.eventFormat !== "individual-ranking") {
+      resultBadges.append(createBadge(eventFormatLabel(result.eventFormat)));
+    }
+    if (result.resultMetric) {
+      resultBadges.append(createBadge(resultMetricLabel(result.resultMetric)));
+    }
     if (result.competitionModel === "season_stage") {
       resultBadges.append(
         createBadge(
@@ -1183,6 +1205,7 @@ function renderResults() {
     }
     heading.append(titleArea, resultBadges);
 
+    const showOutcome = Boolean(result.resultMetric);
     const scroll = document.createElement("div");
     scroll.className = "ranking-table-scroll";
     const table = document.createElement("table");
@@ -1193,6 +1216,7 @@ function renderResults() {
           <th scope="col">Pos.</th>
           <th scope="col">Pessoa</th>
           <th scope="col">País</th>
+          ${showOutcome ? '<th scope="col">Resultado</th>' : ""}
           <th scope="col">Performance</th>
           <th scope="col">Pontos</th>
           <th scope="col">Novo ranking</th>
@@ -1218,6 +1242,12 @@ function renderResults() {
       person.append(name, personId);
       const country = document.createElement("td");
       country.textContent = standing.countryCode;
+      let outcome = null;
+      if (showOutcome) {
+        outcome = document.createElement("td");
+        outcome.className = "result-outcome";
+        outcome.textContent = standingOutcomeText(result, standing);
+      }
       const performance = document.createElement("td");
       performance.className = "result-performance";
       performance.textContent = standing.performance.toFixed(2);
@@ -1233,7 +1263,9 @@ function renderResults() {
       newRanking.textContent =
         `${standing.newRankingPosition}º · ${formatRankingChange(standing.rankingChange)}`;
 
-      row.append(position, person, country, performance, points, newRanking);
+      row.append(position, person, country);
+      if (outcome) row.append(outcome);
+      row.append(performance, points, newRanking);
       body.append(row);
     });
 

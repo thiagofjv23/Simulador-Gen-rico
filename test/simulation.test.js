@@ -182,6 +182,60 @@ test("gera resultado plausível, concede pontos e recalcula as 100 posições", 
   );
 });
 
+test("uma etapa em baterias com marca direta produz tempos coerentes", () => {
+  const simulation = simulateCompetition({
+    competition: {
+      ...competition,
+      eventFormat: "heats",
+      resultMetric: "direct-mark",
+      markType: "time",
+      heatSize: 8,
+    },
+    occurrenceStart: "2028-08-01",
+    occurrenceEnd: "2028-08-01",
+    ranking,
+  });
+  const standings = simulation.result.standings;
+  assert.equal(simulation.result.resultMetric, "direct-mark");
+  assert.equal(simulation.result.markType, "time");
+  assert.ok(standings.every((s) => typeof s.mark === "number" && s.markLabel.endsWith(" s")));
+  assert.ok(standings.every((s) => s.heatNumber >= 1));
+  // Tempo: o primeiro colocado tem a menor marca.
+  assert.ok(standings[0].mark <= standings[1].mark);
+});
+
+test("uma etapa de todos contra todos com placar de jogo gera registro", () => {
+  const simulation = simulateCompetition({
+    competition: {
+      ...competition,
+      slots: 6,
+      eventFormat: "round-robin",
+      resultMetric: "match-score",
+    },
+    occurrenceStart: "2028-08-02",
+    occurrenceEnd: "2028-08-02",
+    ranking,
+  });
+  const standings = simulation.result.standings;
+  assert.equal(standings.length, 6);
+  assert.ok(standings.every((s) => /\dV \dE \dD/.test(s.recordLabel)));
+  assert.ok(standings.every((s) => Number.isFinite(s.eventPoints)));
+});
+
+test("sem formato/métrica definidos o resultado mantém o comportamento antigo", () => {
+  const simulation = simulateCompetition({
+    competition,
+    occurrenceStart: "2028-09-09",
+    occurrenceEnd: "2028-09-09",
+    ranking,
+  });
+  const standings = simulation.result.standings;
+  assert.equal(simulation.result.resultMetric, null);
+  assert.equal(simulation.result.eventFormat, null);
+  // Nenhum campo novo de métrica é adicionado quando não há configuração.
+  assert.ok(standings.every((s) => s.mark === undefined && s.recordLabel === undefined));
+});
+
 test("a mesma edição e o mesmo estado anterior não mudam ao recarregar", () => {
   const first = simulateCompetition({
     competition,
