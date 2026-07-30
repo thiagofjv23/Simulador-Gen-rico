@@ -7,6 +7,7 @@ import {
   TEAM_RATING_MODELS,
   DEFAULT_TEAM_RATING_MODEL,
   MAX_TEAM_WEIGHT,
+  buildClubStandings,
   clubIdFor,
   createClub,
   entityTypeInfo,
@@ -127,6 +128,37 @@ test("normalizeTeamWeight prende o peso ao intervalo 0–100 inteiro", () => {
   assert.equal(normalizeTeamWeight(150), 100);
   assert.equal(normalizeTeamWeight(42.7), 43);
   assert.equal(normalizeTeamWeight("abc"), 0);
+});
+
+test("buildClubStandings ordena equipes pela soma dos pontos dos membros", () => {
+  const club = (id, name, members, baseRating = 80) => createClub({
+    id, name, sportId: "sport_motorsport", modalityId: "modality_x",
+    baseRating, memberPersonIds: members,
+  });
+  const clubs = [
+    club("club_a", "Alfa", ["p1", "p2"]),
+    club("club_b", "Bravo", ["p3", "p4"]),
+    club("club_c", "Charlie", ["p5"]),
+  ];
+  const athleteEntries = [
+    { personId: "p1", points: 100, eventsCount: 3 },
+    { personId: "p2", points: 40, eventsCount: 2 },
+    { personId: "p3", points: 90, eventsCount: 2 },
+    { personId: "p4", points: 90, eventsCount: 2 },
+    { personId: "p5", points: 200, eventsCount: 1 },
+  ];
+
+  const standings = buildClubStandings(clubs, athleteEntries);
+  assert.deepEqual(
+    standings.map(({ club: c, points, position }) => [c.name, points, position]),
+    [
+      ["Charlie", 200, 1], // 200
+      ["Bravo", 180, 2], // 90 + 90
+      ["Alfa", 140, 3], // 100 + 40
+    ],
+  );
+  assert.equal(standings[0].memberCount, 1);
+  assert.equal(standings.find(({ club: c }) => c.name === "Bravo").eventsCount, 2);
 });
 
 test("validateClub exige identificador, nome e esporte", () => {

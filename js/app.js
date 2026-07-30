@@ -16,6 +16,7 @@ import {
   resetDatabase,
   saveCompetitionWithEvent,
   saveCompetitionsWithEvents,
+  saveClubs,
   saveCompetitionResult,
   saveCompetitionEntry,
   saveEvent,
@@ -94,9 +95,11 @@ import {
   TEAM_RATING_MODELS,
   teamRatingModelInfo,
   normalizeTeamWeight,
+  buildClubStandings,
 } from "./clubs.js";
 import {
   CALENDAR_PRESETS,
+  buildPresetClubs,
   buildPresetCompetitions,
   buildPresetPeople,
   presetById,
@@ -189,6 +192,9 @@ const elements = {
   rankingFilter: document.querySelector("#ranking-filter"),
   rankingList: document.querySelector("#ranking-list"),
   rankingEmpty: document.querySelector("#ranking-empty"),
+  rankingTeamsPanel: document.querySelector("#ranking-teams-panel"),
+  rankingTeamsTitle: document.querySelector("#ranking-teams-title"),
+  rankingTeamsList: document.querySelector("#ranking-teams-list"),
   resultsTabCount: document.querySelector("#results-tab-count"),
   resultsTotal: document.querySelector("#results-total"),
   resultsLatest: document.querySelector("#results-latest"),
@@ -1166,6 +1172,139 @@ function renderRanking() {
     row.append(position, movement, person, country, age, baseRating, momentum, eventsCount, points);
     elements.rankingList.append(row);
   });
+
+  renderRankingTeams(selectedSport, selectedModality, disciplineRanking);
+}
+
+// Classificação de equipes ao lado do ranking de atletas, só para modalidades
+// mistas com clubes criados. A pontuação de cada equipe é a soma dos pontos dos
+// seus atletas na modalidade (calculada ao vivo). Tocar numa equipe revela os
+// atletas membros e seus pontos.
+function renderRankingTeams(selectedSport, selectedModality, disciplineRanking) {
+  const clubs = selectedSport && selectedModality
+    ? state.clubs.filter((club) =>
+      club.sportId === selectedSport.id && club.modalityId === selectedModality.id)
+    : [];
+  const isMixed = selectedSport
+    ? entityTypeForSport(selectedSport.id, state.sports) === "mista"
+    : false;
+
+  elements.rankingTeamsList.replaceChildren();
+  elements.rankingTeamsPanel.classList.toggle("hidden", !(isMixed && clubs.length));
+  if (!(isMixed && clubs.length)) return;
+
+  elements.rankingTeamsTitle.textContent =
+    `Classificação de equipes · ${selectedSport.name} · ${selectedModality.name}`;
+
+  const pointsByPersonId = new Map(
+    disciplineRanking.map((entry) => [entry.personId, entry]),
+  );
+  const standings = buildClubStandings(clubs, disciplineRanking);
+
+  standings.forEach((row) => {
+    const tr = document.createElement("tr");
+    tr.className = "team-row";
+    if (row.position <= 3) tr.classList.add(`top-${row.position}`);
+
+    const position = document.createElement("td");
+    position.className = "ranking-position";
+    position.textContent = row.position;
+
+    const team = document.createElement("td");
+    team.className = "ranking-person";
+    const teamName = document.createElement("strong");
+    teamName.textContent = row.club.name;
+    const teamId = document.createElement("span");
+    teamId.textContent = row.club.id;
+    team.append(teamName, teamId);
+
+    const athletes = document.createElement("td");
+    athletes.textContent = row.memberCount;
+
+    const carRating = document.createElement("td");
+    carRating.className = "result-performance";
+    carRating.textContent = row.club.baseRating;
+
+    const points = document.createElement("td");
+    points.className = "ranking-points";
+    points.textContent = row.points.toLocaleString("pt-BR");
+
+    tr.append(position, team, athletes, carRating, points);
+
+    // Toque na linha expande os atletas membros (nesta modalidade) e os pontos.
+    const key = `team:${row.club.id}`;
+    team.classList.add("athlete-trigger");
+    team.tabIndex = 0;
+    const activate = () => toggleAthleteDetail(
+      key,
+      null,
+      team,
+      (node) => {
+        const detailRow = document.createElement("tr");
+        detailRow.className = "athlete-detail-row";
+        const cell = document.createElement("td");
+        cell.colSpan = 5;
+        cell.append(node);
+        detailRow.append(cell);
+        tr.after(detailRow);
+        return detailRow;
+      },
+      () => buildClubMembersNode(row.club, pointsByPersonId),
+    );
+    team.addEventListener("click", activate);
+    team.addEventListener("keydown", (keyEvent) => {
+      if (keyEvent.key === "Enter" || keyEvent.key === " ") {
+        keyEvent.preventDefault();
+        activate();
+      }
+    });
+
+    elements.rankingTeamsList.append(tr);
+  });
+}
+
+// Lista de atletas de uma equipe naquela modalidade, ordenados por pontos.
+function buildClubMembersNode(club, entryByPersonId) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "athlete-detail";
+  const heading = document.createElement("p");
+  heading.className = "athlete-detail-heading";
+  heading.textContent = "Atletas da equipe nesta modalidade";
+  wrapper.append(heading);
+
+  const members = [...new Set(club.memberPersonIds ?? [])]
+    .map((personId) => entryByPersonId.get(personId))
+    .filter(Boolean)
+    .sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
+
+  if (!members.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "Nenhum atleta encontrado no ranking desta modalidade.";
+    wrapper.append(empty);
+    return wrapper;
+  }
+
+  const list = document.createElement("ol");
+  list.className = "athlete-history";
+  members.forEach((entry) => {
+    const item = document.createElement("li");
+    item.className = "athlete-history-item";
+    const info = document.createElement("div");
+    info.className = "athlete-history-info";
+    const name = document.createElement("strong");
+    name.textContent = entry.person?.name ?? entry.personId;
+    const meta = document.createElement("span");
+    meta.textContent = [
+      entry.person?.countryCode,
+      `${(entry.points ?? 0).toLocaleString("pt-BR")} pts`,
+    ].filter(Boolean).join(" · ");
+    info.append(name, meta);
+    item.append(info);
+    list.append(item);
+  });
+  wrapper.append(list);
+  return wrapper;
 }
 
 function formatRankingChange(change) {
@@ -1656,14 +1795,16 @@ function buildAthleteDetailNode(person) {
   return wrapper;
 }
 
-// Alterna o details do atleta; `insert` posiciona o nó e devolve o que remover.
-function toggleAthleteDetail(key, person, trigger, insert) {
+// Alterna o details expansível; `insert` posiciona o nó e devolve o que remover.
+// `buildContent` (opcional) substitui o conteúdo padrão de histórico do atleta —
+// usado, por exemplo, para listar os membros de uma equipe.
+function toggleAthleteDetail(key, person, trigger, insert, buildContent = null) {
   if (activeAthleteDetail?.key === key) {
     closeAthleteDetail();
     return;
   }
   closeAthleteDetail();
-  const content = buildAthleteDetailNode(person);
+  const content = buildContent ? buildContent() : buildAthleteDetailNode(person);
   const removable = insert(content) ?? content;
   trigger?.classList.add("athlete-open");
   activeAthleteDetail = { key, trigger, removable };
@@ -2498,6 +2639,17 @@ async function ensurePresetRoster(preset) {
   if (missingEntries.length) {
     await saveRankingEntries(missingEntries);
   }
+
+  // Equipes dos esportes mistos (ex.: automobilismo): derivadas dos nomes dos
+  // pilotos ("Piloto (Equipe)"). Cria só os clubes ainda inexistentes.
+  const existingClubIds = new Set(state.clubs.map(({ id }) => id));
+  const newClubs = buildPresetClubs(preset, people, timestamp)
+    .filter(({ id }) => !existingClubIds.has(id));
+  if (newClubs.length) {
+    await saveClubs(newClubs);
+    await reloadClubs();
+  }
+
   await reloadRanking();
   setupSportOptions();
 }

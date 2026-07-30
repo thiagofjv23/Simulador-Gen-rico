@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   CALENDAR_PRESETS,
+  buildPresetClubs,
   buildPresetCompetitions,
   buildPresetPeople,
   presetById,
@@ -167,6 +168,39 @@ test("o catálogo inclui a Liga Mundial de Atletismo com formato/métrica por pr
   assert.equal(people.length, 48); // 6 provas x 8 atletas
   assert.ok(people.every(({ sportId }) => sportId === "sport_athletics"));
   assert.equal(people.find(({ name }) => name === "Noah Lyles").baseRating, 95);
+});
+
+test("o ecossistema FIA deriva as equipes dos nomes dos pilotos", () => {
+  const people = buildPresetPeople(FIA, "2026-01-01T00:00:00.000Z");
+  const clubs = buildPresetClubs(FIA, people, "2026-01-01T00:00:00.000Z");
+
+  // Um clube por (modalidade, equipe); todos ligados ao automobilismo.
+  assert.ok(clubs.every(({ sportId }) => sportId === "sport_motorsport"));
+  assert.ok(clubs.every(({ isClub, entityType }) => isClub && entityType === "equipe"));
+  assert.ok(clubs.every(({ id }) => new Set(clubs.map((c) => c.id)).size === clubs.length));
+
+  const f1 = clubs.filter(({ modalityId }) => modalityId === F1_MODALITY);
+  assert.equal(f1.length, 11); // 11 equipes de F1
+  assert.ok(f1.every(({ memberPersonIds }) => memberPersonIds.length === 2));
+
+  // Rating do "carro" = média dos pilotos (Verstappen 99 + Hadjar 86 -> 93).
+  const redBull = f1.find(({ name }) => name === "Red Bull Racing");
+  assert.equal(redBull.baseRating, 93);
+  assert.deepEqual(redBull.memberPersonIds, [
+    "person_f1_max-verstappen",
+    "person_f1_isack-hadjar",
+  ]);
+  assert.equal(f1.find(({ name }) => name === "McLaren").baseRating, 96);
+});
+
+test("presets de esporte de atleta puro não geram equipes", () => {
+  const atp = presetById("atp-world-tour-2026");
+  const atpPeople = buildPresetPeople(atp, "2026-01-01T00:00:00.000Z");
+  assert.deepEqual(buildPresetClubs(atp, atpPeople), []);
+
+  const athletics = presetById("world-athletics-2026");
+  const athPeople = buildPresetPeople(athletics, "2026-01-01T00:00:00.000Z");
+  assert.deepEqual(buildPresetClubs(athletics, athPeople), []);
 });
 
 test("converte o preset em competições mundiais de tênis com IDs estáveis", () => {

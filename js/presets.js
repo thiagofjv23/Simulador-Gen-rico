@@ -1,3 +1,6 @@
+import { createClub, clubIdFor } from "./clubs.js";
+import { entityTypeForSport } from "./sports.js";
+
 const ATP_2026_TOURNAMENTS = [
   ["brisbane", "Brisbane International presented by ANZ", "2026-01-05", "2026-01-11", "Brisbane, Austrália", "Dura", "ATP 250"],
   ["hong-kong", "Bank of China Hong Kong Tennis Open", "2026-01-05", "2026-01-11", "Hong Kong", "Dura", "ATP 250"],
@@ -1136,4 +1139,67 @@ export function buildPresetPeople(preset, timestamp = new Date().toISOString()) 
     createdAt: person.createdAt ?? timestamp,
     updatedAt: timestamp,
   }));
+}
+
+function teamSlug(teamName) {
+  return normalizeDriverName(teamName).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function averageBy(members, key) {
+  if (!members.length) return 0;
+  return Math.round(
+    members.reduce((total, member) => total + (Number(member[key]) || 0), 0) / members.length,
+  );
+}
+
+// Deriva as equipes de um preset a partir do elenco: em esportes mistos (ex.:
+// automobilismo) os atletas já trazem a equipe no nome ("Piloto (Equipe)") e no
+// campo teamName. Agrupamos os participantes de cada modalidade por equipe e
+// criamos um clube por (modalidade, equipe), com memberPersonIds e um rating de
+// "carro" derivado da média dos membros (usado no modelo misto weighted). Cada
+// modalidade tem seu próprio registro de clube, mesmo que a equipe apareça em
+// várias categorias (elas são agrupadas por nome só na tela de Equipes).
+export function buildPresetClubs(preset, people = [], timestamp = new Date().toISOString()) {
+  if (!preset) return [];
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const { series, seriesParticipantIds } = resolvePresetRoster(preset);
+  const clubs = [];
+  const seen = new Set();
+
+  series.forEach((currentSeries, seriesIndex) => {
+    if (entityTypeForSport(currentSeries.sportId) !== "mista") return;
+    const participants = (seriesParticipantIds[seriesIndex] ?? [])
+      .map((personId) => peopleById.get(personId))
+      .filter(Boolean);
+
+    const byTeam = new Map();
+    for (const person of participants) {
+      const teamName = person.teamName;
+      if (!teamName) continue;
+      if (!byTeam.has(teamName)) byTeam.set(teamName, []);
+      byTeam.get(teamName).push(person);
+    }
+
+    for (const [teamName, members] of byTeam) {
+      const modalityKey = currentSeries.modalityId.replace(/^modality_/, "");
+      const id = clubIdFor(currentSeries.sportId, `${modalityKey}_${teamSlug(teamName)}`);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      clubs.push(createClub({
+        id,
+        name: teamName,
+        sportId: currentSeries.sportId,
+        modalityId: currentSeries.modalityId,
+        baseRating: averageBy(members, "baseRating"),
+        momentum: averageBy(members, "momentum"),
+        memberPersonIds: members.map((member) => member.id),
+        rosterType: "preset",
+        presetId: preset.id,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      }));
+    }
+  });
+
+  return clubs;
 }

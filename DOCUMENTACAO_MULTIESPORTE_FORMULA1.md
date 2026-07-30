@@ -551,3 +551,48 @@ navegador: o painel aparece para Automobilismo (F1 = weighted/60, F2 =
 independent/0) e some para o Tênis, sem erros de console. Total após esta etapa:
 **133 testes** (o único vermelho é uma asserção desatualizada do preset de
 atletismo de 100 m, alheia a este passo).
+
+## 23. Equipes de automobilismo e ranking de atletas + equipes — passo 3
+
+As equipes agora **existem de fato** e a influência do carro de F1 fica ativa.
+
+**Criação das equipes a partir dos nomes** (`js/presets.js`,
+`buildPresetClubs`): em esportes mistos, os pilotos já trazem a equipe no nome
+("Piloto (Equipe)") e no campo `teamName`. A função agrupa os participantes de
+cada modalidade por equipe e cria **um clube por (modalidade, equipe)**, com
+`memberPersonIds` e um **rating de "carro" = média dos ratings dos pilotos**
+(ex.: Red Bull = média de Verstappen 99 e Hadjar 86 = 93; McLaren = 96; Ferrari
+= 95). São **53 clubes** no Ecossistema FIA (11 de F1, 11 de F2, 10 de F3, 10 da
+FR Europeia e 11 da FR Oriente Médio). Cada modalidade tem seu próprio registro;
+a mesma equipe em várias categorias só é agrupada por nome na tela de Equipes
+(passo 4). Presets de atleta puro (ATP, atletismo) não geram equipes.
+
+`ensurePresetRoster` passou a derivar e persistir os clubes ainda inexistentes
+(store `clubs`) logo após criar os atletas, então importar o preset da FIA já
+popula as equipes.
+
+**Influência do carro (F1) ativa**: com os clubes criados,
+`teamRatingByPersonId` deixa de ficar vazio — mapeia cada piloto ao rating do
+seu carro. Como a F1 usa `weighted`/peso 60, a simulação passa a misturar o
+desempenho do carro ao do piloto: um piloto de equipe forte rende mais, um de
+equipe fraca rende menos (Verstappen, 99, cede um pouco ao carro 93; Hadjar, 86,
+sobe puxado pelo mesmo carro). F2/F3/Regionais seguem em `independent`/0, sem
+mudança. Teste de ponta a ponta em `test/team-influence.test.js` reconstrói o
+GP a partir do preset real e confirma que o resultado muda com o carro.
+
+**Ranking de atletas + equipes na mesma tela** (`js/clubs.js`
+`buildClubStandings`; UI em `app.js`/`index.html`/`styles.css`): abaixo do
+ranking de atletas, para modalidades mistas com clubes, um painel **Classificação
+de equipes** lista as equipes ordenadas pela **soma dos pontos dos seus atletas**
+(calculada ao vivo a partir do ranking, não persistida), com o número de atletas
+e o rating do carro. Tocar numa equipe expande os **atletas membros** naquela
+modalidade e seus pontos. Antes da primeira corrida (pontos 0), o desempate é
+pelo rating do carro, então a McLaren aparece no topo.
+
+Verificação: `test/presets.test.js` (derivação das equipes; presets de atleta
+puro sem equipes), `test/clubs.test.js` (`buildClubStandings`),
+`test/team-influence.test.js` (carro altera o resultado da F1). Smoke de
+navegador: importar a FIA cria 53 clubes, o painel de equipes mostra as 11
+equipes de F1 e a expansão dos membros funciona, sem erros de console. Total após
+esta etapa: **138 testes** (o único vermelho segue sendo a asserção
+desatualizada do preset de 100 m, alheia a este passo).

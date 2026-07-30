@@ -170,6 +170,38 @@ export function sumMemberPoints(memberPersonIds = [], pointsByPersonId = new Map
   );
 }
 
+// Classificação de equipes de uma modalidade: para cada clube, os pontos são a
+// SOMA dos pontos dos seus atletas membros no ranking (calculada ao vivo a
+// partir das entradas de ranking dos atletas, não persistida). Ordena por pontos
+// e devolve com posição, para exibir ao lado do ranking de atletas.
+export function buildClubStandings(clubs = [], athleteEntries = []) {
+  const pointsByPersonId = new Map(
+    athleteEntries.map((entry) => [entry.personId, entry.points ?? 0]),
+  );
+  const eventsByPersonId = new Map(
+    athleteEntries.map((entry) => [entry.personId, entry.eventsCount ?? 0]),
+  );
+
+  return clubs
+    .map((club) => {
+      const members = [...new Set(club.memberPersonIds ?? [])];
+      return {
+        club,
+        points: sumMemberPoints(members, pointsByPersonId),
+        memberCount: members.length,
+        eventsCount: members.reduce(
+          (max, personId) => Math.max(max, eventsByPersonId.get(personId) ?? 0),
+          0,
+        ),
+      };
+    })
+    .sort((a, b) =>
+      b.points - a.points
+      || b.club.baseRating - a.club.baseRating
+      || a.club.name.localeCompare(b.club.name, "pt-BR"))
+    .map((row, index) => ({ ...row, position: index + 1 }));
+}
+
 export function validateClub(club) {
   const errors = [];
   if (!club?.id) errors.push("Informe o identificador do clube.");
