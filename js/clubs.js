@@ -202,6 +202,65 @@ export function buildClubStandings(clubs = [], athleteEntries = []) {
     .map((row, index) => ({ ...row, position: index + 1 }));
 }
 
+// Clubes de uma modalidade, ordenados por rating (como os atletas no ranking).
+export function clubsForModality(clubs = [], sportId, modalityId) {
+  return clubs
+    .filter((club) => club.sportId === sportId && club.modalityId === modalityId)
+    .sort((a, b) =>
+      b.baseRating - a.baseRating || a.name.localeCompare(b.name, "pt-BR"));
+}
+
+// Agrupa clubes por nome. Uma mesma "equipe" (ex.: MP Motorsport) pode ter um
+// clube em várias modalidades — e, no futuro, em vários esportes. Cada grupo
+// reúne os clubes, os esportes/modalidades em que aparece e todos os atletas.
+export function groupClubsByName(clubs = []) {
+  const groups = new Map();
+  for (const club of clubs) {
+    if (!groups.has(club.name)) {
+      groups.set(club.name, {
+        name: club.name,
+        clubs: [],
+        sportIds: new Set(),
+        modalityIds: new Set(),
+        memberPersonIds: new Set(),
+      });
+    }
+    const group = groups.get(club.name);
+    group.clubs.push(club);
+    group.sportIds.add(club.sportId);
+    group.modalityIds.add(club.modalityId);
+    (club.memberPersonIds ?? []).forEach((personId) => group.memberPersonIds.add(personId));
+  }
+
+  return [...groups.values()].map((group) => ({
+    name: group.name,
+    clubs: group.clubs,
+    sportIds: [...group.sportIds],
+    modalityIds: [...group.modalityIds],
+    memberPersonIds: [...group.memberPersonIds],
+    averageRating: group.clubs.length
+      ? Math.round(group.clubs.reduce((total, club) => total + (club.baseRating || 0), 0) / group.clubs.length)
+      : 0,
+  }));
+}
+
+// Equipes que participam de mais de uma modalidade dentro de um esporte.
+export function multiModalityTeams(clubs = [], sportId = null) {
+  const scoped = sportId ? clubs.filter((club) => club.sportId === sportId) : clubs;
+  return groupClubsByName(scoped)
+    .filter((group) => group.modalityIds.length >= 2)
+    .sort((a, b) =>
+      b.averageRating - a.averageRating || a.name.localeCompare(b.name, "pt-BR"));
+}
+
+// Equipes que participam de mais de um esporte (só disponível quando existem).
+export function multiSportTeams(clubs = []) {
+  return groupClubsByName(clubs)
+    .filter((group) => group.sportIds.length >= 2)
+    .sort((a, b) =>
+      b.averageRating - a.averageRating || a.name.localeCompare(b.name, "pt-BR"));
+}
+
 export function validateClub(club) {
   const errors = [];
   if (!club?.id) errors.push("Informe o identificador do clube.");

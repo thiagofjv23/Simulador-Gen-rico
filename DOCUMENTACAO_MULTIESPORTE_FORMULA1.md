@@ -596,3 +596,44 @@ navegador: importar a FIA cria 53 clubes, o painel de equipes mostra as 11
 equipes de F1 e a expansão dos membros funciona, sem erros de console. Total após
 esta etapa: **138 testes** (o único vermelho segue sendo a asserção
 desatualizada do preset de 100 m, alheia a este passo).
+
+## 24. Seção "Equipes" — passo 4
+
+Nova aba **Equipes** na Central dos Esportes, ao lado de Rankings.
+
+**Seletores** (`app.js`): o seletor de **esporte só lista esportes de equipe ou
+mistos** com clubes criados (`sportAllowsClubs` + existência de clubes) — hoje só
+o Automobilismo; Tênis e Atletismo (atleta puro) não aparecem. O seletor de
+**modalidade** lista as modalidades com clubes do esporte.
+
+**Lista de equipes** (modalidade única): as equipes aparecem **como os atletas
+nos rankings, ordenadas por rating** (rating do carro), com posição, número de
+atletas e rating. Tocar numa equipe revela **os atletas que a compõem naquela
+modalidade** (nome, país e rating).
+
+**Visões multi** — opções que só aparecem quando aplicáveis:
+
+- **Multi-modalidade** (opção no seletor de modalidade, só quando há equipes em
+  2+ modalidades do esporte): lista as equipes que disputam mais de uma
+  modalidade (ex.: Hitech TGR na F2 e F3; MP Motorsport em quatro categorias),
+  ordenadas pelo rating médio, com a contagem de modalidades e o total de
+  atletas. Tocar mostra **todos os atletas e a(s) modalidade(s)** de cada um.
+- **Multi-esporte** (opção no seletor de esporte, só quando há equipes em 2+
+  esportes): mesma ideia entre esportes diferentes. Como só o Automobilismo tem
+  equipes hoje, a opção **não é exibida** — surgirá sozinha quando outro esporte
+  de equipe/misto trouxer uma equipe de mesmo nome.
+
+Funções puras em `js/clubs.js`: `clubsForModality`, `groupClubsByName`,
+`multiModalityTeams` e `multiSportTeams` (agrupam por nome e filtram por 2+
+modalidades/esportes). UI em `index.html`/`styles.css`, reaproveitando a tabela
+de ranking e o mecanismo de details expansível (agora genérico, via
+`buildContent`).
+
+Verificação: `test/clubs.test.js` (agrupamento e filtros multi). Smoke de
+navegador: com a FIA importada, o seletor de esporte traz só o Automobilismo (sem
+multi-esporte), o de modalidade traz "Multi-modalidade" + as 5 categorias; a F1
+lista 11 equipes ordenadas por rating (McLaren no topo) com expansão dos atletas;
+a multi-modalidade lista 15 equipes (ex.: Hitech TGR em F2·F3) e a expansão mostra
+os atletas com suas modalidades — sem erros de console. Total após esta etapa:
+**142 testes** (o único vermelho segue sendo a asserção desatualizada do preset
+de 100 m, alheia a este passo).

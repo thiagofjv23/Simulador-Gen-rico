@@ -9,7 +9,11 @@ import {
   MAX_TEAM_WEIGHT,
   buildClubStandings,
   clubIdFor,
+  clubsForModality,
   createClub,
+  groupClubsByName,
+  multiModalityTeams,
+  multiSportTeams,
   entityTypeInfo,
   entityTypeLabel,
   isClub,
@@ -159,6 +163,54 @@ test("buildClubStandings ordena equipes pela soma dos pontos dos membros", () =>
   );
   assert.equal(standings[0].memberCount, 1);
   assert.equal(standings.find(({ club: c }) => c.name === "Bravo").eventsCount, 2);
+});
+
+const teamClub = (sportId, modalityId, name, baseRating, members) => createClub({
+  id: clubIdFor(sportId, `${modalityId}_${name}`.toLowerCase().replace(/\s+/g, "-")),
+  name, sportId, modalityId, baseRating, memberPersonIds: members,
+});
+
+const sampleClubs = [
+  teamClub("sport_motorsport", "mod_f1", "Prema", 90, ["p1", "p2"]),
+  teamClub("sport_motorsport", "mod_f2", "Prema", 84, ["p3", "p4"]),
+  teamClub("sport_motorsport", "mod_f3", "Prema", 80, ["p5"]),
+  teamClub("sport_motorsport", "mod_f1", "Solo", 88, ["p6", "p7"]),
+];
+
+test("clubsForModality lista equipes de uma modalidade ordenadas por rating", () => {
+  const f1 = clubsForModality(sampleClubs, "sport_motorsport", "mod_f1");
+  assert.deepEqual(f1.map((c) => c.name), ["Prema", "Solo"]);
+  assert.equal(f1[0].baseRating, 90);
+});
+
+test("groupClubsByName reúne uma equipe em várias modalidades", () => {
+  const groups = groupClubsByName(sampleClubs);
+  const prema = groups.find((g) => g.name === "Prema");
+  assert.equal(prema.clubs.length, 3);
+  assert.deepEqual(prema.modalityIds.sort(), ["mod_f1", "mod_f2", "mod_f3"]);
+  assert.deepEqual(prema.sportIds, ["sport_motorsport"]);
+  assert.deepEqual(prema.memberPersonIds.sort(), ["p1", "p2", "p3", "p4", "p5"]);
+  // Rating médio das três equipes Prema: (90+84+80)/3 = 84,67 -> 85.
+  assert.equal(prema.averageRating, 85);
+});
+
+test("multiModalityTeams traz só equipes em 2+ modalidades do esporte", () => {
+  const multi = multiModalityTeams(sampleClubs, "sport_motorsport");
+  assert.deepEqual(multi.map((g) => g.name), ["Prema"]);
+  // "Solo" só aparece na F1, então não entra.
+  assert.ok(!multi.some((g) => g.name === "Solo"));
+});
+
+test("multiSportTeams fica vazio quando há um só esporte", () => {
+  assert.deepEqual(multiSportTeams(sampleClubs), []);
+  // Com a mesma equipe em dois esportes, ela aparece.
+  const crossSport = [
+    ...sampleClubs,
+    teamClub("sport_other", "mod_x", "Prema", 70, ["p8"]),
+  ];
+  const multi = multiSportTeams(crossSport);
+  assert.deepEqual(multi.map((g) => g.name), ["Prema"]);
+  assert.deepEqual(multi[0].sportIds.sort(), ["sport_motorsport", "sport_other"]);
 });
 
 test("validateClub exige identificador, nome e esporte", () => {

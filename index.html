@@ -168,6 +168,7 @@
         <nav class="hub-tabs" aria-label="Seções da Central dos Esportes">
           <button class="hub-tab active" type="button" data-hub="central">Visão geral</button>
           <button class="hub-tab" type="button" data-hub="ranking">Rankings</button>
+          <button class="hub-tab" type="button" data-hub="teams">Equipes</button>
           <button class="hub-tab" type="button" data-hub="champions">Campeões</button>
           <button class="hub-tab" type="button" data-hub="seasons">Temporadas</button>
         </nav>
@@ -329,6 +330,32 @@
             </div>
           </section>
         </section>
+        </section>
+
+        <section id="hub-teams" class="hub-panel hidden">
+          <section class="competitions-header">
+            <div>
+              <p class="eyebrow">EQUIPES</p>
+              <h2>Equipes por esporte e modalidade</h2>
+              <p>
+                Só esportes de equipe ou mistos aparecem aqui. As equipes são
+                listadas como os atletas nos rankings, ordenadas por rating.
+                Toque numa equipe para ver seus atletas.
+              </p>
+            </div>
+            <div class="ranking-controls">
+              <label class="compact-field">
+                <span>Esporte</span>
+                <select id="teams-sport"></select>
+              </label>
+              <label id="teams-modality-field" class="compact-field">
+                <span>Modalidade</span>
+                <select id="teams-modality"></select>
+              </label>
+            </div>
+          </section>
+          <div id="teams-list" class="teams-list"></div>
+          <p id="teams-empty" class="ranking-empty hidden"></p>
         </section>
 
         <section id="hub-champions" class="hub-panel hidden">

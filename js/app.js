@@ -89,6 +89,7 @@ import {
   sportById,
   defaultScoringSystemForSport,
   entityTypeForSport,
+  sportAllowsClubs,
   teamRatingConfigForModality,
 } from "./sports.js";
 import {
@@ -96,6 +97,9 @@ import {
   teamRatingModelInfo,
   normalizeTeamWeight,
   buildClubStandings,
+  clubsForModality,
+  multiModalityTeams,
+  multiSportTeams,
 } from "./clubs.js";
 import {
   CALENDAR_PRESETS,
@@ -159,6 +163,7 @@ const elements = {
   hubPanels: {
     central: document.querySelector("#hub-central"),
     ranking: document.querySelector("#hub-ranking"),
+    teams: document.querySelector("#hub-teams"),
     champions: document.querySelector("#hub-champions"),
     seasons: document.querySelector("#hub-seasons"),
   },
@@ -195,6 +200,11 @@ const elements = {
   rankingTeamsPanel: document.querySelector("#ranking-teams-panel"),
   rankingTeamsTitle: document.querySelector("#ranking-teams-title"),
   rankingTeamsList: document.querySelector("#ranking-teams-list"),
+  teamsSport: document.querySelector("#teams-sport"),
+  teamsModalityField: document.querySelector("#teams-modality-field"),
+  teamsModality: document.querySelector("#teams-modality"),
+  teamsList: document.querySelector("#teams-list"),
+  teamsEmpty: document.querySelector("#teams-empty"),
   resultsTabCount: document.querySelector("#results-tab-count"),
   resultsTotal: document.querySelector("#results-total"),
   resultsLatest: document.querySelector("#results-latest"),
@@ -1307,6 +1317,346 @@ function buildClubMembersNode(club, entryByPersonId) {
   return wrapper;
 }
 
+// ---------------------------------------------------------------------------
+// Seção "Equipes": lista de equipes por esporte/modalidade e visões
+// multi-modalidade / multi-esporte, com click-through dos atletas.
+// ---------------------------------------------------------------------------
+
+const MULTI_SPORT_VALUE = "__multi_sport__";
+const MULTI_MODALITY_VALUE = "__multi_modality__";
+
+function fillTeamsSelect(select, options, previousValue) {
+  select.replaceChildren();
+  options.forEach(({ id, name }) => {
+    const option = document.createElement("option");
+    option.value = id;
+    option.textContent = name;
+    select.append(option);
+  });
+  select.value = options.some((option) => option.id === previousValue)
+    ? previousValue
+    : options[0]?.id ?? "";
+}
+
+function sportsWithClubs() {
+  return [...state.sports]
+    .filter((sport) =>
+      sportAllowsClubs(sport.id, state.sports)
+      && state.clubs.some((club) => club.sportId === sport.id))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+}
+
+function setupTeamsOptions() {
+  const options = sportsWithClubs().map((sport) => ({ id: sport.id, name: sport.name }));
+  // Opção multi-esporte só quando existem equipes em mais de um esporte.
+  if (multiSportTeams(state.clubs).length) {
+    options.push({ id: MULTI_SPORT_VALUE, name: "Multi-esporte (equipes em vários esportes)" });
+  }
+  fillTeamsSelect(elements.teamsSport, options, elements.teamsSport.value);
+  updateTeamsModalitySelect();
+}
+
+function updateTeamsModalitySelect() {
+  const sportValue = elements.teamsSport.value;
+  const isMultiSport = sportValue === MULTI_SPORT_VALUE;
+  elements.teamsModalityField.classList.toggle("hidden", isMultiSport || !sportValue);
+  if (isMultiSport || !sportValue) {
+    elements.teamsModality.replaceChildren();
+    return;
+  }
+
+  const modalityIds = [...new Set(
+    state.clubs.filter((club) => club.sportId === sportValue).map((club) => club.modalityId),
+  )];
+  const options = modalityIds
+    .map((id) => modalityById(id, state.modalities))
+    .filter(Boolean)
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+    .map((modality) => ({ id: modality.id, name: modality.name }));
+  // Opção multi-modalidade só quando existem equipes em mais de uma modalidade.
+  if (multiModalityTeams(state.clubs, sportValue).length) {
+    options.unshift({
+      id: MULTI_MODALITY_VALUE,
+      name: "Multi-modalidade (equipes em várias modalidades)",
+    });
+  }
+  fillTeamsSelect(elements.teamsModality, options, elements.teamsModality.value);
+}
+
+function attachTeamDetail(triggerEl, rowEl, key, colSpan, buildContent) {
+  triggerEl.classList.add("athlete-trigger");
+  triggerEl.tabIndex = 0;
+  const activate = () => toggleAthleteDetail(
+    key,
+    null,
+    triggerEl,
+    (node) => {
+      const detailRow = document.createElement("tr");
+      detailRow.className = "athlete-detail-row";
+      const cell = document.createElement("td");
+      cell.colSpan = colSpan;
+      cell.append(node);
+      detailRow.append(cell);
+      rowEl.after(detailRow);
+      return detailRow;
+    },
+    buildContent,
+  );
+  triggerEl.addEventListener("click", activate);
+  triggerEl.addEventListener("keydown", (keyEvent) => {
+    if (keyEvent.key === "Enter" || keyEvent.key === " ") {
+      keyEvent.preventDefault();
+      activate();
+    }
+  });
+}
+
+function teamNameCell(club) {
+  const cell = document.createElement("td");
+  cell.className = "ranking-person";
+  const name = document.createElement("strong");
+  name.textContent = club.name;
+  const identifier = document.createElement("span");
+  identifier.textContent = club.id;
+  cell.append(name, identifier);
+  return cell;
+}
+
+// Atletas de um clube (numa modalidade), a partir do elenco em memória.
+function buildClubMembersFromPeople(club, peopleById) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "athlete-detail";
+  const heading = document.createElement("p");
+  heading.className = "athlete-detail-heading";
+  heading.textContent = "Atletas da equipe nesta modalidade";
+  wrapper.append(heading);
+
+  const members = [...new Set(club.memberPersonIds ?? [])]
+    .map((personId) => peopleById.get(personId))
+    .filter(Boolean)
+    .sort((a, b) => b.baseRating - a.baseRating || a.name.localeCompare(b.name, "pt-BR"));
+
+  const list = document.createElement("ol");
+  list.className = "athlete-history";
+  members.forEach((person) => {
+    const item = document.createElement("li");
+    item.className = "athlete-history-item";
+    const info = document.createElement("div");
+    info.className = "athlete-history-info";
+    const name = document.createElement("strong");
+    name.textContent = person.name;
+    const meta = document.createElement("span");
+    meta.textContent = [person.countryCode, `Rating ${person.baseRating}`]
+      .filter(Boolean).join(" · ");
+    info.append(name, meta);
+    item.append(info);
+    list.append(item);
+  });
+  wrapper.append(list);
+  return wrapper;
+}
+
+// Atletas de um grupo de equipes (multi-modalidade/esporte), com a(s)
+// modalidade(s) a que cada um pertence.
+function buildTeamGroupMembersNode(group, peopleById) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "athlete-detail";
+  const heading = document.createElement("p");
+  heading.className = "athlete-detail-heading";
+  heading.textContent = "Atletas da equipe e suas modalidades";
+  wrapper.append(heading);
+
+  const modalitiesByPerson = new Map();
+  for (const club of group.clubs) {
+    const modalityName = modalityById(club.modalityId, state.modalities)?.name ?? club.modalityId;
+    for (const personId of club.memberPersonIds ?? []) {
+      if (!modalitiesByPerson.has(personId)) modalitiesByPerson.set(personId, new Set());
+      modalitiesByPerson.get(personId).add(modalityName);
+    }
+  }
+
+  const list = document.createElement("ol");
+  list.className = "athlete-history";
+  [...modalitiesByPerson.entries()]
+    .map(([personId, modalityNames]) => ({
+      person: peopleById.get(personId),
+      modalities: [...modalityNames].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    }))
+    .filter((entry) => entry.person)
+    .sort((a, b) =>
+      b.person.baseRating - a.person.baseRating
+      || a.person.name.localeCompare(b.person.name, "pt-BR"))
+    .forEach((entry) => {
+      const item = document.createElement("li");
+      item.className = "athlete-history-item";
+      const info = document.createElement("div");
+      info.className = "athlete-history-info";
+      const name = document.createElement("strong");
+      name.textContent = entry.person.name;
+      const meta = document.createElement("span");
+      meta.textContent = [entry.person.countryCode, entry.modalities.join(", ")]
+        .filter(Boolean).join(" · ");
+      info.append(name, meta);
+      item.append(info);
+      list.append(item);
+    });
+  wrapper.append(list);
+  return wrapper;
+}
+
+function showTeamsEmpty(message) {
+  elements.teamsEmpty.textContent = message;
+  elements.teamsEmpty.classList.remove("hidden");
+}
+
+function renderSingleModalityTeams(sport, modality) {
+  const clubs = clubsForModality(state.clubs, sport.id, modality.id);
+  const peopleById = new Map(state.people.map((person) => [person.id, person]));
+
+  const scroll = document.createElement("div");
+  scroll.className = "ranking-table-scroll";
+  const table = document.createElement("table");
+  table.className = "ranking-table teams-table";
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th scope="col">Pos.</th>
+        <th scope="col">Equipe</th>
+        <th scope="col">Atletas</th>
+        <th scope="col">Rating</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  `;
+  const body = table.querySelector("tbody");
+
+  clubs.forEach((club, index) => {
+    const row = document.createElement("tr");
+    if (index < 3) row.classList.add(`top-${index + 1}`);
+    const position = document.createElement("td");
+    position.className = "ranking-position";
+    position.textContent = index + 1;
+    const team = teamNameCell(club);
+    const athletes = document.createElement("td");
+    athletes.textContent = [...new Set(club.memberPersonIds ?? [])].length;
+    const rating = document.createElement("td");
+    rating.className = "result-performance";
+    rating.textContent = club.baseRating;
+    row.append(position, team, athletes, rating);
+    attachTeamDetail(team, row, `teammod:${club.id}`, 4,
+      () => buildClubMembersFromPeople(club, peopleById));
+    body.append(row);
+  });
+
+  scroll.append(table);
+  elements.teamsList.append(scroll);
+}
+
+function renderTeamGroups(groups, { crossSport }) {
+  if (!groups.length) {
+    showTeamsEmpty(crossSport
+      ? "Nenhuma equipe participa de mais de um esporte."
+      : "Nenhuma equipe participa de mais de uma modalidade neste esporte.");
+    return;
+  }
+  const peopleById = new Map(state.people.map((person) => [person.id, person]));
+  const scopeHeader = crossSport ? "Esportes" : "Modalidades";
+
+  const scroll = document.createElement("div");
+  scroll.className = "ranking-table-scroll";
+  const table = document.createElement("table");
+  table.className = "ranking-table teams-table";
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th scope="col">Pos.</th>
+        <th scope="col">Equipe</th>
+        <th scope="col">${scopeHeader}</th>
+        <th scope="col">Atletas</th>
+        <th scope="col">Rating méd.</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  `;
+  const body = table.querySelector("tbody");
+
+  groups.forEach((group, index) => {
+    const row = document.createElement("tr");
+    if (index < 3) row.classList.add(`top-${index + 1}`);
+    const position = document.createElement("td");
+    position.className = "ranking-position";
+    position.textContent = index + 1;
+
+    const team = document.createElement("td");
+    team.className = "ranking-person";
+    const name = document.createElement("strong");
+    name.textContent = group.name;
+    const scopeNames = crossSport
+      ? group.sportIds.map((id) => sportById(id, state.sports)?.name ?? id)
+      : group.modalityIds.map((id) => modalityById(id, state.modalities)?.name ?? id);
+    const identifier = document.createElement("span");
+    identifier.textContent = scopeNames.join(" · ");
+    team.append(name, identifier);
+
+    const scopeCount = document.createElement("td");
+    scopeCount.textContent = crossSport ? group.sportIds.length : group.modalityIds.length;
+    const athletes = document.createElement("td");
+    athletes.textContent = group.memberPersonIds.length;
+    const rating = document.createElement("td");
+    rating.className = "result-performance";
+    rating.textContent = group.averageRating;
+
+    row.append(position, team, scopeCount, athletes, rating);
+    attachTeamDetail(team, row, `teamgroup:${crossSport ? "sport" : "mod"}:${group.name}`, 5,
+      () => buildTeamGroupMembersNode(group, peopleById));
+    body.append(row);
+  });
+
+  scroll.append(table);
+  elements.teamsList.append(scroll);
+}
+
+function renderTeams() {
+  closeAthleteDetail();
+  elements.teamsList.replaceChildren();
+  elements.teamsEmpty.classList.add("hidden");
+
+  if (!state.clubs.length) {
+    showTeamsEmpty(
+      "Nenhuma equipe ainda. Importe um preset de um esporte com equipes"
+      + " (ex.: Ecossistema FIA) para criar as equipes.",
+    );
+    return;
+  }
+
+  const sportValue = elements.teamsSport.value;
+  if (sportValue === MULTI_SPORT_VALUE) {
+    renderTeamGroups(multiSportTeams(state.clubs), { crossSport: true });
+    return;
+  }
+  const sport = sportById(sportValue, state.sports);
+  if (!sport) {
+    showTeamsEmpty("Escolha um esporte com equipes.");
+    return;
+  }
+  const modalityValue = elements.teamsModality.value;
+  if (modalityValue === MULTI_MODALITY_VALUE) {
+    renderTeamGroups(multiModalityTeams(state.clubs, sportValue), { crossSport: false });
+    return;
+  }
+  const modality = modalityById(modalityValue, state.modalities);
+  if (!modality) {
+    showTeamsEmpty("Escolha uma modalidade.");
+    return;
+  }
+  renderSingleModalityTeams(sport, modality);
+}
+
+function renderTeamsSection() {
+  setupTeamsOptions();
+  renderTeams();
+}
+
 function formatRankingChange(change) {
   if (change > 0) return `▲ ${change}`;
   if (change < 0) return `▼ ${Math.abs(change)}`;
@@ -1483,6 +1833,7 @@ function render() {
   renderCompetitions();
   renderRanking();
   renderCentral();
+  renderTeamsSection();
   renderChampions();
   renderSeasons();
   renderResults();
@@ -3345,6 +3696,11 @@ function attachEventListeners() {
     renderRanking();
   });
   elements.rankingCountry.addEventListener("change", renderRanking);
+  elements.teamsSport.addEventListener("change", () => {
+    updateTeamsModalitySelect();
+    renderTeams();
+  });
+  elements.teamsModality.addEventListener("change", renderTeams);
   elements.setupForm.addEventListener("submit", handleSetup);
   elements.continueGameButton.addEventListener("click", handleContinueGame);
   elements.newGameButton.addEventListener("click", handleNewGame);
