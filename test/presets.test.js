@@ -157,6 +157,27 @@ test("converte o preset em competições mundiais de tênis com IDs estáveis", 
   assert.ok(competitions.every(({ qualification }) => qualification !== "open"));
 });
 
+test("o preset da ATP carrega o top 50 real de 2026 como elenco oficial", () => {
+  const preset = presetById("atp-world-tour-2026");
+  const players = buildPresetPeople(preset, "2026-01-01T00:00:00.000Z");
+  assert.equal(players.length, 50);
+  assert.equal(new Set(players.map(({ id }) => id)).size, 50);
+  assert.ok(players.every(({ sportId }) => sportId === "sport_tennis"));
+  assert.ok(players.every(
+    ({ modalityId }) => modalityId === "modality_tennis_mens_singles",
+  ));
+  // O tênis não tem equipes: o nome não recebe sufixo entre parênteses.
+  assert.ok(players.every(({ name }) => !name.includes("(")));
+  assert.equal(
+    players.find(({ name }) => name === "Jannik Sinner").baseRating,
+    99,
+  );
+  // O elenco não vira participante fixo: os torneios seguem por ranking.
+  const competitions = buildPresetCompetitions(preset);
+  assert.ok(competitions.every(({ participantIds }) => participantIds === null));
+  assert.ok(competitions.every(({ qualification }) => qualification === "ranking"));
+});
+
 test("preserva datas e categorias essenciais do calendário de 2026", () => {
   const competitions = buildPresetCompetitions(CALENDAR_PRESETS[0]);
   const australianOpen = competitions.find(({ name }) => name === "Australian Open");

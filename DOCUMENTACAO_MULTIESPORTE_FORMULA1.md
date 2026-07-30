@@ -273,3 +273,26 @@ adicional em `test/presets.test.js` (Oriente Médio, vínculo de homônimos, IDs
 
 Fonte da Fórmula Regional Oriente Médio: database oficial de 2026 fornecida
 (calendário de 4 etapas e grid de 36 pilotos).
+
+## 13. Elenco real no preset da ATP
+
+O preset `atp-world-tour-2026` deixou de depender só dos 100 atletas genéricos e
+ganhou uma database de atletas, do mesmo jeito que os grids de automobilismo.
+
+- `ATP_2026_PLAYERS`: top 50 do ranking mundial da ATP de 2026, com nomes e
+  nacionalidades reais e ratings aproximados. Foi só adicionar o campo `athletes`
+  ao preset — nenhuma outra configuração mudou.
+- Diferença em relação ao automobilismo: o tênis não tem equipes, então o nome
+  não recebe sufixo `(Equipe)`; e o preset é `standalone` (não é etapa de
+  temporada), então os torneios seguem preenchendo as vagas por ranking, sem
+  `participantIds` fixos. Os 50 reais e os 100 genéricos convivem no mesmo pool,
+  o que mantém o preenchimento de chaves grandes (128 num Grand Slam).
+- Como o ranking do tênis é cumulativo, os ratings dos reais os colocam no topo
+  da classificação inicial; os pontos se acumulam torneio a torneio.
+
+Cobertura em `test/presets.test.js` (50 jogadores, modalidade correta, sem sufixo
+de equipe, torneios ainda por ranking). Total após esta etapa: 88 testes
+aprovados.
+
+Fontes do ranking ATP 2026: rankings ao vivo da ATP e cobertura da temporada
+(ATP Tour, Olympics.com, Tennis Abstract).

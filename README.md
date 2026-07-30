@@ -207,13 +207,22 @@ alteração: internamente eles são tratados como um preset de uma única série
 - seletores dependentes de esporte e modalidade no cadastro de campeonatos;
 - botão `Presets` na tela do calendário;
 - catálogo de presets expansível em `js/presets.js`;
-- preset opcional do circuito mundial ATP 2026 com 59 torneios individuais;
+- preset opcional do circuito mundial ATP 2026 com 59 torneios individuais e o
+  top 50 real do ranking mundial da ATP como elenco oficial;
 - importação explícita: o preset nunca entra no calendário automaticamente;
 - IDs estáveis que impedem a duplicação do mesmo preset.
 
 O preset foi baseado no calendário oficial de 2026 publicado pela ATP. Eventos
 por equipes e competições sem data confirmada ficaram de fora porque o motor
 atual simula torneios individuais.
+
+Assim como no automobilismo, o preset agora traz uma database de atletas reais: o
+top 50 do ranking mundial da ATP de 2026 (nomes e nacionalidades reais, ratings
+aproximados). Como o tênis não tem equipes, o nome do atleta não recebe sufixo
+entre parênteses. Esses 50 jogadores entram no mesmo pool da modalidade, ao lado
+dos 100 atletas genéricos, e as vagas de cada torneio continuam sendo preenchidas
+por ranking — o que preserva o preenchimento de chaves grandes, como os 128 de um
+Grand Slam. Fonte: <https://www.atptour.com/en/rankings/singles>.
 
 - estrutura persistente `mundo > continente > país`;
 - seis continentes e 20 países correspondentes às nacionalidades dos 100 atletas;
