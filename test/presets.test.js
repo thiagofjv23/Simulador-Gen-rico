@@ -13,12 +13,13 @@ const F1_MODALITY = "modality_motorsport_formula1";
 const F2_MODALITY = "modality_motorsport_formula2";
 const F3_MODALITY = "modality_motorsport_formula3";
 const FREC_MODALITY = "modality_motorsport_formula_regional";
+const FRECME_MODALITY = "modality_motorsport_formula_regional_middle_east";
 
 test("o catálogo de presets contém ATP e o Ecossistema FIA de 2026", () => {
   assert.equal(CALENDAR_PRESETS.length, 2);
   assert.equal(presetById("atp-world-tour-2026")?.competitions.length, 59);
   assert.ok(FIA);
-  assert.equal(buildPresetCompetitions(FIA).length, 24 + 14 + 10 + 8);
+  assert.equal(buildPresetCompetitions(FIA).length, 24 + 14 + 10 + 8 + 4);
 });
 
 test("a Fórmula 1 do ecossistema cria 24 etapas anuais de três dias", () => {
@@ -91,7 +92,8 @@ test("o ecossistema inclui a Fórmula Regional de 2026 com 8 rodadas e 30 piloto
   assert.equal(frec.length, 8);
   assert.ok(frec.every(({ competitionModel }) => competitionModel === "season_stage"));
   assert.ok(frec.every(({ scoringSystemId }) => scoringSystemId === "formula1-grand-prix"));
-  assert.ok(frec.every(({ discipline }) => discipline === "Fórmula Regional"));
+  assert.ok(frec.every(({ discipline }) => discipline === "Fórmula Regional Europeia"));
+  assert.ok(frec.every(({ name }) => name.startsWith("Fórmula Regional Europeia —")));
   assert.equal(frec[0].startDate, "2026-04-24");
   assert.equal(frec.at(-1).endDate, "2026-09-13");
   assert.equal(frec.at(-1).seasonFinalRound, true);
@@ -102,10 +104,41 @@ test("o ecossistema inclui a Fórmula Regional de 2026 com 8 rodadas e 30 piloto
   assert.ok(people.every(({ name, teamName }) => name.endsWith(`(${teamName})`)));
 });
 
-test("todas as 56 etapas do ecossistema têm IDs estáveis e únicos", () => {
+test("o ecossistema inclui a Fórmula Regional Oriente Médio de 2026", () => {
+  const frecme = buildPresetCompetitions(FIA)
+    .filter(({ modalityId }) => modalityId === FRECME_MODALITY);
+  assert.equal(frecme.length, 4);
+  assert.ok(frecme.every(({ competitionModel }) => competitionModel === "season_stage"));
+  assert.ok(frecme.every(({ discipline }) => discipline === "Fórmula Regional Oriente Médio"));
+  assert.ok(frecme.every(({ slots }) => slots === 36));
+  assert.equal(frecme[0].startDate, "2026-01-16");
+  assert.equal(frecme.at(-1).endDate, "2026-02-12");
+  assert.equal(frecme.at(-1).seasonFinalRound, true);
+  // Cada etapa recebe os 36 participantes.
+  assert.ok(frecme.every(({ participantIds }) => participantIds.length === 36));
+});
+
+test("pilotos homônimos viram o mesmo atleta em vez de duplicar pessoas", () => {
+  const people = buildPresetPeople(FIA, "2026-01-01T00:00:00.000Z");
+  // 22 F1 + 22 F2 + 30 F3 + 30 FREC-EU + 11 exclusivos do Oriente Médio.
+  assert.equal(people.length, 22 + 22 + 30 + 30 + 11);
+  // Nenhum ID de pessoa se repete.
+  assert.equal(new Set(people.map(({ id }) => id)).size, people.length);
+
+  const frecmeRound = buildPresetCompetitions(FIA)
+    .find(({ modalityId }) => modalityId === FRECME_MODALITY);
+  // Um piloto compartilhado aponta para o atleta já existente da Europeia...
+  assert.ok(frecmeRound.participantIds.includes("person_frec_al-dhaheri"));
+  // ...e um piloto exclusivo do Oriente Médio tem sua própria pessoa.
+  assert.ok(frecmeRound.participantIds.includes("person_frecme_powell"));
+  assert.ok(people.some(({ id }) => id === "person_frecme_powell"));
+  assert.ok(!people.some(({ id }) => id === "person_frecme_al-dhaheri"));
+});
+
+test("todas as 60 etapas do ecossistema têm IDs estáveis e únicos", () => {
   const competitions = buildPresetCompetitions(FIA);
-  assert.equal(competitions.length, 56);
-  assert.equal(new Set(competitions.map(({ id }) => id)).size, 56);
+  assert.equal(competitions.length, 60);
+  assert.equal(new Set(competitions.map(({ id }) => id)).size, 60);
   assert.ok(competitions.every(({ presetId }) => presetId === "fia-ecosystem-2026"));
 });
 

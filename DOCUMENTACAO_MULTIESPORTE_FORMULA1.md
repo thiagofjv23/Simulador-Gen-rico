@@ -235,3 +235,41 @@ Caminho para incluir depois: assim que houver uma entry list fechada e confiáve
 de 2026 — ou caso se aceite uma **aproximação** no mesmo formato de F2/F3 —, basta
 adicionar a modalidade `Fórmula 4` ao catálogo e uma nova série ao preset, sem
 tocar em nenhuma outra mecânica.
+
+## 12. Tiers, Fórmula Regional Oriente Médio e atletas compartilhados
+
+A Fórmula Regional passou a ser explicitamente a **Europeia** e ganhou uma irmã
+de mesmo tier, a **Oriente Médio**. As mudanças ficaram restritas ao preset.
+
+- **Renomeação**: as 8 etapas da Regional Europeia agora se chamam
+  `Fórmula Regional Europeia — <etapa>` e a modalidade exibe "Fórmula Regional
+  Europeia". O `modalityId` foi preservado para não afetar o ranking existente.
+- **Tiers**: cada série do preset ganhou o metadado `tier` (1 = F1, 2 = F2,
+  3 = F3, 4 = Regionais). É só um agrupamento; categorias do mesmo tier convivem
+  com rankings próprios e independentes.
+- **Fórmula Regional Oriente Médio**: nova modalidade sazonal
+  `modality_motorsport_formula_regional_middle_east` e nova série com o calendário
+  oficial de 4 etapas (Yas Marina ×2, Dubai, Lusail) e o grid de 36 pilotos de
+  2026 fornecido.
+- **Atletas compartilhados**: a série marca `linkExistingByName: true`. Em
+  `js/presets.js`, a nova função `resolvePresetRoster` percorre as séries e, para
+  uma série vinculadora, reaproveita o atleta já criado por outra categoria
+  quando o nome coincide (comparação sem acentos), mantendo o rating de origem —
+  25 dos 36 pilotos do Oriente Médio são compartilhados; 11 são exclusivos.
+  `buildPresetPeople` passou a devolver apenas as pessoas realmente novas e
+  `buildPresetCompetitions` usa os IDs resolvidos como `participantIds`.
+- **Ranking por série**: `ensurePresetRoster` monta o elenco de cada ranking com
+  os atletas da modalidade **mais** os participantes vinculados de outra
+  categoria, para que o mesmo piloto apareça nos dois campeonatos.
+- **Seleção de participantes**: `selectParticipants` deixou de refiltrar por
+  modalidade (o ranking já chega restrito pelo `rankingId`), permitindo que um
+  atleta com modalidade principal diferente dispute a segunda categoria. As
+  barreiras de esporte e geográfica seguem intactas. Foi o único ajuste fora do
+  preset, necessário para viabilizar o vínculo pedido.
+
+O ecossistema passa a ter 60 etapas e 115 pilotos em 5 campeonatos. Cobertura
+adicional em `test/presets.test.js` (Oriente Médio, vínculo de homônimos, IDs das
+60 etapas) e `test/sports.test.js`. Total após esta etapa: 87 testes aprovados.
+
+Fonte da Fórmula Regional Oriente Médio: database oficial de 2026 fornecida
+(calendário de 4 etapas e grid de 36 pilotos).

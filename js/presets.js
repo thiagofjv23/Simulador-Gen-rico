@@ -330,14 +330,14 @@ const F3_2026_DRIVERS = [
 // Diferente de F2/F3, a categoria tem circuitos e datas próprios (não apoia a
 // F1), então cada rodada define seu fim de semana de três dias diretamente.
 const FORMULA_REGIONAL_2026_ROUNDS = [
-  ["red-bull-ring", "Fórmula Regional — Spielberg", "2026-04-24", "2026-04-26", "Spielberg, Áustria"],
-  ["zandvoort", "Fórmula Regional — Zandvoort", "2026-05-22", "2026-05-24", "Zandvoort, Países Baixos"],
-  ["spa", "Fórmula Regional — Spa-Francorchamps", "2026-05-29", "2026-05-31", "Spa-Francorchamps, Bélgica"],
-  ["monza", "Fórmula Regional — Monza", "2026-06-19", "2026-06-21", "Monza, Itália"],
-  ["hungaroring", "Fórmula Regional — Budapeste", "2026-07-03", "2026-07-05", "Budapeste, Hungria"],
-  ["paul-ricard", "Fórmula Regional — Le Castellet", "2026-07-17", "2026-07-19", "Le Castellet, França"],
-  ["imola", "Fórmula Regional — Imola", "2026-09-04", "2026-09-06", "Imola, Itália"],
-  ["hockenheim", "Fórmula Regional — Hockenheim", "2026-09-11", "2026-09-13", "Hockenheim, Alemanha"],
+  ["red-bull-ring", "Fórmula Regional Europeia — Spielberg", "2026-04-24", "2026-04-26", "Spielberg, Áustria"],
+  ["zandvoort", "Fórmula Regional Europeia — Zandvoort", "2026-05-22", "2026-05-24", "Zandvoort, Países Baixos"],
+  ["spa", "Fórmula Regional Europeia — Spa-Francorchamps", "2026-05-29", "2026-05-31", "Spa-Francorchamps, Bélgica"],
+  ["monza", "Fórmula Regional Europeia — Monza", "2026-06-19", "2026-06-21", "Monza, Itália"],
+  ["hungaroring", "Fórmula Regional Europeia — Budapeste", "2026-07-03", "2026-07-05", "Budapeste, Hungria"],
+  ["paul-ricard", "Fórmula Regional Europeia — Le Castellet", "2026-07-17", "2026-07-19", "Le Castellet, França"],
+  ["imola", "Fórmula Regional Europeia — Imola", "2026-09-04", "2026-09-06", "Imola, Itália"],
+  ["hockenheim", "Fórmula Regional Europeia — Hockenheim", "2026-09-11", "2026-09-13", "Hockenheim, Alemanha"],
 ].map(([id, name, startDate, endDate, city], index, rounds) => ({
   id,
   name,
@@ -411,6 +411,93 @@ const FORMULA_REGIONAL_2026_DRIVERS = [
   presetId: "fia-ecosystem-2026",
 }));
 
+// Calendário oficial de 4 etapas da Fórmula Regional Oriente Médio de 2026.
+const FORMULA_REGIONAL_ME_2026_ROUNDS = [
+  ["yas-marina-r1", "Fórmula Regional Oriente Médio — Yas Marina (Rodada 1)", "2026-01-16", "2026-01-18", "Abu Dhabi, Emirados Árabes Unidos"],
+  ["yas-marina-r2", "Fórmula Regional Oriente Médio — Yas Marina (Rodada 2)", "2026-01-22", "2026-01-24", "Abu Dhabi, Emirados Árabes Unidos"],
+  ["dubai", "Fórmula Regional Oriente Médio — Dubai Autodrome", "2026-01-29", "2026-01-31", "Dubai, Emirados Árabes Unidos"],
+  ["lusail", "Fórmula Regional Oriente Médio — Lusail", "2026-02-10", "2026-02-12", "Lusail, Catar"],
+].map(([id, name, startDate, endDate, city], index, rounds) => ({
+  id,
+  name,
+  startDate,
+  endDate,
+  city,
+  category: "Rodada",
+  round: index + 1,
+  finalRound: index === rounds.length - 1,
+}));
+
+// Grid oficial da Fórmula Regional Oriente Médio de 2026 (36 pilotos). Pilotos
+// cujo nome coincide com o de outra categoria são vinculados ao mesmo atleta
+// (mantendo o rating da categoria de origem) durante a montagem do preset; os
+// campos aqui só valem para os pilotos exclusivos desta categoria.
+const FORMULA_REGIONAL_ME_2026_DRIVERS = [
+  ["nakamura-berta", "Kean Nakamura-Berta", "Mumbai Falcons Racing", "JPN", "Japão", "continent_asia", 18, 78, 5],
+  ["al-dhaheri", "Rashid Al Dhaheri", "R-ace GP", "ARE", "Emirados Árabes", "continent_asia", 17, 77, 4],
+  ["abkhazava", "Alexander Abkhazava", "MP Motorsport", "GEO", "Geórgia", "continent_europe", 19, 74, 3],
+  ["powell", "Alex Powell", "Pinnacle Motorsport", "JAM", "Jamaica", "continent_north_america", 18, 73, 2],
+  ["wheldon", "Sebastian Wheldon", "Mumbai Falcons Racing", "USA", "Estados Unidos", "continent_north_america", 17, 73, 3],
+  ["przyrowski", "Jan Przyrowski", "RPM", "POL", "Polônia", "continent_europe", 18, 72, 2],
+  ["popov", "Maximilian Popov", "Trident Motorsport", "ITA", "Itália", "continent_europe", 18, 72, 1],
+  ["ninovic", "Alex Ninovic", "Rodin Motorsport", "AUS", "Austrália", "continent_oceania", 19, 71, 2],
+  ["anurag", "Kabir Anurag", "ART Grand Prix", "SGP", "Singapura", "continent_asia", 19, 71, 0],
+  ["hanna", "Salim Hanna", "Mumbai Falcons Racing", "COL", "Colômbia", "continent_south_america", 17, 70, 1],
+  ["kato", "Taito Kato", "ART Grand Prix", "JPN", "Japão", "continent_asia", 17, 70, -1],
+  ["ho", "Christian Ho", "MP Motorsport", "SGP", "Singapura", "continent_asia", 18, 69, 1],
+  ["sano", "Yuki Sano", "R-ace GP", "JPN", "Japão", "continent_asia", 19, 69, 0],
+  ["olivieri", "Emanuele Olivieri", "R-ace GP", "ITA", "Itália", "continent_europe", 18, 68, 2],
+  ["costa", "Miguel Costa", "RPM", "BRA", "Brasil", "continent_south_america", 17, 68, -1],
+  ["chi", "Zhenrui Chi", "CL Motorsport", "CHN", "China", "continent_asia", 18, 67, 1],
+  ["severiukhin", "Artem Severiukhin", "G4 Racing", "KGZ", "Quirguistão", "continent_asia", 19, 66, 0],
+  ["macedo", "Francisco Macedo", "Van Amersfoort Racing", "PRT", "Portugal", "continent_europe", 18, 66, -1],
+  ["roussel", "Jules Roussel", "G4 Racing", "FRA", "França", "continent_europe", 18, 65, 0],
+  ["rehm", "Maxim Rehm", "Rodin Motorsport", "DEU", "Alemanha", "continent_europe", 18, 65, 1],
+  ["kostic", "Andrija Kostic", "Trident Motorsport", "SRB", "Sérvia", "continent_europe", 17, 64, -2],
+  ["seewooruthun", "Reza Seewooruthun", "Rodin Motorsport", "GBR", "Reino Unido", "continent_europe", 18, 64, -1],
+  ["daryanani", "Kai Daryanani", "Trident Motorsport", "IND", "Índia", "continent_asia", 19, 64, 0],
+  ["dupe", "Andrea Dupé", "G4 Racing", "FRA", "França", "continent_europe", 17, 63, -1],
+  ["gowda", "Dion Gowda", "Van Amersfoort Racing", "IND", "Índia", "continent_asia", 18, 63, -1],
+  ["carrasquedo", "Jesse Carrasquedo Jr.", "MP Motorsport", "MEX", "México", "continent_north_america", 19, 63, 0],
+  ["xie", "Gerrard Xie", "R-ace GP", "HKG", "Hong Kong", "continent_asia", 19, 62, -2],
+  ["frey", "Enea Frey", "CL Motorsport", "CHE", "Suíça", "continent_europe", 18, 62, 0],
+  ["inthraphuvasak", "Tasanapol Inthraphuvasak", "ART Grand Prix", "THA", "Tailândia", "continent_asia", 20, 62, 1],
+  ["francot", "Reno Francot", "CL Motorsport", "NLD", "Países Baixos", "continent_europe", 18, 61, -2],
+  ["giaccardi", "Matteo Giaccardi", "ART Grand Prix", "CHE", "Suíça", "continent_europe", 18, 61, 0],
+  ["fu-yuhao", "Fu Yuhao", "Van Amersfoort Racing", "CHN", "China", "continent_asia", 19, 60, -1],
+  ["maschio", "Giovanni Maschio", "RPM", "ITA", "Itália", "continent_europe", 20, 60, 0],
+  ["feldmann", "Alceu Feldmann Neto", "MP Motorsport", "BRA", "Brasil", "continent_south_america", 17, 59, -3],
+  ["belov", "Michael Belov", "CL Motorsport", "KGZ", "Quirguistão", "continent_asia", 24, 65, -4],
+  ["raber", "August Raber", "Pinnacle Motorsport", "DEU", "Alemanha", "continent_europe", 17, 58, 0],
+].map(([
+  id,
+  driverName,
+  teamName,
+  countryCode,
+  countryName,
+  continentId,
+  age,
+  baseRating,
+  momentum,
+]) => ({
+  id: `person_frecme_${id}`,
+  name: `${driverName} (${teamName})`,
+  driverName,
+  teamName,
+  countryCode,
+  countryName,
+  countryId: `country_${countryCode.toLocaleLowerCase()}`,
+  continentId,
+  gender: "M",
+  age,
+  baseRating,
+  momentum,
+  sportId: "sport_motorsport",
+  modalityId: "modality_motorsport_formula_regional_middle_east",
+  rosterType: "preset",
+  presetId: "fia-ecosystem-2026",
+}));
+
 const CATEGORY_SETTINGS = {
   "ATP 250": { prestige: 55, rankingPoints: 250, slots: 28 },
   "ATP 500": { prestige: 75, rankingPoints: 500, slots: 32 },
@@ -438,7 +525,7 @@ export const CALENDAR_PRESETS = [
     id: "fia-ecosystem-2026",
     name: "Ecossistema FIA — 2026",
     description:
-      "Fórmula 1, Fórmula 2, Fórmula 3 e Fórmula Regional de 2026 em um único preset: 56 etapas anuais de três dias e 104 pilotos com a equipe ao lado do nome. Cada categoria mantém sua própria classificação anual, zerada a cada temporada.",
+      "Pirâmide FIA de 2026 em um único preset: Fórmula 1 (Tier 1), Fórmula 2 (Tier 2), Fórmula 3 (Tier 3) e as Fórmulas Regionais (Tier 4: Europeia e Oriente Médio). São 60 etapas anuais de três dias e 115 pilotos com a equipe ao lado do nome. Cada categoria mantém sua própria classificação anual, zerada a cada temporada, e um mesmo piloto pode disputar mais de um campeonato.",
     sportId: "sport_motorsport",
     sportName: "Automobilismo",
     sourceUrl: "https://www.fia.com/events",
@@ -450,6 +537,7 @@ export const CALENDAR_PRESETS = [
         competitionModel: "season_stage",
         seasonId: "formula1-world-championship",
         seasonName: "Campeonato Mundial de Fórmula 1",
+        tier: 1,
         prestige: 100,
         rankingPoints: 25,
         athletes: F1_2026_DRIVERS,
@@ -462,6 +550,7 @@ export const CALENDAR_PRESETS = [
         competitionModel: "season_stage",
         seasonId: "formula2-championship",
         seasonName: "Campeonato de Fórmula 2 da FIA",
+        tier: 2,
         prestige: 85,
         rankingPoints: 25,
         athletes: F2_2026_DRIVERS,
@@ -474,6 +563,7 @@ export const CALENDAR_PRESETS = [
         competitionModel: "season_stage",
         seasonId: "formula3-championship",
         seasonName: "Campeonato de Fórmula 3 da FIA",
+        tier: 3,
         prestige: 70,
         rankingPoints: 25,
         athletes: F3_2026_DRIVERS,
@@ -481,15 +571,31 @@ export const CALENDAR_PRESETS = [
       },
       {
         modalityId: "modality_motorsport_formula_regional",
-        modalityName: "Fórmula Regional",
+        modalityName: "Fórmula Regional Europeia",
         scoringSystemId: "formula1-grand-prix",
         competitionModel: "season_stage",
         seasonId: "formula-regional-european-championship",
         seasonName: "Campeonato de Fórmula Regional Europeu da FIA",
+        tier: 4,
         prestige: 55,
         rankingPoints: 25,
         athletes: FORMULA_REGIONAL_2026_DRIVERS,
         competitions: FORMULA_REGIONAL_2026_ROUNDS,
+      },
+      {
+        modalityId: "modality_motorsport_formula_regional_middle_east",
+        modalityName: "Fórmula Regional Oriente Médio",
+        scoringSystemId: "formula1-grand-prix",
+        competitionModel: "season_stage",
+        seasonId: "formula-regional-middle-east-championship",
+        seasonName: "Campeonato de Fórmula Regional do Oriente Médio da FIA",
+        tier: 4,
+        prestige: 55,
+        rankingPoints: 25,
+        // Vincula pilotos homônimos ao mesmo atleta de outra categoria.
+        linkExistingByName: true,
+        athletes: FORMULA_REGIONAL_ME_2026_DRIVERS,
+        competitions: FORMULA_REGIONAL_ME_2026_ROUNDS,
       },
     ],
   },
@@ -510,8 +616,15 @@ export function presetSeries(preset) {
       competitionModel: series.competitionModel ?? preset.competitionModel ?? "standalone",
       seasonId: series.seasonId ?? null,
       seasonName: series.seasonName ?? null,
+      // Nível na pirâmide FIA (metadado; categorias de mesmo tier convivem lado
+      // a lado com rankings próprios, como a Fórmula Regional Europeia e a do
+      // Oriente Médio, ambas no Tier 4).
+      tier: series.tier ?? null,
       prestige: series.prestige,
       rankingPoints: series.rankingPoints,
+      // Quando verdadeiro, pilotos com o mesmo nome de outra série são o mesmo
+      // atleta (mantendo o rating de origem), em vez de novas pessoas.
+      linkExistingByName: series.linkExistingByName ?? false,
       athletes: series.athletes ?? [],
       competitions: series.competitions ?? [],
     }));
@@ -525,11 +638,59 @@ export function presetSeries(preset) {
     competitionModel: preset.competitionModel ?? "standalone",
     seasonId: preset.seasonId ?? null,
     seasonName: preset.seasonName ?? null,
+    tier: preset.tier ?? null,
     prestige: preset.prestige,
     rankingPoints: preset.rankingPoints,
+    linkExistingByName: false,
     athletes: preset.athletes ?? [],
     competitions: preset.competitions ?? [],
   }];
+}
+
+// Normaliza um nome de piloto para comparar entre categorias (sem acentos,
+// minúsculo), permitindo detectar o mesmo atleta em campeonatos diferentes.
+function normalizeDriverName(name) {
+  return (name ?? "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLocaleLowerCase("pt-BR")
+    .trim();
+}
+
+// Resolve o elenco de um preset em pessoas a criar (sem duplicar) e, para cada
+// série, a lista ordenada de IDs de participantes. Séries marcadas com
+// `linkExistingByName` reaproveitam o atleta já criado por uma série anterior
+// (mesmo nome), fazendo com que a mesma pessoa dispute dois campeonatos.
+export function resolvePresetRoster(preset) {
+  const series = presetSeries(preset);
+  const canonicalByName = new Map();
+  const peopleToCreate = [];
+  const createdIds = new Set();
+  const seriesParticipantIds = [];
+
+  for (const currentSeries of series) {
+    const participantIds = [];
+    for (const athlete of currentSeries.athletes) {
+      const key = normalizeDriverName(athlete.driverName);
+      if (currentSeries.linkExistingByName && canonicalByName.has(key)) {
+        participantIds.push(canonicalByName.get(key).id);
+        continue;
+      }
+      if (!createdIds.has(athlete.id)) {
+        peopleToCreate.push(athlete);
+        createdIds.add(athlete.id);
+      }
+      participantIds.push(athlete.id);
+      // Séries que não vinculam alimentam o registro canônico; se o nome se
+      // repete, a série mais recente prevalece (ex.: Europeia sobre a F3).
+      if (!currentSeries.linkExistingByName && key) {
+        canonicalByName.set(key, athlete);
+      }
+    }
+    seriesParticipantIds.push(participantIds);
+  }
+
+  return { series, peopleToCreate, seriesParticipantIds };
 }
 
 export function presetById(presetId) {
@@ -540,12 +701,14 @@ export function buildPresetCompetitions(preset, timestamp = new Date().toISOStri
   if (!preset) return [];
 
   const multiSeries = Array.isArray(preset.series);
+  const { series: allSeries, seriesParticipantIds } = resolvePresetRoster(preset);
 
-  return presetSeries(preset).flatMap((series) => {
+  return allSeries.flatMap((series, seriesIndex) => {
     const isSeasonStage = series.competitionModel === "season_stage";
     // Em presets multimodalidade, o ID da etapa inclui a modalidade para não
     // colidir entre categorias que compartilham o mesmo fim de semana.
     const seriesKey = multiSeries ? `${series.modalityId}_` : "";
+    const participantIds = seriesParticipantIds[seriesIndex];
 
     return series.competitions.map((tournament) => {
       const settings = CATEGORY_SETTINGS[tournament.category] ?? {
@@ -583,9 +746,7 @@ export function buildPresetCompetitions(preset, timestamp = new Date().toISOStri
         seasonRound: tournament.round ?? null,
         seasonRoundCount: isSeasonStage ? series.competitions.length : null,
         seasonFinalRound: Boolean(tournament.finalRound),
-        participantIds: isSeasonStage
-          ? series.athletes.map(({ id }) => id)
-          : null,
+        participantIds: isSeasonStage ? participantIds : null,
         notes: [
           tournament.city,
           tournament.surface,
@@ -600,11 +761,11 @@ export function buildPresetCompetitions(preset, timestamp = new Date().toISOStri
 }
 
 export function buildPresetPeople(preset, timestamp = new Date().toISOString()) {
-  return presetSeries(preset)
-    .flatMap((series) => series.athletes)
-    .map((person) => ({
-      ...person,
-      createdAt: person.createdAt ?? timestamp,
-      updatedAt: timestamp,
-    }));
+  // Apenas pessoas realmente novas são criadas; pilotos vinculados a um atleta
+  // já existente (mesmo nome em outra categoria) não são duplicados.
+  return resolvePresetRoster(preset).peopleToCreate.map((person) => ({
+    ...person,
+    createdAt: person.createdAt ?? timestamp,
+    updatedAt: timestamp,
+  }));
 }

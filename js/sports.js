@@ -41,7 +41,13 @@ export const MODALITIES = [
   {
     id: "modality_motorsport_formula_regional",
     sportId: "sport_motorsport",
-    name: "Fórmula Regional",
+    name: "Fórmula Regional Europeia",
+    rankingModel: "seasonal",
+  },
+  {
+    id: "modality_motorsport_formula_regional_middle_east",
+    sportId: "sport_motorsport",
+    name: "Fórmula Regional Oriente Médio",
     rankingModel: "seasonal",
   },
 ];

@@ -91,7 +91,7 @@ import {
   buildPresetCompetitions,
   buildPresetPeople,
   presetById,
-  presetSeries,
+  resolvePresetRoster,
 } from "./presets.js";
 import {
   SCORING_SYSTEMS,
@@ -2182,7 +2182,7 @@ async function handleDeleteCompetition() {
 async function ensurePresetRoster(preset) {
   if (!preset) return;
   const timestamp = new Date().toISOString();
-  const series = presetSeries(preset);
+  const { series, seriesParticipantIds } = resolvePresetRoster(preset);
   if (!series.length) return;
   const primarySeries = series[0];
   let people = state.people;
@@ -2208,8 +2208,10 @@ async function ensurePresetRoster(preset) {
   const seasonYear = Number(state.world.currentDate.slice(0, 4));
   const missingEntries = [];
 
-  // Cada série (F1, F2, F3, tênis...) mantém seu próprio ranking independente.
-  for (const seriesItem of series) {
+  // Cada série (F1, F2, F3, Regionais, tênis...) mantém seu próprio ranking
+  // independente. Além dos atletas da modalidade, o elenco inclui os pilotos
+  // vinculados de outra categoria (mesmo atleta correndo em dois campeonatos).
+  series.forEach((seriesItem, seriesIndex) => {
     const modality = modalityById(seriesItem.modalityId, state.modalities);
     const rankingModel = modality?.rankingModel ?? "cumulative";
     const rankingId = rankingIdFor(seriesItem.sportId, seriesItem.modalityId);
@@ -2218,14 +2220,20 @@ async function ensurePresetRoster(preset) {
         .filter((entry) => entry.rankingId === rankingId)
         .map(({ personId }) => personId),
     );
-    let generatedEntries = buildInitialRanking(people, timestamp, {
+    const participantIds = new Set(seriesParticipantIds[seriesIndex] ?? []);
+    const rosterPeople = people.filter((person) =>
+      (person.sportId === seriesItem.sportId && person.modalityId === seriesItem.modalityId)
+      || participantIds.has(person.id));
+    let generatedEntries = buildInitialRanking(rosterPeople, timestamp, {
       rankingId,
-      sportId: seriesItem.sportId,
-      modalityId: seriesItem.modalityId,
       rankingModel,
       seasonYear,
       startAtZero: rankingModel === "seasonal",
-    });
+    }).map((entry) => ({
+      ...entry,
+      sportId: seriesItem.sportId,
+      modalityId: seriesItem.modalityId,
+    }));
     // Preserva o histórico do ranking "world" só quando o primeiro preset é
     // cumulativo (caso do tênis), na sua série principal.
     if (assigningInitialSport && seriesItem === primarySeries && rankingModel === "cumulative") {
@@ -2256,7 +2264,7 @@ async function ensurePresetRoster(preset) {
     missingEntries.push(
       ...generatedEntries.filter(({ personId }) => !existingEntryIds.has(personId)),
     );
-  }
+  });
 
   if (presetPeople.length || people.some((person, index) => person !== state.people[index])) {
     await savePeople(people);

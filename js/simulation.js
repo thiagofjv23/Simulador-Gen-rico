@@ -111,12 +111,14 @@ export function selectParticipants(
   competition,
   { invitedPersonIds = [], qualifierPersonIds = [] } = {},
 ) {
+  // A modalidade não é refiltrada aqui: o ranking recebido já vem restrito à
+  // modalidade da competição (pelo rankingId), e um mesmo atleta pode disputar
+  // outra categoria com modalidade principal diferente (ex.: Fórmula Regional
+  // Europeia e Oriente Médio). As barreiras de esporte e geográfica permanecem.
   const scopedRanking = ranking
     .filter(({ person }) =>
       matchesGeographicScope(person, competition)
-      && (!competition.sportId || !person.sportId || person.sportId === competition.sportId)
-      && (!competition.modalityId || !person.modalityId
-        || person.modalityId === competition.modalityId),
+      && (!competition.sportId || !person.sportId || person.sportId === competition.sportId),
     )
     .map((entry, index) => ({ ...entry, scopePosition: index + 1 }));
   const scopedByPersonId = new Map(

@@ -27,7 +27,13 @@ test("lista somente as modalidades vinculadas ao esporte escolhido", () => {
   assert.deepEqual(modalitiesForSport("sport_unknown"), []);
   assert.deepEqual(
     modalitiesForSport("sport_motorsport").map(({ name }) => name),
-    ["Fórmula 1", "Fórmula 2", "Fórmula 3", "Fórmula Regional"],
+    [
+      "Fórmula 1",
+      "Fórmula 2",
+      "Fórmula 3",
+      "Fórmula Regional Europeia",
+      "Fórmula Regional Oriente Médio",
+    ],
   );
 });
 
