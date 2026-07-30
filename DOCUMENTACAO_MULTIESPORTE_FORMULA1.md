@@ -389,3 +389,27 @@ Nenhum preset precisou de mudança.
 Cobertura em `test/simulation.test.js` (baterias com marca, todos contra todos
 com placar, e a garantia de que sem configuração o resultado não muda). Total
 após esta etapa: 107 testes aprovados.
+
+## 18. Atletismo — esporte, modalidades e ranking rolante
+
+Novo esporte `Atletismo` com **24 modalidades** individuais olímpicas em
+`js/sports.js` (corridas, barreiras, fundo, marcha, saltos, lançamentos e provas
+combinadas). Cada modalidade guarda `windowMonths` e `bestN` inspirados na World
+Athletics.
+
+O atletismo estreia um **terceiro modelo de ranking**, o **rolante** (`rolling`),
+em `js/athletics.js`: cada etapa concede pontos e o ranking do atleta é a **média
+das N melhores marcas dentro de uma janela móvel** (12 meses na maioria, 18 nas
+provas longas e combinadas). Marcas fora da janela expiram sozinhas — o ranking
+nunca vira soma infinita. Tudo é reconstruído a partir dos resultados
+persistidos, como o histórico e as temporadas; nada extra é gravado.
+
+Funções puras: `windowStartDate`/`isWithinWindow` (janela), `rollingRankingScore`
+(média das N melhores), `buildRollingRankingEntries` (ranking de uma modalidade)
+e `mergeRollingRanking` (recalcula só as modalidades rolantes e preserva tênis,
+F1 etc.). Combina naturalmente com os formatos/métricas: 100 m → baterias + marca
+direta (tempo); salto em distância → ranqueamento individual + marca direta
+(distância); arremesso de peso → marca direta (peso).
+
+Cobertura em `test/athletics.test.js` e `test/sports.test.js` (3º esporte, 24
+modalidades rolantes). Total após esta etapa: 115 testes aprovados.

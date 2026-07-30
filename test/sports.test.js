@@ -8,15 +8,27 @@ import {
   validateSportSelection,
 } from "../js/sports.js";
 
-test("o catálogo contém Tênis e Automobilismo como entidades", () => {
+test("o catálogo contém Tênis, Automobilismo e Atletismo como entidades", () => {
   assert.deepEqual(SPORTS.map(({ id, name }) => ({ id, name })), [
     { id: "sport_tennis", name: "Tênis" },
     { id: "sport_motorsport", name: "Automobilismo" },
+    { id: "sport_athletics", name: "Atletismo" },
   ]);
   assert.equal(
     SPORTS.find(({ id }) => id === "sport_motorsport").defaultScoringSystemId,
     "formula1-grand-prix",
   );
+  assert.equal(
+    SPORTS.find(({ id }) => id === "sport_athletics").rankingModel,
+    "rolling",
+  );
+});
+
+test("o atletismo traz 24 modalidades individuais de ranking rolante", () => {
+  const athletics = modalitiesForSport("sport_athletics");
+  assert.equal(athletics.length, 24);
+  assert.ok(athletics.every((modality) => modality.rankingModel === "rolling"));
+  assert.ok(athletics.every((modality) => modality.windowMonths && modality.bestN));
 });
 
 test("lista somente as modalidades vinculadas ao esporte escolhido", () => {

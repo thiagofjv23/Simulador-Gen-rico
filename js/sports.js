@@ -11,7 +11,60 @@ export const SPORTS = [
     defaultScoringSystemId: "formula1-grand-prix",
     rankingModel: "seasonal",
   },
+  {
+    id: "sport_athletics",
+    name: "Atletismo",
+    defaultScoringSystemId: "generic-proportional",
+    rankingModel: "rolling",
+  },
 ];
+
+// Modalidades individuais olímpicas do atletismo. Provas de revezamento
+// (4x100 m, 4x400 m e o revezamento misto) ficam de fora enquanto o motor
+// simular apenas disputas individuais.
+//
+// windowMonths e bestN espelham a base da World Athletics: a maioria usa 12
+// meses e média das 5 melhores; provas de fundo/combinadas usam janela de 18
+// meses e menos performances (5000 m e obstáculos ficam em 12 meses mas com N
+// menor, como no sistema oficial).
+const ATHLETICS_MODALITY_DEFS = [
+  // Corridas rasas
+  { id: "modality_athletics_100m", name: "100 metros rasos", windowMonths: 12, bestN: 5 },
+  { id: "modality_athletics_200m", name: "200 metros rasos", windowMonths: 12, bestN: 5 },
+  { id: "modality_athletics_400m", name: "400 metros rasos", windowMonths: 12, bestN: 5 },
+  { id: "modality_athletics_800m", name: "800 metros", windowMonths: 12, bestN: 5 },
+  { id: "modality_athletics_1500m", name: "1500 metros", windowMonths: 12, bestN: 5 },
+  { id: "modality_athletics_5000m", name: "5000 metros", windowMonths: 12, bestN: 3 },
+  { id: "modality_athletics_10000m", name: "10000 metros", windowMonths: 18, bestN: 2 },
+  // Barreiras e obstáculos
+  { id: "modality_athletics_100m_hurdles", name: "100 metros com barreiras", windowMonths: 12, bestN: 5 },
+  { id: "modality_athletics_110m_hurdles", name: "110 metros com barreiras", windowMonths: 12, bestN: 5 },
+  { id: "modality_athletics_400m_hurdles", name: "400 metros com barreiras", windowMonths: 12, bestN: 5 },
+  { id: "modality_athletics_3000m_steeplechase", name: "3000 metros com obstáculos", windowMonths: 12, bestN: 3 },
+  // Fundo e rua
+  { id: "modality_athletics_marathon", name: "Maratona", windowMonths: 18, bestN: 2 },
+  { id: "modality_athletics_20km_race_walk", name: "20 km de marcha atlética", windowMonths: 18, bestN: 2 },
+  { id: "modality_athletics_35km_race_walk", name: "35 km de marcha atlética", windowMonths: 18, bestN: 2 },
+  // Saltos
+  { id: "modality_athletics_long_jump", name: "Salto em distância", windowMonths: 12, bestN: 5 },
+  { id: "modality_athletics_triple_jump", name: "Salto triplo", windowMonths: 12, bestN: 5 },
+  { id: "modality_athletics_high_jump", name: "Salto em altura", windowMonths: 12, bestN: 5 },
+  { id: "modality_athletics_pole_vault", name: "Salto com vara", windowMonths: 12, bestN: 5 },
+  // Lançamentos e arremesso
+  { id: "modality_athletics_shot_put", name: "Arremesso de peso", windowMonths: 12, bestN: 5 },
+  { id: "modality_athletics_discus_throw", name: "Lançamento de disco", windowMonths: 12, bestN: 5 },
+  { id: "modality_athletics_javelin_throw", name: "Lançamento de dardo", windowMonths: 12, bestN: 5 },
+  { id: "modality_athletics_hammer_throw", name: "Lançamento de martelo", windowMonths: 12, bestN: 5 },
+  // Provas combinadas
+  { id: "modality_athletics_decathlon", name: "Decatlo", windowMonths: 18, bestN: 2 },
+  { id: "modality_athletics_heptathlon", name: "Heptatlo", windowMonths: 18, bestN: 2 },
+];
+
+const ATHLETICS_MODALITIES = ATHLETICS_MODALITY_DEFS.map((modality) => ({
+  ...modality,
+  sportId: "sport_athletics",
+  rankingModel: "rolling",
+}));
 
 export const MODALITIES = [
   {
@@ -50,6 +103,7 @@ export const MODALITIES = [
     name: "Fórmula Regional Oriente Médio",
     rankingModel: "seasonal",
   },
+  ...ATHLETICS_MODALITIES,
 ];
 
 export function modalitiesForSport(sportId, modalities = MODALITIES) {

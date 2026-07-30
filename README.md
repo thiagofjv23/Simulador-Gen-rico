@@ -334,6 +334,7 @@ js/eventformat.js   Formato da prova: como os atletas se enfrentam na etapa
 js/metric.js        Métrica do resultado: marca, placar de jogo e tabela de posição
 js/presets.js       Catálogo e gerador dos presets de calendário
 js/ranking.js       Pessoas, rankings esportivos, territoriais e sazonais
+js/athletics.js     Ranking rolante do atletismo (média das N melhores na janela)
 js/newsroom.js      Notícias, melhores ratings e vencedores da Central
 js/history.js       Campeões passados, temporadas encerradas e trajetória do atleta
 js/simulation.js    Participantes, performance, pontos e reordenação
