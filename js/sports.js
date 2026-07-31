@@ -32,6 +32,30 @@ export const SPORTS = [
     rankingModel: "rolling",
     entityType: "atleta",
   },
+  {
+    id: "sport_football",
+    name: "Futebol",
+    defaultScoringSystemId: "generic-proportional",
+    rankingModel: "seasonal",
+    entityType: "equipe",
+  },
+];
+
+// Modalidades de futebol: cada liga nacional é uma modalidade com seu próprio
+// campeonato de pontos corridos (turno e returno). O esporte é só de equipes.
+const FOOTBALL_MODALITIES = [
+  {
+    id: "modality_football_brasileirao",
+    sportId: "sport_football",
+    name: "Campeonato Brasileiro Série A",
+    rankingModel: "seasonal",
+  },
+  {
+    id: "modality_football_jleague",
+    sportId: "sport_football",
+    name: "J1 League",
+    rankingModel: "seasonal",
+  },
 ];
 
 // Modalidades individuais olímpicas do atletismo. Provas de revezamento
@@ -135,6 +159,7 @@ export const MODALITIES = [
     teamWeight: 0,
   },
   ...ATHLETICS_MODALITIES,
+  ...FOOTBALL_MODALITIES,
 ];
 
 export function modalitiesForSport(sportId, modalities = MODALITIES) {

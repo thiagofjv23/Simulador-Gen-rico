@@ -16,8 +16,8 @@ const F3_MODALITY = "modality_motorsport_formula3";
 const FREC_MODALITY = "modality_motorsport_formula_regional";
 const FRECME_MODALITY = "modality_motorsport_formula_regional_middle_east";
 
-test("o catálogo de presets contém ATP, Ecossistema FIA e Atletismo de 2026", () => {
-  assert.equal(CALENDAR_PRESETS.length, 3);
+test("o catálogo de presets contém ATP, Ecossistema FIA, Atletismo e Futebol", () => {
+  assert.equal(CALENDAR_PRESETS.length, 4);
   assert.equal(presetById("atp-world-tour-2026")?.competitions.length, 59);
   assert.ok(presetById("world-athletics-2026"));
   assert.ok(FIA);
@@ -201,6 +201,40 @@ test("presets de esporte de atleta puro não geram equipes", () => {
   const athletics = presetById("world-athletics-2026");
   const athPeople = buildPresetPeople(athletics, "2026-01-01T00:00:00.000Z");
   assert.deepEqual(buildPresetClubs(athletics, athPeople), []);
+});
+
+test("o preset de futebol cria dois campeonatos nacionais com seus clubes", () => {
+  const football = presetById("football-leagues-2026");
+  assert.ok(football);
+  assert.equal(football.kind, "league");
+
+  // Sem atletas individuais: futebol é disputado por clubes.
+  assert.deepEqual(buildPresetPeople(football, "2026-01-01T00:00:00.000Z"), []);
+
+  const clubs = buildPresetClubs(football, [], "2026-01-01T00:00:00.000Z");
+  assert.equal(clubs.length, 40); // 20 + 20
+  assert.ok(clubs.every(({ sportId, isClub }) => sportId === "sport_football" && isClub));
+  const brasileirao = clubs.filter(({ modalityId }) => modalityId === "modality_football_brasileirao");
+  const jleague = clubs.filter(({ modalityId }) => modalityId === "modality_football_jleague");
+  assert.equal(brasileirao.length, 20);
+  assert.equal(jleague.length, 20);
+  // Clubes brasileiros ganham a geografia do Brasil.
+  const palmeiras = brasileirao.find(({ name }) => name === "Palmeiras");
+  assert.equal(palmeiras.countryId, "country_bra");
+  assert.equal(palmeiras.continentId, "continent_south_america");
+  assert.equal(jleague.find(({ name }) => name === "Vissel Kobe").countryId, "country_jpn");
+
+  const competitions = buildPresetCompetitions(football);
+  assert.equal(competitions.length, 2);
+  const br = competitions.find(({ modalityId }) => modalityId === "modality_football_brasileirao");
+  assert.equal(br.geographicScope, "national");
+  assert.equal(br.countryId, "country_bra");
+  assert.equal(br.competitionModel, "season_stage");
+  assert.equal(br.participantIds.length, 20);
+  assert.equal(br.seasonFinalRound, true);
+  const jp = competitions.find(({ modalityId }) => modalityId === "modality_football_jleague");
+  assert.equal(jp.countryId, "country_jpn");
+  assert.equal(jp.participantIds.length, 20);
 });
 
 test("converte o preset em competições mundiais de tênis com IDs estáveis", () => {

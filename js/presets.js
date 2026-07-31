@@ -956,6 +956,91 @@ export const CALENDAR_PRESETS = [
     sourceUrl: "https://worldathletics.org/",
     series: ATHLETICS_SERIES,
   },
+  {
+    id: "football-leagues-2026",
+    kind: "league",
+    name: "Ligas de futebol — 2026",
+    description:
+      "Duas ligas nacionais de pontos corridos (turno e returno): o Campeonato Brasileiro Série A (Brasil, 20 clubes) e a J1 League (Japão, 20 clubes), com os clubes e ratings aproximados da temporada 2026. Cada temporada é resolvida por inteiro e coroa um campeão, com a tabela final completa.",
+    sportId: "sport_football",
+    sportName: "Futebol",
+    sourceUrl: "https://www.cbf.com.br/ · https://www.jleague.jp/",
+    leagues: [
+      {
+        slug: "brasileirao",
+        modalityId: "modality_football_brasileirao",
+        modalityName: "Campeonato Brasileiro Série A",
+        competitionName: "Campeonato Brasileiro Série A 2026",
+        seasonId: "brasileirao-serie-a",
+        countryCode: "BRA",
+        countryName: "Brasil",
+        countryId: "country_bra",
+        continentId: "continent_south_america",
+        startDate: "2026-04-11",
+        endDate: "2026-12-06",
+        prestige: 92,
+        // [slug, nome, rating aproximado 2026, momentum]
+        clubs: [
+          ["palmeiras", "Palmeiras", 90, 2],
+          ["flamengo", "Flamengo", 90, 2],
+          ["cruzeiro", "Cruzeiro", 86, 1],
+          ["botafogo", "Botafogo", 85, 0],
+          ["fluminense", "Fluminense", 83, 0],
+          ["sao-paulo", "São Paulo", 83, 0],
+          ["atletico-mineiro", "Atlético Mineiro", 82, 0],
+          ["internacional", "Internacional", 82, -1],
+          ["corinthians", "Corinthians", 81, 0],
+          ["gremio", "Grêmio", 80, 0],
+          ["bahia", "Bahia", 80, 1],
+          ["rb-bragantino", "RB Bragantino", 78, 0],
+          ["fortaleza", "Fortaleza", 78, -1],
+          ["vasco", "Vasco da Gama", 77, 1],
+          ["santos", "Santos", 76, 0],
+          ["mirassol", "Mirassol", 72, 1],
+          ["ceara", "Ceará", 71, 0],
+          ["vitoria", "Vitória", 70, -1],
+          ["juventude", "Juventude", 69, -1],
+          ["sport", "Sport Recife", 68, -1],
+        ],
+      },
+      {
+        slug: "jleague",
+        modalityId: "modality_football_jleague",
+        modalityName: "J1 League",
+        competitionName: "J1 League 2026",
+        seasonId: "jleague-j1",
+        countryCode: "JPN",
+        countryName: "Japão",
+        countryId: "country_jpn",
+        continentId: "continent_asia",
+        startDate: "2026-02-21",
+        endDate: "2026-12-05",
+        prestige: 82,
+        clubs: [
+          ["vissel-kobe", "Vissel Kobe", 82, 1],
+          ["sanfrecce-hiroshima", "Sanfrecce Hiroshima", 81, 1],
+          ["kashima-antlers", "Kashima Antlers", 80, 1],
+          ["kawasaki-frontale", "Kawasaki Frontale", 79, 0],
+          ["urawa-reds", "Urawa Red Diamonds", 78, 0],
+          ["gamba-osaka", "Gamba Osaka", 78, 1],
+          ["cerezo-osaka", "Cerezo Osaka", 77, 0],
+          ["yokohama-marinos", "Yokohama F. Marinos", 76, -1],
+          ["machida-zelvia", "Machida Zelvia", 76, 0],
+          ["kyoto-sanga", "Kyoto Sanga", 75, 1],
+          ["fc-tokyo", "FC Tokyo", 74, 0],
+          ["nagoya-grampus", "Nagoya Grampus", 74, 0],
+          ["kashiwa-reysol", "Kashiwa Reysol", 73, 0],
+          ["avispa-fukuoka", "Avispa Fukuoka", 72, 0],
+          ["tokyo-verdy", "Tokyo Verdy", 72, 0],
+          ["albirex-niigata", "Albirex Niigata", 71, -1],
+          ["shimizu-s-pulse", "Shimizu S-Pulse", 71, 1],
+          ["shonan-bellmare", "Shonan Bellmare", 70, 0],
+          ["yokohama-fc", "Yokohama FC", 68, -1],
+          ["fagiano-okayama", "Fagiano Okayama", 67, 0],
+        ],
+      },
+    ],
+  },
 ];
 
 // Normaliza qualquer preset numa lista de séries. Presets antigos de uma única
@@ -1066,6 +1151,7 @@ export function presetById(presetId) {
 
 export function buildPresetCompetitions(preset, timestamp = new Date().toISOString()) {
   if (!preset) return [];
+  if (preset.kind === "league") return buildLeaguePresetCompetitions(preset, timestamp);
 
   const multiSeries = Array.isArray(preset.series);
   const { series: allSeries, seriesParticipantIds } = resolvePresetRoster(preset);
@@ -1132,6 +1218,8 @@ export function buildPresetCompetitions(preset, timestamp = new Date().toISOStri
 }
 
 export function buildPresetPeople(preset, timestamp = new Date().toISOString()) {
+  // Ligas de futebol são disputadas por clubes, não por atletas individuais.
+  if (preset?.kind === "league") return [];
   // Apenas pessoas realmente novas são criadas; pilotos vinculados a um atleta
   // já existente (mesmo nome em outra categoria) não são duplicados.
   return resolvePresetRoster(preset).peopleToCreate.map((person) => ({
@@ -1139,6 +1227,82 @@ export function buildPresetPeople(preset, timestamp = new Date().toISOString()) 
     createdAt: person.createdAt ?? timestamp,
     updatedAt: timestamp,
   }));
+}
+
+// --- Ligas de futebol (preset baseado em clubes) ---------------------------
+
+// Clubes de cada liga, com ratings aproximados da temporada 2026. Um clube por
+// entrada; o esporte é só de equipes, então não há atletas individuais.
+export function buildLeaguePresetClubs(preset, timestamp = new Date().toISOString()) {
+  if (preset?.kind !== "league") return [];
+  return (preset.leagues ?? []).flatMap((league) =>
+    league.clubs.map(([slug, name, baseRating, momentum = 0]) =>
+      createClub({
+        id: clubIdFor("sport_football", `${league.slug}_${slug}`),
+        name,
+        sportId: "sport_football",
+        modalityId: league.modalityId,
+        baseRating,
+        momentum,
+        countryCode: league.countryCode,
+        rosterType: "preset",
+        presetId: preset.id,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      })),
+  );
+}
+
+// Uma competição por liga = a temporada inteira (turno e returno), atrelada ao
+// país da liga. Os participantes são os clubes; a simulação de liga resolve a
+// temporada completa quando o calendário passa pela data final.
+export function buildLeaguePresetCompetitions(preset, timestamp = new Date().toISOString()) {
+  if (preset?.kind !== "league") return [];
+  return (preset.leagues ?? []).map((league) => {
+    const clubIds = league.clubs.map(([slug]) =>
+      clubIdFor("sport_football", `${league.slug}_${slug}`));
+    const stableId = `preset_${preset.id}_${league.slug}`;
+    return {
+      id: stableId,
+      calendarEventId: `event_${stableId}`,
+      presetId: preset.id,
+      name: league.competitionName,
+      sportId: "sport_football",
+      modalityId: league.modalityId,
+      sport: "Futebol",
+      discipline: league.modalityName,
+      type: "league",
+      qualification: "ranking",
+      geographicScope: "national",
+      continentId: league.continentId,
+      countryId: league.countryId,
+      startDate: league.startDate,
+      endDate: league.endDate,
+      recurrence: "yearly",
+      prestige: league.prestige,
+      rankingPoints: 3,
+      scoringSystemId: "generic-proportional",
+      eventFormat: null,
+      resultMetric: null,
+      markType: null,
+      teamRatingModel: null,
+      teamWeight: null,
+      slots: clubIds.length,
+      minimumRanking: null,
+      competitionModel: "season_stage",
+      seasonId: league.seasonId,
+      seasonName: league.competitionName,
+      seasonalRanking: true,
+      seasonRound: 1,
+      seasonRoundCount: 1,
+      seasonFinalRound: true,
+      participantIds: clubIds,
+      notes: [league.countryName, `${clubIds.length} clubes`, "Pontos corridos (turno e returno)"]
+        .filter(Boolean).join(" · "),
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+  });
 }
 
 function teamSlug(teamName) {
@@ -1161,6 +1325,8 @@ function averageBy(members, key) {
 // várias categorias (elas são agrupadas por nome só na tela de Equipes).
 export function buildPresetClubs(preset, people = [], timestamp = new Date().toISOString()) {
   if (!preset) return [];
+  // Ligas de futebol trazem os clubes explicitamente no preset.
+  if (preset.kind === "league") return buildLeaguePresetClubs(preset, timestamp);
   const peopleById = new Map(people.map((person) => [person.id, person]));
   const { series, seriesParticipantIds } = resolvePresetRoster(preset);
   const clubs = [];

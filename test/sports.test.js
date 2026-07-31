@@ -9,11 +9,12 @@ import {
   validateSportSelection,
 } from "../js/sports.js";
 
-test("o catálogo contém Tênis, Automobilismo e Atletismo como entidades", () => {
+test("o catálogo contém Tênis, Automobilismo, Atletismo e Futebol como entidades", () => {
   assert.deepEqual(SPORTS.map(({ id, name }) => ({ id, name })), [
     { id: "sport_tennis", name: "Tênis" },
     { id: "sport_motorsport", name: "Automobilismo" },
     { id: "sport_athletics", name: "Atletismo" },
+    { id: "sport_football", name: "Futebol" },
   ]);
   assert.equal(
     SPORTS.find(({ id }) => id === "sport_motorsport").defaultScoringSystemId,
@@ -30,6 +31,13 @@ test("cada esporte declara o tipo de entidade que o disputa", () => {
   assert.equal(SPORTS.find(({ id }) => id === "sport_athletics").entityType, "atleta");
   // Automobilismo é misto: atletas e equipes convivem no mesmo campeonato.
   assert.equal(SPORTS.find(({ id }) => id === "sport_motorsport").entityType, "mista");
+  // Futebol é só de equipes.
+  assert.equal(SPORTS.find(({ id }) => id === "sport_football").entityType, "equipe");
+});
+
+test("o futebol traz as duas ligas nacionais como modalidades", () => {
+  const football = modalitiesForSport("sport_football").map(({ name }) => name);
+  assert.deepEqual(football, ["Campeonato Brasileiro Série A", "J1 League"]);
 });
 
 test("a Fórmula 1 usa rating de equipe com peso; as monopostos padrão não", () => {

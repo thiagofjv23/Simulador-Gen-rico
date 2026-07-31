@@ -637,3 +637,50 @@ a multi-modalidade lista 15 equipes (ex.: Hitech TGR em F2·F3) e a expansão mo
 os atletas com suas modalidades — sem erros de console. Total após esta etapa:
 **142 testes** (o único vermelho segue sendo a asserção desatualizada do preset
 de 100 m, alheia a este passo).
+
+## 25. Futebol: ligas de pontos corridos (Brasileirão e J-League)
+
+Primeiro esporte **só de equipes** (`entityType: "equipe"`), com um sistema
+**novo e isolado** de liga — sem tocar na simulação dos outros esportes.
+
+**Novo esporte e modalidades** (`js/sports.js`): `sport_football` (Futebol,
+seasonal, equipe) com duas ligas nacionais como modalidades —
+`modality_football_brasileirao` (Campeonato Brasileiro Série A) e
+`modality_football_jleague` (J1 League).
+
+**Novo motor de liga** (`js/league.js`, `simulateLeagueSeason`): sistema
+**independente** de `js/simulation.js`. Gera a tabela de confrontos de **turno e
+returno** (método do círculo, casa e fora), resolve cada jogo por gols esperados
+a partir dos ratings dos clubes (com vantagem de casa e amostragem de Poisson
+semeada) e monta a **classificação completa** (J, V, E, D, GP, GC, SG, Pts) com
+**3 pontos por vitória, 1 por empate**. Tudo determinístico (RNG semeada). O
+resultado sai no mesmo formato dos demais (campos `standings`, `seasonChampion`,
+`competitionModel: "season_stage"`), então **reaproveita** Resultados, Campeões,
+Temporadas e Notícias sem alterar `history.js`/`newsroom.js`.
+
+**Preset** `football-leagues-2026` (`kind: "league"`): duas ligas com **20 clubes
+cada** e ratings aproximados de 2026 — o Brasileirão atrelado ao **Brasil**
+(`geographicScope: national`, `country_bra`, abril–dezembro) e a J-League ao
+**Japão** (`country_jpn`, fevereiro–dezembro). Cada liga é **uma competição = a
+temporada inteira**, resolvida de uma vez quando o calendário passa pela data
+final. Os ratings são aproximações (elenco de referência da temporada), não
+dados oficiais. Novos builders `buildLeaguePresetClubs`/
+`buildLeaguePresetCompetitions`; os builders genéricos de preset apenas ganharam
+um **guard** no topo (`preset.kind === "league"`), sem mudar o caminho dos
+esportes de atleta.
+
+**Integração** (`js/app.js`): `ensurePresetRoster` cria os clubes da liga (sem
+atletas nem ranking de atletas); `processSimulationDate` roteia os esportes só de
+equipes para o motor de liga (`entityTypeForSport === "equipe"`), fora do caminho
+de `simulateCompetition`. Nova ficha de resultado de liga (tabela completa) em
+Resultados; os clubes de futebol entram na seção **Equipes** ordenados por rating
+(a expansão avisa que a equipe é disputada no nível do clube).
+
+Verificação: `test/league.test.js` (turno/returno completos, tabela e campeão,
+determinismo), `test/presets.test.js` (duas ligas, 40 clubes, geografia),
+`test/sports.test.js` (esporte e modalidades). Smoke de navegador: importar o
+preset cria 40 clubes; avançando o calendário, as duas temporadas são simuladas e
+coroam um campeão (ex.: Botafogo, 72 pts) com a tabela de 20 clubes; a seção
+Equipes lista os clubes por rating — sem erros de console. Total após esta etapa:
+**147 testes** (o único vermelho segue sendo a asserção desatualizada do preset
+de 100 m, alheia a este passo).

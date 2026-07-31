@@ -71,6 +71,7 @@ import {
   qualifierParticipantIdsFor,
   simulateCompetition,
 } from "./simulation.js";
+import { simulateLeagueSeason } from "./league.js";
 import { mergeRollingRanking } from "./athletics.js";
 import {
   CONTINENTS,
@@ -1436,6 +1437,14 @@ function buildClubMembersFromPeople(club, peopleById) {
     .filter(Boolean)
     .sort((a, b) => b.baseRating - a.baseRating || a.name.localeCompare(b.name, "pt-BR"));
 
+  if (!members.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "Esta equipe é disputada no nível do clube (sem atletas individuais cadastrados).";
+    wrapper.append(empty);
+    return wrapper;
+  }
+
   const list = document.createElement("ol");
   list.className = "athlete-history";
   members.forEach((person) => {
@@ -1679,6 +1688,100 @@ function standingOutcomeText(result, standing) {
   return "—";
 }
 
+// Ficha de resultado de uma liga: a tabela completa (J, V, E, D, GP, GC, SG, Pts).
+function renderLeagueResultCard(result) {
+  const card = document.createElement("article");
+  card.className = "result-card";
+  card.id = `result-${result.id}`;
+  card.dataset.resultId = result.id;
+
+  const heading = document.createElement("div");
+  heading.className = "result-heading";
+  const titleArea = document.createElement("div");
+  const eyebrow = document.createElement("p");
+  eyebrow.className = "eyebrow";
+  eyebrow.textContent = `${result.sport} · ${result.discipline}`;
+  const title = document.createElement("h3");
+  title.textContent = result.competitionName;
+  const meta = document.createElement("p");
+  meta.textContent =
+    `${formatShortDate(result.occurrenceEnd)} · ${result.participantCount} clubes`
+    + ` · ${result.scoringSystemName}`;
+  titleArea.append(eyebrow, title, meta);
+  const badges = document.createElement("div");
+  badges.className = "competition-badges";
+  badges.append(
+    createBadge(geographicScopeLabel(result), "geography"),
+    createBadge(`Prestígio ${result.prestige}`, "prestige"),
+  );
+  if (result.seasonChampion) {
+    badges.append(createBadge(
+      `Campeão ${result.seasonChampion.seasonYear}: ${result.seasonChampion.name}`
+      + ` (${result.seasonChampion.points} pts)`,
+      "simulated",
+    ));
+  }
+  heading.append(titleArea, badges);
+
+  const scroll = document.createElement("div");
+  scroll.className = "ranking-table-scroll";
+  const table = document.createElement("table");
+  table.className = "ranking-table result-table";
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th scope="col">Pos.</th>
+        <th scope="col">Clube</th>
+        <th scope="col">País</th>
+        <th scope="col" title="Jogos">J</th>
+        <th scope="col" title="Vitórias">V</th>
+        <th scope="col" title="Empates">E</th>
+        <th scope="col" title="Derrotas">D</th>
+        <th scope="col" title="Gols pró">GP</th>
+        <th scope="col" title="Gols contra">GC</th>
+        <th scope="col" title="Saldo de gols">SG</th>
+        <th scope="col">Pts</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  `;
+  const body = table.querySelector("tbody");
+  result.standings.forEach((row) => {
+    const tr = document.createElement("tr");
+    if (row.position <= 4) tr.classList.add(`top-${Math.min(row.position, 3)}`);
+    const cells = [
+      ["ranking-position", row.position],
+      ["ranking-person", row.name],
+      ["", row.countryCode ?? ""],
+      ["", row.played],
+      ["", row.wins],
+      ["", row.draws],
+      ["", row.losses],
+      ["", row.goalsFor],
+      ["", row.goalsAgainst],
+      ["", row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference],
+      ["ranking-points", row.points],
+    ];
+    cells.forEach(([className, value], index) => {
+      const cell = document.createElement("td");
+      if (className) cell.className = className;
+      if (index === 1) {
+        const strong = document.createElement("strong");
+        strong.textContent = value;
+        cell.append(strong);
+      } else {
+        cell.textContent = value;
+      }
+      tr.append(cell);
+    });
+    body.append(tr);
+  });
+
+  scroll.append(table);
+  card.append(heading, scroll);
+  return card;
+}
+
 function renderResults() {
   const results = [...state.results].sort((a, b) =>
     b.occurrenceEnd.localeCompare(a.occurrenceEnd)
@@ -1706,6 +1809,10 @@ function renderResults() {
   }
 
   results.forEach((result) => {
+    if (result.kind === "league") {
+      elements.resultsList.append(renderLeagueResultCard(result));
+      return;
+    }
     const card = document.createElement("article");
     card.className = "result-card";
     card.id = `result-${result.id}`;
@@ -2891,8 +2998,26 @@ async function handleDeleteCompetition() {
   showToast("Competição excluída do sistema e do calendário.");
 }
 
+// Ligas de futebol só precisam dos clubes (não há atletas nem ranking de
+// atletas). Cria os clubes ainda inexistentes e recarrega.
+async function ensureLeagueClubs(preset) {
+  const timestamp = new Date().toISOString();
+  const existingClubIds = new Set(state.clubs.map(({ id }) => id));
+  const newClubs = buildPresetClubs(preset, [], timestamp)
+    .filter(({ id }) => !existingClubIds.has(id));
+  if (newClubs.length) {
+    await saveClubs(newClubs);
+    await reloadClubs();
+  }
+  setupSportOptions();
+}
+
 async function ensurePresetRoster(preset) {
   if (!preset) return;
+  if (preset.kind === "league") {
+    await ensureLeagueClubs(preset);
+    return;
+  }
   const timestamp = new Date().toISOString();
   const { series, seriesParticipantIds } = resolvePresetRoster(preset);
   if (!series.length) return;
@@ -3327,6 +3452,26 @@ function teamRatingByPersonIdFor({ sportId, modalityId }) {
   return map;
 }
 
+// Resolve os clubes participantes de uma liga e simula a temporada completa.
+function simulateLeagueForCompetition(competition) {
+  const clubsById = new Map(state.clubs.map((club) => [club.id, club]));
+  let clubs = (competition.participantIds ?? [])
+    .map((id) => clubsById.get(id))
+    .filter(Boolean);
+  if (!clubs.length) {
+    clubs = state.clubs.filter((club) =>
+      club.sportId === competition.sportId && club.modalityId === competition.modalityId);
+  }
+  if (clubs.length < 2) return null;
+  const { result } = simulateLeagueSeason({
+    competition,
+    clubs,
+    occurrenceStart: competition.occurrenceStart,
+    occurrenceEnd: competition.occurrenceEnd,
+  });
+  return result;
+}
+
 async function processSimulationDate(isoDate) {
   const scheduled = occurrencesBetween(state.competitions, isoDate, isoDate)
     .filter((competition) => competition.occurrenceEnd === isoDate)
@@ -3336,6 +3481,18 @@ async function processSimulationDate(isoDate) {
   for (const occurrence of scheduled) {
     const resultId = `result_${occurrence.id}_${occurrence.occurrenceStart}`;
     if (state.results.some((result) => result.id === resultId)) continue;
+
+    // Esportes só de equipes (futebol) usam o simulador de liga: a temporada
+    // inteira (turno e returno) é resolvida de uma vez, com tabela e campeão.
+    if (entityTypeForSport(occurrence.sportId, state.sports) === "equipe") {
+      const simulated = simulateLeagueForCompetition(occurrence);
+      if (simulated) {
+        await saveCompetitionResult(simulated, []);
+        state.results.push(simulated);
+        simulatedCount += 1;
+      }
+      continue;
+    }
 
     const entry = competitionEntryFor(occurrence.id, occurrence.occurrenceStart);
     const teamConfig = resolveTeamRatingConfig(occurrence);
