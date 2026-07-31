@@ -13,6 +13,7 @@
   <body>
     <div class="app-shell">
       <header class="topbar">
+        <button id="tools-button" class="tools-button" type="button" title="Editores in-game" aria-label="Abrir editores in-game">🛠</button>
         <div>
           <p class="eyebrow">SIMULADOR GENÉRICO</p>
           <h1 id="world-name">Calendário</h1>
@@ -1035,6 +1036,75 @@
           </button>
         </div>
       </form>
+    </dialog>
+
+    <dialog id="editors-dialog" class="modal modal-wide" aria-labelledby="editors-title">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">EDITORES IN-GAME</p>
+            <h2 id="editors-title">Escolha um editor</h2>
+          </div>
+          <button
+            class="icon-button close-button"
+            id="close-editors-dialog"
+            type="button"
+            aria-label="Fechar"
+          >×</button>
+        </div>
+
+        <p class="modal-intro">
+          Gere dados novos reaproveitando as estruturas do jogo. Você pode salvar
+          apenas no save atual ou na database (persistente entre jogos, com download
+          do arquivo .js para versionar no repositório).
+        </p>
+
+        <div id="editors-chooser" class="editors-chooser"></div>
+
+        <div id="editor-shell" class="editor-shell hidden">
+          <button id="editor-back" class="text-button" type="button">‹ Voltar aos editores</button>
+          <p id="editor-description" class="field-help"></p>
+
+          <div class="editor-actions-top">
+            <button id="editor-copy-template" class="button button-secondary" type="button">
+              Copiar modelo (.js)
+            </button>
+            <label class="button button-secondary editor-file-label">
+              Carregar arquivo .js
+              <input id="editor-file" type="file" accept=".js,text/javascript" hidden />
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Conteúdo do arquivo .js</span>
+            <textarea
+              id="editor-source"
+              rows="12"
+              spellcheck="false"
+              placeholder="Clique em “Copiar modelo”, cole aqui, preencha e valide..."
+            ></textarea>
+          </label>
+
+          <button id="editor-validate" class="button button-secondary" type="button">
+            Validar e pré-visualizar
+          </button>
+
+          <div id="editor-preview" class="editor-preview"></div>
+          <p id="editor-error" class="form-error" role="alert"></p>
+
+          <div class="modal-actions split">
+            <div class="editor-hint field-help" id="editor-hint"></div>
+            <div class="action-group">
+              <button id="editor-save-save" class="button button-secondary" type="button" disabled>
+                Salvar no save
+              </button>
+              <button id="editor-save-db" class="button button-primary" type="button" disabled>
+                Salvar na database
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </dialog>
 
     <div id="toast" class="toast" role="status" aria-live="polite"></div>

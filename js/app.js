@@ -3,6 +3,8 @@ import {
   deleteEvent,
   getAllEvents,
   getAllClubs,
+  getAllUserPresets,
+  saveUserPreset,
   getAllCompetitions,
   getAllContinents,
   getAllCompetitionEntries,
@@ -149,6 +151,19 @@ import {
   roundStates,
   topSeasonUnits,
 } from "./season.js";
+import {
+  EDITOR_TYPES,
+  editorType,
+  parseEditorModule,
+  serializeModule,
+  templateFor,
+  validateCountry,
+  validatePresetPackage,
+  validateRoster,
+  normalizeCountry,
+  normalizeRoster,
+} from "./editors.js";
+import { addUserRecords, loadUserData } from "./userdata.js";
 
 const elements = {
   worldName: document.querySelector("#world-name"),
@@ -322,6 +337,23 @@ const elements = {
   closeInvitationDialog: document.querySelector("#close-invitation-dialog"),
   cancelInvitationButton: document.querySelector("#cancel-invitation-button"),
   toast: document.querySelector("#toast"),
+  toolsButton: document.querySelector("#tools-button"),
+  editorsDialog: document.querySelector("#editors-dialog"),
+  editorsTitle: document.querySelector("#editors-title"),
+  closeEditorsDialog: document.querySelector("#close-editors-dialog"),
+  editorsChooser: document.querySelector("#editors-chooser"),
+  editorShell: document.querySelector("#editor-shell"),
+  editorBack: document.querySelector("#editor-back"),
+  editorDescription: document.querySelector("#editor-description"),
+  editorCopyTemplate: document.querySelector("#editor-copy-template"),
+  editorFile: document.querySelector("#editor-file"),
+  editorSource: document.querySelector("#editor-source"),
+  editorValidate: document.querySelector("#editor-validate"),
+  editorPreview: document.querySelector("#editor-preview"),
+  editorError: document.querySelector("#editor-error"),
+  editorHint: document.querySelector("#editor-hint"),
+  editorSaveSave: document.querySelector("#editor-save-save"),
+  editorSaveDb: document.querySelector("#editor-save-db"),
 };
 
 const state = {
@@ -345,7 +377,19 @@ const state = {
   activeHub: "central",
   advancing: false,
   season: { unitKey: null, roundIndex: null },
+  userPresets: [],
+  activeEditor: null,
+  editorData: null,
 };
+
+// Presets nativos + presets criados pelo jogador nos editores in-game.
+function allPresets() {
+  return [...CALENDAR_PRESETS, ...state.userPresets];
+}
+
+function findPreset(id) {
+  return allPresets().find((preset) => preset.id === id) ?? null;
+}
 
 let toastTimer;
 // Somente um "details" de atleta fica aberto por vez, evitando poluir a tela.
@@ -670,7 +714,7 @@ function updateQualifierTargetOptions(preferredValue = "") {
 }
 
 function updatePresetSummary() {
-  const preset = presetById(elements.presetSelect.value);
+  const preset = findPreset(elements.presetSelect.value);
   elements.presetName.textContent = preset?.name ?? "Nenhum preset selecionado";
   elements.presetDescription.textContent = preset?.description ?? "";
   if (preset) {
@@ -686,13 +730,19 @@ function updatePresetSummary() {
 }
 
 function setupPresetOptions() {
+  const previous = elements.presetSelect.value;
   elements.presetSelect.replaceChildren();
-  CALENDAR_PRESETS.forEach((preset) => {
+  allPresets().forEach((preset) => {
     const option = document.createElement("option");
     option.value = preset.id;
-    option.textContent = preset.name;
+    option.textContent = state.userPresets.includes(preset)
+      ? `${preset.name} (meu)`
+      : preset.name;
     elements.presetSelect.append(option);
   });
+  if ([...elements.presetSelect.options].some(({ value }) => value === previous)) {
+    elements.presetSelect.value = previous;
+  }
   updatePresetSummary();
 }
 
@@ -3563,14 +3613,18 @@ async function ensurePresetRoster(preset) {
 }
 
 async function ensureRosterForImportedPresets() {
-  const importedPresetId = state.competitions.find(({ presetId }) => presetId)?.presetId;
-  if (!importedPresetId) return;
-  await ensurePresetRoster(presetById(importedPresetId));
+  const importedPresetIds = [...new Set(
+    state.competitions.map(({ presetId }) => presetId).filter(Boolean),
+  )];
+  for (const presetId of importedPresetIds) {
+    const preset = findPreset(presetId);
+    if (preset) await ensurePresetRoster(preset);
+  }
 }
 
 async function handleApplyPreset() {
   elements.presetFormError.textContent = "";
-  const preset = presetById(elements.presetSelect.value);
+  const preset = findPreset(elements.presetSelect.value);
   if (!preset) {
     elements.presetFormError.textContent = "Escolha um preset válido.";
     return;
@@ -4096,6 +4150,9 @@ function resetInMemoryState() {
   state.activeView = "calendar";
   state.activeHub = "central";
   state.advancing = false;
+  state.userPresets = [];
+  state.activeEditor = null;
+  state.editorData = null;
 }
 
 async function loadCurrentGame() {
@@ -4112,6 +4169,8 @@ async function loadCurrentGame() {
   await ensureSports();
   await ensureGeography();
   await ensureInitialRanking();
+  await reloadUserPresets();
+  await seedFromUserData();
   await ensureRosterForImportedPresets();
   await resetSeasonRankingsIfNeeded(state.world.currentDate);
   recomputeRollingRankings(state.world.currentDate);
@@ -4194,11 +4253,328 @@ async function handleSetup(submitEvent) {
   await ensureGeography();
   await ensureInitialRanking();
   await Promise.all([reloadResults(), reloadCompetitionEntries(), reloadClubs()]);
+  await reloadUserPresets();
+  await seedFromUserData();
   state.selectedDate = state.world.currentDate;
   state.viewDate = parseISODate(state.world.currentDate);
   elements.setupDialog.close();
   render();
   showToast("Mundo criado com calendário vazio e ranking de 100 pessoas.");
+}
+
+// ---------------------------------------------------------------------------
+// Editores in-game: países, presets, ligas e atletas/clubes.
+// ---------------------------------------------------------------------------
+
+async function reloadUserPresets() {
+  state.userPresets = await getAllUserPresets();
+}
+
+async function applyCountry(countries) {
+  await saveGeography([], countries);
+  await reloadGeography();
+}
+
+async function applyRosterClubs(clubs) {
+  await saveClubs(clubs);
+  await reloadClubs();
+}
+
+// Adiciona atletas e recompõe as entradas de ranking das modalidades afetadas,
+// para que apareçam no ranking do seu esporte/modalidade.
+async function applyRosterPeople(people, timestamp) {
+  await savePeople(people);
+  await reloadRanking();
+  const affected = new Map();
+  people.forEach((person) =>
+    affected.set(rankingIdFor(person.sportId, person.modalityId), {
+      sportId: person.sportId,
+      modalityId: person.modalityId,
+    }));
+  const seasonYear = Number(state.world.currentDate.slice(0, 4));
+  const entries = [];
+  for (const [rankingId, { sportId, modalityId }] of affected) {
+    const modalityPeople = state.people.filter((person) =>
+      person.sportId === sportId && person.modalityId === modalityId);
+    const rankingModel = modalityById(modalityId, state.modalities)?.rankingModel ?? "cumulative";
+    entries.push(...buildInitialRanking(modalityPeople, timestamp, {
+      rankingId,
+      sportId,
+      modalityId,
+      rankingModel,
+      seasonYear,
+      startAtZero: rankingModel === "seasonal",
+    }).map((entry) => ({ ...entry, sportId, modalityId })));
+  }
+  if (entries.length) {
+    await saveRankingEntries(entries);
+    await reloadRanking();
+  }
+}
+
+async function applyPresetPackage(pkg) {
+  const sports = pkg.sports ?? [];
+  const modalities = pkg.modalities ?? [];
+  if (sports.length || modalities.length) {
+    await saveSportsAndModalities(sports, modalities);
+    await reloadSports();
+  }
+  await saveUserPreset(pkg.preset);
+  await reloadUserPresets();
+  setupPresetOptions();
+}
+
+// Semeia o catálogo "database" (localStorage) neste jogo, em cada partida.
+async function seedFromUserData() {
+  const data = loadUserData();
+
+  const newCountries = (data.countries ?? [])
+    .filter((country) => !state.countries.some((existing) => existing.id === country.id));
+  if (newCountries.length) {
+    await saveGeography([], newCountries);
+    await reloadGeography();
+  }
+
+  const newSports = (data.sports ?? []).filter((s) => !state.sports.some((e) => e.id === s.id));
+  const newModalities = (data.modalities ?? []).filter((m) => !state.modalities.some((e) => e.id === m.id));
+  if (newSports.length || newModalities.length) {
+    await saveSportsAndModalities(newSports, newModalities);
+    await reloadSports();
+  }
+
+  const newClubs = (data.clubs ?? []).filter((c) => !state.clubs.some((e) => e.id === c.id));
+  if (newClubs.length) {
+    await saveClubs(newClubs);
+    await reloadClubs();
+  }
+
+  const newPeople = (data.people ?? []).filter((p) => !state.people.some((e) => e.id === p.id));
+  if (newPeople.length) await applyRosterPeople(newPeople, new Date().toISOString());
+
+  for (const preset of data.presets ?? []) {
+    if (!state.userPresets.some((existing) => existing.id === preset.id)) {
+      await saveUserPreset(preset);
+    }
+  }
+  await reloadUserPresets();
+  setupPresetOptions();
+}
+
+function setEditorSaveEnabled(enabled) {
+  elements.editorSaveSave.disabled = !enabled;
+  elements.editorSaveDb.disabled = !enabled;
+}
+
+function showEditorChooser() {
+  state.activeEditor = null;
+  state.editorData = null;
+  elements.editorsTitle.textContent = "Escolha um editor";
+  elements.editorShell.classList.add("hidden");
+  elements.editorsChooser.classList.remove("hidden");
+  elements.editorsChooser.replaceChildren();
+  EDITOR_TYPES.forEach((type) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "editor-choice";
+    const title = document.createElement("strong");
+    title.textContent = type.label;
+    const desc = document.createElement("span");
+    desc.textContent = type.description;
+    card.append(title, desc);
+    card.addEventListener("click", () => openEditor(type.id));
+    elements.editorsChooser.append(card);
+  });
+}
+
+function editorHintText(typeId) {
+  return typeId === "country" || typeId === "roster"
+    ? "“Salvar no save” aplica ao jogo atual; “Salvar na database” persiste entre jogos e baixa o .js para o repositório."
+    : "“Salvar no save” deixa o preset selecionável na tela de Presets; “na database” também persiste e baixa o .js.";
+}
+
+function openEditor(typeId) {
+  const type = editorType(typeId);
+  if (!type) return;
+  state.activeEditor = typeId;
+  state.editorData = null;
+  elements.editorsTitle.textContent = `Editor · ${type.label}`;
+  elements.editorDescription.textContent = type.description;
+  elements.editorsChooser.classList.add("hidden");
+  elements.editorShell.classList.remove("hidden");
+  elements.editorSource.value = "";
+  elements.editorPreview.replaceChildren();
+  elements.editorError.textContent = "";
+  elements.editorHint.textContent = editorHintText(typeId);
+  setEditorSaveEnabled(false);
+}
+
+function openEditorsDialog() {
+  showEditorChooser();
+  if (!elements.editorsDialog.open) elements.editorsDialog.showModal();
+}
+
+function closeEditorsDialog() {
+  if (elements.editorsDialog.open) elements.editorsDialog.close();
+}
+
+function copyEditorTemplate() {
+  const text = templateFor(state.activeEditor);
+  const fallback = () => {
+    elements.editorSource.value = text;
+    showToast("Modelo inserido no campo abaixo.");
+  };
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).then(
+      () => showToast("Modelo copiado para a área de transferência."),
+      fallback,
+    );
+  } else {
+    fallback();
+  }
+}
+
+function loadEditorFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    elements.editorSource.value = String(reader.result ?? "");
+  });
+  reader.readAsText(file);
+}
+
+function buildEditorData(typeId, parsed) {
+  if (typeId === "country") {
+    const list = Array.isArray(parsed) ? parsed : [parsed];
+    const errors = [];
+    list.forEach((country, index) =>
+      validateCountry(country).forEach((error) => errors.push(`País ${index + 1}: ${error}`)));
+    const countries = errors.length ? [] : list.map((country) => normalizeCountry(country));
+    return { type: typeId, errors, countries, summary: `${countries.length} país(es)` };
+  }
+  if (typeId === "roster") {
+    const errors = validateRoster(parsed);
+    const { people, clubs } = errors.length ? { people: [], clubs: [] } : normalizeRoster(parsed);
+    return {
+      type: typeId,
+      errors,
+      people,
+      clubs,
+      summary: `${people.length} atleta(s) e ${clubs.length} clube(s) em ${parsed?.modalityId ?? "—"}`,
+    };
+  }
+  const errors = validatePresetPackage(parsed, buildPresetCompetitions);
+  const pkg = errors.length ? null : {
+    sports: parsed.sports ?? [],
+    modalities: parsed.modalities ?? [],
+    preset: parsed.preset,
+  };
+  let summary = "";
+  if (pkg) {
+    const competitions = buildPresetCompetitions(pkg.preset).length;
+    summary = `Preset “${pkg.preset.name}” · ${competitions} competições`
+      + ` · ${pkg.sports.length} esporte(s) e ${pkg.modalities.length} modalidade(s) novos`;
+  }
+  return { type: typeId, errors, pkg, summary };
+}
+
+function renderEditorPreview(result) {
+  elements.editorPreview.replaceChildren();
+  const box = document.createElement("div");
+  box.className = "editor-preview-box";
+  const strong = document.createElement("strong");
+  strong.textContent = "Pré-visualização";
+  const paragraph = document.createElement("p");
+  paragraph.textContent = result.summary;
+  box.append(strong, paragraph);
+  elements.editorPreview.append(box);
+}
+
+async function validateEditor() {
+  elements.editorError.textContent = "";
+  elements.editorPreview.replaceChildren();
+  setEditorSaveEnabled(false);
+  state.editorData = null;
+
+  const source = elements.editorSource.value.trim();
+  if (!source) {
+    elements.editorError.textContent = "Cole o conteúdo do arquivo .js (use “Copiar modelo”).";
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = await parseEditorModule(source);
+  } catch (error) {
+    elements.editorError.textContent = `Erro ao ler o .js: ${error.message}`;
+    return;
+  }
+  if (!parsed) {
+    elements.editorError.textContent = "O arquivo não exporta dados (use export default).";
+    return;
+  }
+
+  const result = buildEditorData(state.activeEditor, parsed);
+  if (result.errors.length) {
+    elements.editorError.textContent = result.errors.join(" ");
+    return;
+  }
+  state.editorData = result;
+  renderEditorPreview(result);
+  setEditorSaveEnabled(true);
+}
+
+function downloadModule(filename, data, header) {
+  const blob = new Blob([serializeModule(data, header)], { type: "text/javascript" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+async function saveEditor(toDatabase) {
+  const result = state.editorData;
+  if (!result) return;
+  try {
+    if (result.type === "country") {
+      await applyCountry(result.countries);
+      if (toDatabase) {
+        addUserRecords("countries", result.countries);
+        downloadModule("paises.js", result.countries, "Países — gerado pelo editor in-game");
+      }
+    } else if (result.type === "roster") {
+      if (result.people.length) await applyRosterPeople(result.people, new Date().toISOString());
+      if (result.clubs.length) await applyRosterClubs(result.clubs);
+      if (toDatabase) {
+        if (result.people.length) addUserRecords("people", result.people);
+        if (result.clubs.length) addUserRecords("clubs", result.clubs);
+        downloadModule("elenco.js", { people: result.people, clubs: result.clubs },
+          "Atletas/Clubes — gerado pelo editor in-game");
+      }
+    } else {
+      await applyPresetPackage(result.pkg);
+      if (toDatabase) {
+        if (result.pkg.sports.length) addUserRecords("sports", result.pkg.sports);
+        if (result.pkg.modalities.length) addUserRecords("modalities", result.pkg.modalities);
+        addUserRecords("presets", [result.pkg.preset]);
+        downloadModule(`${result.pkg.preset.id}.js`, result.pkg, "Preset — gerado pelo editor in-game");
+      }
+    }
+    render();
+    showToast(toDatabase
+      ? "Salvo na database (persistente) e baixado para versionar no repositório."
+      : "Salvo no save atual.");
+    setEditorSaveEnabled(false);
+    state.editorData = null;
+    elements.editorSource.value = "";
+    elements.editorPreview.replaceChildren();
+  } catch (error) {
+    console.error(error);
+    elements.editorError.textContent = error.message ?? "Não foi possível salvar.";
+  }
 }
 
 function attachEventListeners() {
@@ -4360,6 +4736,21 @@ function attachEventListeners() {
   });
 
   elements.startDialog.addEventListener("cancel", (event) => event.preventDefault());
+
+  elements.toolsButton.addEventListener("click", openEditorsDialog);
+  elements.closeEditorsDialog.addEventListener("click", closeEditorsDialog);
+  elements.editorBack.addEventListener("click", showEditorChooser);
+  elements.editorCopyTemplate.addEventListener("click", copyEditorTemplate);
+  elements.editorFile.addEventListener("change", (event) => {
+    loadEditorFile(event.target.files?.[0]);
+    event.target.value = "";
+  });
+  elements.editorValidate.addEventListener("click", validateEditor);
+  elements.editorSaveSave.addEventListener("click", () => saveEditor(false));
+  elements.editorSaveDb.addEventListener("click", () => saveEditor(true));
+  elements.editorsDialog.addEventListener("click", (event) => {
+    if (event.target === elements.editorsDialog) closeEditorsDialog();
+  });
 }
 
 function initialize() {

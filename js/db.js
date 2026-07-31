@@ -1,6 +1,7 @@
 const DB_NAME = "simulador-generico";
-const DB_VERSION = 9;
+const DB_VERSION = 10;
 const WORLD_STORE = "world";
+const USER_PRESETS_STORE = "userPresets";
 const EVENTS_STORE = "events";
 const COMPETITIONS_STORE = "competitions";
 const PEOPLE_STORE = "people";
@@ -73,6 +74,12 @@ export function openDatabase() {
         clubs.createIndex("name", "name");
         clubs.createIndex("sportId", "sportId");
         clubs.createIndex("modalityId", "modalityId");
+      }
+
+      // Presets criados pelo jogador nos editores in-game (ficam selecionáveis
+      // na tela de presets, ao lado dos presets nativos).
+      if (!database.objectStoreNames.contains(USER_PRESETS_STORE)) {
+        database.createObjectStore(USER_PRESETS_STORE, { keyPath: "id" });
       }
 
       if (!database.objectStoreNames.contains(RANKINGS_STORE)) {
@@ -292,6 +299,26 @@ export async function savePeople(people) {
   const transaction = database.transaction(PEOPLE_STORE, "readwrite");
   const store = transaction.objectStore(PEOPLE_STORE);
   people.forEach((person) => store.put(person));
+  await transactionDone(transaction);
+}
+
+export async function getAllUserPresets() {
+  const database = await openDatabase();
+  const transaction = database.transaction(USER_PRESETS_STORE, "readonly");
+  return requestToPromise(transaction.objectStore(USER_PRESETS_STORE).getAll());
+}
+
+export async function saveUserPreset(preset) {
+  const database = await openDatabase();
+  const transaction = database.transaction(USER_PRESETS_STORE, "readwrite");
+  transaction.objectStore(USER_PRESETS_STORE).put(preset);
+  await transactionDone(transaction);
+}
+
+export async function deleteUserPreset(id) {
+  const database = await openDatabase();
+  const transaction = database.transaction(USER_PRESETS_STORE, "readwrite");
+  transaction.objectStore(USER_PRESETS_STORE).delete(id);
   await transactionDone(transaction);
 }
 

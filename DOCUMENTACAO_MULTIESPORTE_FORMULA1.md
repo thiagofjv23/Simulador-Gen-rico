@@ -782,3 +782,32 @@ mostra a classificação por pontos; e o tênis (ATP) lista as 59 etapas como "A
 por decidir" — sem erros de console. Total após esta etapa: **157 testes** (o
 único vermelho segue sendo a asserção desatualizada do preset de 100 m, alheia a
 este passo).
+
+## 28. Editores in-game (país, presets, ligas, atletas/clubes)
+
+Quatro editores dentro do jogo para criar conteúdo novo reaproveitando as
+estruturas existentes, sem alterar nenhuma mecânica. Abrem pelo **ícone de
+ferramenta (🛠) no canto superior esquerdo**. O guia completo de uso está em
+**`DOCUMENTACAO_EDITORES.md`**.
+
+- **Editores**: Países, Presets (novos esportes), Ligas/Campeonatos e
+  Atletas/Clubes. Cada um tem um **modelo `.js`** (com diretrizes embutidas) que
+  o jogador copia, preenche e recarrega; o jogo lê o `.js` (`export default`),
+  valida, pré-visualiza e salva.
+- **Save × Database**: "Salvar no save" aplica ao jogo atual (IndexedDB);
+  "Salvar na database" persiste entre jogos (localStorage, ressemeado a cada
+  partida) e **baixa o `.js`** para versionar no repositório. Presets salvos
+  ficam **selecionáveis na tela de Presets** (marcados com "(meu)").
+- **Módulos**: `js/editors.js` (modelos, parse via import dinâmico, validação e
+  normalização — puros/testáveis), `js/userdata.js` (catálogo em localStorage) e
+  o store `userPresets` no IndexedDB (`DB_VERSION` 9 → 10). O `app.js` semeia o
+  catálogo da database em cada carga de jogo e mescla os presets do jogador ao
+  seletor de presets. Nenhum outro sistema foi tocado.
+
+Verificação: `test/editors.test.js` (modelos, validação e normalização de país,
+elenco e pacote de preset) e `test/userdata.test.js` (catálogo em localStorage).
+Smokes de navegador: o banco sobe na versão 10 com o store `userPresets`; um país
+salvo no save aparece na geografia; um atleta salvo entra no ranking; um preset
+salvo na database aparece no seletor e **reaparece após iniciar um novo jogo** —
+sem erros de console. Total após esta etapa: **170 testes** (o único vermelho
+segue sendo a asserção desatualizada do preset de 100 m, alheia a este passo).
