@@ -206,18 +206,11 @@ export const COUNTRIES = [
   { code: "TGA", "name": "Tonga", continentId: "continent_oceania" },
   { code: "TUV", "name": "Tuvalu", continentId: "continent_oceania" },
   { code: "VAN", "name": "Vanuatu", continentId: "continent_oceania" },
-];
-
-];
-
-];
-
-];
-
-];
-
-
-].map((country) => ({ ...country, worldId: WORLD_ENTITY_ID }));
+].map((country) => ({
+  ...country,
+  id: country.id ?? `country_${country.code.toLocaleLowerCase()}`,
+  worldId: WORLD_ENTITY_ID,
+}));
 
 const CONTINENTS_BY_ID = new Map(CONTINENTS.map((continent) => [continent.id, continent]));
 const COUNTRIES_BY_ID = new Map(COUNTRIES.map((country) => [country.id, country]));
