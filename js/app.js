@@ -109,7 +109,6 @@ import {
   buildPresetClubs,
   buildPresetCompetitions,
   buildPresetPeople,
-  presetById,
   resolvePresetRoster,
 } from "./presets.js";
 import {
@@ -4453,6 +4452,13 @@ function buildEditorData(typeId, parsed) {
   }
   if (typeId === "roster") {
     const errors = validateRoster(parsed);
+    // Atletas/clubes só entram em esporte e modalidade que existam no catálogo.
+    if (parsed?.sportId && !sportById(parsed.sportId, state.sports)) {
+      errors.push(`Esporte inexistente: ${parsed.sportId}.`);
+    }
+    if (parsed?.modalityId && !modalityById(parsed.modalityId, state.modalities)) {
+      errors.push(`Modalidade inexistente: ${parsed.modalityId}.`);
+    }
     const { people, clubs } = errors.length ? { people: [], clubs: [] } : normalizeRoster(parsed);
     return {
       type: typeId,

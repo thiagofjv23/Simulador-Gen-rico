@@ -50,19 +50,23 @@ test("entityTypeInfo/label caem no padrão atleta para valores inválidos", () =
 });
 
 test("cada esporte declara seu tipo de entidade", () => {
-  assert.equal(entityTypeForSport("sport_tennis"), "atleta");
   assert.equal(entityTypeForSport("sport_athletics"), "atleta");
-  assert.equal(entityTypeForSport("sport_motorsport"), "mista");
+  assert.equal(entityTypeForSport("sport_football"), "equipe");
+  assert.equal(entityTypeForSport("sport_tennis"), "mista");
   // Esporte inexistente cai no padrão.
   assert.equal(entityTypeForSport("sport_unknown"), "atleta");
 });
 
 test("os helpers de esporte informam quem pode disputar", () => {
-  assert.equal(sportAllowsClubs("sport_tennis"), false);
+  // Atletismo é só de atletas.
+  assert.equal(sportAllowsClubs("sport_athletics"), false);
+  assert.equal(sportAllowsAthletes("sport_athletics"), true);
+  // Futebol é só de equipes.
+  assert.equal(sportAllowsClubs("sport_football"), true);
+  assert.equal(sportAllowsAthletes("sport_football"), false);
+  // Tênis é misto: aceita atletas e equipes.
+  assert.equal(sportAllowsClubs("sport_tennis"), true);
   assert.equal(sportAllowsAthletes("sport_tennis"), true);
-  // Automobilismo é misto: aceita atletas e equipes.
-  assert.equal(sportAllowsClubs("sport_motorsport"), true);
-  assert.equal(sportAllowsAthletes("sport_motorsport"), true);
 });
 
 test("createClub cria uma equipe com a mesma estrutura de um atleta", () => {

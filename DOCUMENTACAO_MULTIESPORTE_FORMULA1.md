@@ -811,3 +811,48 @@ salvo no save aparece na geografia; um atleta salvo entra no ranking; um preset
 salvo na database aparece no seletor e **reaparece após iniciar um novo jogo** —
 sem erros de console. Total após esta etapa: **170 testes** (o único vermelho
 segue sendo a asserção desatualizada do preset de 100 m, alheia a este passo).
+
+## 29. Novo catálogo oficial de esportes (36 esportes)
+
+A lista de esportes do jogo passou a ser o **catálogo oficial de 36 esportes**
+(programa olímpico), definido em `js/sports.js` (`SPORTS`). A partir daqui, tudo
+que tem relação com esporte (modalidades, presets, equipes, atletas) referencia
+um **id específico desse catálogo**.
+
+Mudanças em relação ao catálogo anterior:
+
+- **Automobilismo saiu do catálogo.** Como o esporte `sport_motorsport` não
+  existe mais, o **Ecossistema FIA** (preset, modalidades F1–Regionais, pilotos,
+  clubes derivados) foi removido de `js/presets.js`, junto dos testes específicos
+  (`formula1-season.test.js`, `team-influence.test.js` e os testes de FIA em
+  `presets.test.js`). O sistema de **rating de equipe com peso** (mista
+  "weighted") continua no código para uso futuro; apenas nenhum preset o usa
+  agora.
+- **Tênis passou a ser `mista`** (antes `atleta`). O preset da ATP continua com
+  atletas apenas — como não há equipe no nome, nenhum clube é derivado —, então
+  funciona igual, agora dentro de um esporte misto.
+- **Atletismo** (`atleta`) e **Futebol** (`equipe`) seguem iguais, com seus
+  presets intactos.
+- Os **34 esportes novos** entram sem modalidades ainda (conteúdo futuro): eles
+  aparecem nos seletores, mas só recebem competições quando modalidades/presets
+  forem criados (inclusive pelos editores in-game).
+
+Cada esporte declara `defaultScoringSystemId`, `rankingModel`
+(`cumulative`/`seasonal`/`rolling`) e `entityType` (`atleta`/`equipe`/`mista`).
+Alguns `defaultScoringSystemId` novos ainda não têm implementação em
+`js/scoring.js`; até terem, a criação de competição para esses esportes cai no
+sistema padrão. As modalidades atuais (`MODALITIES`) cobrem tênis (1), atletismo
+(24) e futebol (2).
+
+**Ajustes nos editores**: o editor de Atletas/Clubes passou a **rejeitar
+`sportId`/`modalityId` inexistentes** no catálogo (o alvo precisa existir), para
+não criar dados órfãos. Os demais editores seguem iguais (o editor de Presets
+pode, inclusive, registrar esportes/modalidades novos).
+
+Verificação: `sports.test.js` e `clubs.test.js` atualizados para o novo catálogo;
+`presets.test.js` reduzido aos presets remanescentes. Smoke de navegador: um jogo
+novo sobe com os 36 esportes no seletor de rankings (tênis presente, automobilismo
+ausente, basquete presente), o seletor de presets traz ATP/Atletismo/Futebol, e o
+preset de futebol ainda cria 76 competições — sem erros de console. Total após
+esta etapa: **156 testes** (o único vermelho segue sendo a asserção desatualizada
+do preset de 100 m, alheia a este passo).
