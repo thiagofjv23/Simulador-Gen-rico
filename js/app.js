@@ -71,7 +71,7 @@ import {
   qualifierParticipantIdsFor,
   simulateCompetition,
 } from "./simulation.js";
-import { simulateLeagueSeason } from "./league.js";
+import { simulateLeagueRound } from "./league.js";
 import { mergeRollingRanking } from "./athletics.js";
 import {
   CONTINENTS,
@@ -1688,7 +1688,8 @@ function standingOutcomeText(result, standing) {
   return "—";
 }
 
-// Ficha de resultado de uma liga: a tabela completa (J, V, E, D, GP, GC, SG, Pts).
+// Ficha de resultado de uma rodada de liga: os placares da rodada e a
+// classificação acumulada até ela (J, V, E, D, GP, GC, SG, Pts).
 function renderLeagueResultCard(result) {
   const card = document.createElement("article");
   card.className = "result-card";
@@ -1705,14 +1706,14 @@ function renderLeagueResultCard(result) {
   title.textContent = result.competitionName;
   const meta = document.createElement("p");
   meta.textContent =
-    `${formatShortDate(result.occurrenceEnd)} · ${result.participantCount} clubes`
+    `${formatShortDate(result.occurrenceEnd)} · ${result.matches.length} jogos`
     + ` · ${result.scoringSystemName}`;
   titleArea.append(eyebrow, title, meta);
   const badges = document.createElement("div");
   badges.className = "competition-badges";
   badges.append(
     createBadge(geographicScopeLabel(result), "geography"),
-    createBadge(`Prestígio ${result.prestige}`, "prestige"),
+    createBadge(`Rodada ${result.seasonRound}/${result.seasonRoundCount}`),
   );
   if (result.seasonChampion) {
     badges.append(createBadge(
@@ -1722,6 +1723,33 @@ function renderLeagueResultCard(result) {
     ));
   }
   heading.append(titleArea, badges);
+  card.append(heading);
+
+  // Placares da rodada.
+  const matchesWrap = document.createElement("div");
+  matchesWrap.className = "league-matches";
+  result.matches.forEach((match) => {
+    const line = document.createElement("div");
+    line.className = "league-match";
+    const home = document.createElement("span");
+    home.className = "league-match-home";
+    home.textContent = match.homeName;
+    const score = document.createElement("strong");
+    score.className = "league-match-score";
+    score.textContent = `${match.homeGoals} × ${match.awayGoals}`;
+    const away = document.createElement("span");
+    away.className = "league-match-away";
+    away.textContent = match.awayName;
+    line.append(home, score, away);
+    matchesWrap.append(line);
+  });
+  card.append(matchesWrap);
+
+  // Classificação acumulada até a rodada.
+  const tableHeading = document.createElement("p");
+  tableHeading.className = "eyebrow league-table-heading";
+  tableHeading.textContent = `CLASSIFICAÇÃO APÓS A RODADA ${result.seasonRound}`;
+  card.append(tableHeading);
 
   const scroll = document.createElement("div");
   scroll.className = "ranking-table-scroll";
@@ -1746,9 +1774,9 @@ function renderLeagueResultCard(result) {
     <tbody></tbody>
   `;
   const body = table.querySelector("tbody");
-  result.standings.forEach((row) => {
+  result.leagueTable.forEach((row) => {
     const tr = document.createElement("tr");
-    if (row.position <= 4) tr.classList.add(`top-${Math.min(row.position, 3)}`);
+    if (row.position <= 3) tr.classList.add(`top-${row.position}`);
     const cells = [
       ["ranking-position", row.position],
       ["ranking-person", row.name],
@@ -1778,7 +1806,7 @@ function renderLeagueResultCard(result) {
   });
 
   scroll.append(table);
-  card.append(heading, scroll);
+  card.append(scroll);
   return card;
 }
 
@@ -1809,7 +1837,7 @@ function renderResults() {
   }
 
   results.forEach((result) => {
-    if (result.kind === "league") {
+    if (result.kind === "league-round") {
       elements.resultsList.append(renderLeagueResultCard(result));
       return;
     }
@@ -3452,7 +3480,8 @@ function teamRatingByPersonIdFor({ sportId, modalityId }) {
   return map;
 }
 
-// Resolve os clubes participantes de uma liga e simula a temporada completa.
+// Resolve os clubes participantes de uma liga e simula UMA rodada, acumulando as
+// rodadas anteriores da mesma temporada para montar a classificação corrente.
 function simulateLeagueForCompetition(competition) {
   const clubsById = new Map(state.clubs.map((club) => [club.id, club]));
   let clubs = (competition.participantIds ?? [])
@@ -3463,11 +3492,22 @@ function simulateLeagueForCompetition(competition) {
       club.sportId === competition.sportId && club.modalityId === competition.modalityId);
   }
   if (clubs.length < 2) return null;
-  const { result } = simulateLeagueSeason({
+
+  const seasonYear = Number(competition.occurrenceStart.slice(0, 4));
+  const previousMatchRows = state.results
+    .filter((result) =>
+      result.kind === "league-round"
+      && result.seasonId === competition.seasonId
+      && Number(result.occurrenceStart.slice(0, 4)) === seasonYear
+      && (result.seasonRound ?? 0) < (competition.seasonRound ?? 0))
+    .flatMap((result) => result.standings ?? []);
+
+  const { result } = simulateLeagueRound({
     competition,
     clubs,
     occurrenceStart: competition.occurrenceStart,
     occurrenceEnd: competition.occurrenceEnd,
+    previousMatchRows,
   });
   return result;
 }

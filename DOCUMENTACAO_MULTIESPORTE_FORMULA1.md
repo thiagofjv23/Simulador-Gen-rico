@@ -684,3 +684,50 @@ coroam um campeão (ex.: Botafogo, 72 pts) com a tabela de 20 clubes; a seção
 Equipes lista os clubes por rating — sem erros de console. Total após esta etapa:
 **147 testes** (o único vermelho segue sendo a asserção desatualizada do preset
 de 100 m, alheia a este passo).
+
+## 26. Futebol rodada a rodada (resultados parciais ao longo do ano)
+
+O futebol deixou de ser uma competição única resolvida no fim do ano e passou a
+ser **uma competição por rodada**, com resultados parciais surgindo ao longo da
+temporada. Mudança contida ao futebol — nenhum outro esporte foi tocado.
+
+**Motor de liga por rodada** (`js/league.js`): `simulateLeagueSeason` foi
+substituído por `simulateLeagueRound`, que resolve **uma rodada** (os confrontos
+que ela carrega em `roundFixtures`) e recebe as linhas de partida das rodadas
+anteriores (`previousMatchRows`) para montar a **classificação acumulada**. Nova
+função pura `accumulateLeagueTable(clubs, matchRows)` soma as partidas de várias
+rodadas na tabela (J, V, E, D, GP, GC, SG, Pts), incluindo clubes com 0 jogos.
+Cada resultado de rodada traz `matches` (placares da rodada), `standings` (linhas
+por clube da rodada, base do acúmulo em Temporadas) e `leagueTable` (tabela
+acumulada até a rodada). O campeão sai só na **última rodada**
+(`seasonFinalRound`), pela classificação acumulada. Continua tudo determinístico.
+
+**Preset** (`js/presets.js`, `buildLeaguePresetCompetitions`): cada liga agora
+gera **38 competições** (20 clubes → turno e returno), uma por rodada, **espaçadas
+semanalmente** a partir da data de início (Brasileirão a partir de 11/04,
+J-League de 21/02). Cada rodada carrega seus `roundFixtures` (10 jogos) e os
+metadados de temporada (`seasonRound`/`seasonRoundCount`/`seasonFinalRound`). A
+tabela de confrontos vem de `buildFixtures` (método do círculo). São **76
+competições** no total (38 por liga).
+
+**Integração** (`js/app.js`): no caminho dos esportes só de equipes,
+`simulateLeagueForCompetition` reúne as rodadas anteriores da mesma temporada
+(mesmo `seasonId`, mesmo ano, `seasonRound` menor) e chama `simulateLeagueRound`.
+A ficha de resultado da rodada (Resultados) mostra os **placares da rodada** e a
+**classificação após a rodada**; a aba **Temporadas** exibe a tabela acumulada em
+tempo real (soma das rodadas via o mecanismo de temporada já existente, sem
+alterá-lo). `history.js`/`newsroom.js` seguem intocados.
+
+Como cada rodada é uma competição `season_stage`, ela reaproveita Resultados,
+Campeões, Temporadas e Notícias. O `seasonName` das ligas ficou **sem o ano** (o
+ano é acrescentado pela tela de Temporadas), evitando duplicar "2026 2026".
+
+Verificação: `test/league.test.js` (rodada resolve 10 jogos, acumula a tabela, a
+última rodada coroa o campeão, determinismo, `accumulateLeagueTable`),
+`test/presets.test.js` (38 rodadas por liga, `roundFixtures`, datas semanais).
+Smoke de navegador: importar o preset cria 76 competições; avançando o calendário
+as rodadas são simuladas uma a uma — a ficha da Rodada 3 mostra 10 placares (ex.:
+"Palmeiras 4 × 2 Vitória") e a classificação acumulada de 20 clubes, e a aba
+Temporadas mostra a tabela parcial ao vivo — sem erros de console. Total após esta
+etapa: **150 testes** (o único vermelho segue sendo a asserção desatualizada do
+preset de 100 m, alheia a este passo).

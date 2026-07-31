@@ -1,5 +1,6 @@
 import { createClub, clubIdFor } from "./clubs.js";
 import { entityTypeForSport } from "./sports.js";
+import { buildFixtures } from "./league.js";
 
 const ATP_2026_TOURNAMENTS = [
   ["brisbane", "Brisbane International presented by ANZ", "2026-01-05", "2026-01-11", "Brisbane, Austrália", "Dura", "ATP 250"],
@@ -971,6 +972,7 @@ export const CALENDAR_PRESETS = [
         modalityId: "modality_football_brasileirao",
         modalityName: "Campeonato Brasileiro Série A",
         competitionName: "Campeonato Brasileiro Série A 2026",
+        seasonName: "Campeonato Brasileiro Série A",
         seasonId: "brasileirao-serie-a",
         countryCode: "BRA",
         countryName: "Brasil",
@@ -1008,6 +1010,7 @@ export const CALENDAR_PRESETS = [
         modalityId: "modality_football_jleague",
         modalityName: "J1 League",
         competitionName: "J1 League 2026",
+        seasonName: "J1 League",
         seasonId: "jleague-j1",
         countryCode: "JPN",
         countryName: "Japão",
@@ -1253,55 +1256,73 @@ export function buildLeaguePresetClubs(preset, timestamp = new Date().toISOStrin
   );
 }
 
-// Uma competição por liga = a temporada inteira (turno e returno), atrelada ao
-// país da liga. Os participantes são os clubes; a simulação de liga resolve a
-// temporada completa quando o calendário passa pela data final.
+function addDaysISO(isoDate, days) {
+  const date = new Date(`${isoDate}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+// Uma competição por RODADA (turno e returno), espaçadas semanalmente pelo
+// calendário da liga, atreladas ao país. Cada rodada carrega seus confrontos
+// (roundFixtures) e, ao ser simulada, gera os placares e atualiza a tabela.
 export function buildLeaguePresetCompetitions(preset, timestamp = new Date().toISOString()) {
   if (preset?.kind !== "league") return [];
-  return (preset.leagues ?? []).map((league) => {
+  return (preset.leagues ?? []).flatMap((league) => {
     const clubIds = league.clubs.map(([slug]) =>
       clubIdFor("sport_football", `${league.slug}_${slug}`));
-    const stableId = `preset_${preset.id}_${league.slug}`;
-    return {
-      id: stableId,
-      calendarEventId: `event_${stableId}`,
-      presetId: preset.id,
-      name: league.competitionName,
-      sportId: "sport_football",
-      modalityId: league.modalityId,
-      sport: "Futebol",
-      discipline: league.modalityName,
-      type: "league",
-      qualification: "ranking",
-      geographicScope: "national",
-      continentId: league.continentId,
-      countryId: league.countryId,
-      startDate: league.startDate,
-      endDate: league.endDate,
-      recurrence: "yearly",
-      prestige: league.prestige,
-      rankingPoints: 3,
-      scoringSystemId: "generic-proportional",
-      eventFormat: null,
-      resultMetric: null,
-      markType: null,
-      teamRatingModel: null,
-      teamWeight: null,
-      slots: clubIds.length,
-      minimumRanking: null,
-      competitionModel: "season_stage",
-      seasonId: league.seasonId,
-      seasonName: league.competitionName,
-      seasonalRanking: true,
-      seasonRound: 1,
-      seasonRoundCount: 1,
-      seasonFinalRound: true,
-      participantIds: clubIds,
-      notes: [league.countryName, `${clubIds.length} clubes`, "Pontos corridos (turno e returno)"]
-        .filter(Boolean).join(" · "),
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    };
+    const fixtures = buildFixtures(clubIds);
+    const roundCount = fixtures.length;
+
+    return fixtures.map((roundFixtures, index) => {
+      const round = index + 1;
+      const stableId = `preset_${preset.id}_${league.slug}_r${String(round).padStart(2, "0")}`;
+      const date = addDaysISO(league.startDate, index * 7);
+      return {
+        id: stableId,
+        calendarEventId: `event_${stableId}`,
+        presetId: preset.id,
+        name: `${league.competitionName} — Rodada ${round}`,
+        sportId: "sport_football",
+        modalityId: league.modalityId,
+        sport: "Futebol",
+        discipline: league.modalityName,
+        type: "league",
+        qualification: "ranking",
+        geographicScope: "national",
+        continentId: league.continentId,
+        countryId: league.countryId,
+        startDate: date,
+        endDate: date,
+        recurrence: "yearly",
+        prestige: league.prestige,
+        rankingPoints: 3,
+        scoringSystemId: "generic-proportional",
+        eventFormat: null,
+        resultMetric: null,
+        markType: null,
+        teamRatingModel: null,
+        teamWeight: null,
+        slots: clubIds.length,
+        minimumRanking: null,
+        competitionModel: "season_stage",
+        seasonId: league.seasonId,
+        seasonName: league.seasonName ?? league.competitionName,
+        seasonalRanking: true,
+        seasonRound: round,
+        seasonRoundCount: roundCount,
+        seasonFinalRound: round === roundCount,
+        // seasonName sem o ano (o ano é acrescentado pela tela de Temporadas).
+        participantIds: clubIds,
+        roundFixtures,
+        notes: [
+          league.countryName,
+          `Rodada ${round} de ${roundCount}`,
+          "Pontos corridos (turno e returno)",
+        ].filter(Boolean).join(" · "),
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+    });
   });
 }
 

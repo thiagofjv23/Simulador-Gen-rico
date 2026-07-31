@@ -225,16 +225,22 @@ test("o preset de futebol cria dois campeonatos nacionais com seus clubes", () =
   assert.equal(jleague.find(({ name }) => name === "Vissel Kobe").countryId, "country_jpn");
 
   const competitions = buildPresetCompetitions(football);
-  assert.equal(competitions.length, 2);
-  const br = competitions.find(({ modalityId }) => modalityId === "modality_football_brasileirao");
-  assert.equal(br.geographicScope, "national");
-  assert.equal(br.countryId, "country_bra");
-  assert.equal(br.competitionModel, "season_stage");
-  assert.equal(br.participantIds.length, 20);
-  assert.equal(br.seasonFinalRound, true);
-  const jp = competitions.find(({ modalityId }) => modalityId === "modality_football_jleague");
-  assert.equal(jp.countryId, "country_jpn");
-  assert.equal(jp.participantIds.length, 20);
+  // 38 rodadas por liga (20 clubes -> turno e returno).
+  assert.equal(competitions.length, 76);
+  assert.equal(new Set(competitions.map(({ id }) => id)).size, 76);
+  const br = competitions.filter(({ modalityId }) => modalityId === "modality_football_brasileirao");
+  assert.equal(br.length, 38);
+  assert.ok(br.every((c) => c.geographicScope === "national" && c.countryId === "country_bra"));
+  assert.ok(br.every((c) => c.competitionModel === "season_stage"));
+  assert.ok(br.every((c) => c.participantIds.length === 20));
+  assert.ok(br.every((c) => c.roundFixtures.length === 10));
+  assert.equal(br[0].seasonRound, 1);
+  assert.equal(br.at(-1).seasonRound, 38);
+  assert.equal(br.at(-1).seasonFinalRound, true);
+  assert.equal(br.filter((c) => c.seasonFinalRound).length, 1);
+  const jp = competitions.filter(({ modalityId }) => modalityId === "modality_football_jleague");
+  assert.equal(jp.length, 38);
+  assert.ok(jp.every((c) => c.countryId === "country_jpn"));
 });
 
 test("converte o preset em competições mundiais de tênis com IDs estáveis", () => {

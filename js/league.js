@@ -1,14 +1,16 @@
-// Sistema de liga de pontos corridos (futebol) — passo do preset de futebol.
+// Sistema de liga de pontos corridos (futebol) — resolução rodada a rodada.
 //
 // É um sistema NOVO e independente da simulação individual (js/simulation.js):
-// os competidores são clubes (entidade "equipe"), a temporada inteira é um
-// returno completo (turno e returno, todos contra todos, casa e fora) e a
-// classificação usa 3 pontos por vitória, 1 por empate e 0 por derrota. Ao fim
-// da temporada há uma tabela completa (J, V, E, D, GP, GC, SG, Pts) e um campeão.
+// os competidores são clubes (entidade "equipe"). A temporada é dividida em
+// RODADAS (turno e returno, todos contra todos, casa e fora); cada rodada é uma
+// competição própria no calendário e, ao ser simulada, gera os placares daquela
+// rodada e atualiza a classificação acumulada (3 pontos por vitória, 1 por
+// empate, 0 por derrota). A tabela cresce ao longo do ano e o campeão sai na
+// última rodada.
 //
-// Tudo é determinístico (RNG semeada) para que a mesma temporada não mude ao
-// recarregar. Não importa nada da simulação de atletas, então não interfere nos
-// outros esportes.
+// Tudo é determinístico (RNG semeada) para que os resultados não mudem ao
+// recarregar. Nada da simulação de atletas é importado, então os outros esportes
+// não são afetados.
 
 import { normalizeGeographicScope } from "./geography.js";
 
@@ -88,9 +90,46 @@ function expectedGoals(homeRating, awayRating) {
   };
 }
 
-function emptyRow(club) {
+// Linha de um clube em UMA partida (ponto de vista do clube).
+function clubMatchRow(club, goalsFor, goalsAgainst) {
+  const win = goalsFor > goalsAgainst;
+  const draw = goalsFor === goalsAgainst;
+  const points = win ? WIN_POINTS : draw ? DRAW_POINTS : 0;
   return {
     clubId: club.id,
+    personId: club.id,
+    name: club.name,
+    countryCode: club.countryCode ?? null,
+    baseRating: club.baseRating ?? 0,
+    played: 1,
+    wins: win ? 1 : 0,
+    draws: draw ? 1 : 0,
+    losses: !win && !draw ? 1 : 0,
+    goalsFor,
+    goalsAgainst,
+    goalDifference: goalsFor - goalsAgainst,
+    points,
+    pointsAwarded: points,
+  };
+}
+
+function sortTable(rows) {
+  return [...rows]
+    .sort((a, b) =>
+      b.points - a.points
+      || b.goalDifference - a.goalDifference
+      || b.goalsFor - a.goalsFor
+      || b.baseRating - a.baseRating
+      || a.name.localeCompare(b.name, "pt-BR"))
+    .map((row, index) => ({ ...row, position: index + 1 }));
+}
+
+// Classificação acumulada a partir das linhas de partida de várias rodadas.
+// Todos os clubes entram (mesmo com 0 jogos), para a tabela ficar completa.
+export function accumulateLeagueTable(clubs = [], matchRows = []) {
+  const table = new Map(clubs.map((club) => [club.id, {
+    clubId: club.id,
+    personId: club.id,
     name: club.name,
     countryCode: club.countryCode ?? null,
     baseRating: club.baseRating ?? 0,
@@ -100,83 +139,80 @@ function emptyRow(club) {
     losses: 0,
     goalsFor: 0,
     goalsAgainst: 0,
-  };
+  }]));
+
+  for (const row of matchRows) {
+    const entry = table.get(row.clubId);
+    if (!entry) continue;
+    entry.played += row.played;
+    entry.wins += row.wins;
+    entry.draws += row.draws;
+    entry.losses += row.losses;
+    entry.goalsFor += row.goalsFor;
+    entry.goalsAgainst += row.goalsAgainst;
+  }
+
+  return sortTable([...table.values()].map((entry) => ({
+    ...entry,
+    goalDifference: entry.goalsFor - entry.goalsAgainst,
+    points: entry.wins * WIN_POINTS + entry.draws * DRAW_POINTS,
+    pointsAwarded: entry.wins * WIN_POINTS + entry.draws * DRAW_POINTS,
+  })));
 }
 
-// Simula a temporada completa de uma liga e devolve um resultado no mesmo
-// formato dos demais resultados (para reaproveitar Resultados, Campeões,
-// Temporadas e Notícias), com a tabela final em `standings`.
-export function simulateLeagueSeason({
+// Simula UMA rodada de uma liga. Recebe os confrontos da rodada
+// (competition.roundFixtures) e as linhas de partida das rodadas anteriores da
+// mesma temporada (previousMatchRows), para montar a classificação acumulada.
+// Devolve um resultado no mesmo formato dos demais (para reaproveitar Resultados,
+// Campeões, Temporadas e Notícias), com os placares da rodada (`matches`), as
+// linhas por clube (`standings`, base do acúmulo em Temporadas) e a tabela
+// acumulada até a rodada (`leagueTable`).
+export function simulateLeagueRound({
   competition,
   clubs = [],
   occurrenceStart,
   occurrenceEnd,
+  previousMatchRows = [],
 }) {
-  if (clubs.length < 2) {
-    throw new Error("A liga precisa de pelo menos dois clubes.");
-  }
-
-  const seasonYear = Number(occurrenceStart.slice(0, 4));
+  const fixtures = competition.roundFixtures ?? [];
+  const clubById = new Map(clubs.map((club) => [club.id, club]));
   const seedSource = [
     competition.id,
     occurrenceStart,
-    ...clubs.map((club) => `${club.id}:${club.baseRating}`),
+    ...fixtures.map(([home, away]) => `${home}>${away}`),
   ].join("|");
   const random = createRandom(hashString(seedSource));
 
-  const rows = new Map(clubs.map((club) => [club.id, emptyRow(club)]));
-  const ratingById = new Map(clubs.map((club) => [club.id, club.baseRating ?? 0]));
-  const fixtures = buildFixtures(clubs.map((club) => club.id));
-
-  for (const round of fixtures) {
-    for (const [homeId, awayId] of round) {
-      const expected = expectedGoals(ratingById.get(homeId), ratingById.get(awayId));
-      const homeGoals = poisson(expected.home, random);
-      const awayGoals = poisson(expected.away, random);
-      const home = rows.get(homeId);
-      const away = rows.get(awayId);
-      home.played += 1;
-      away.played += 1;
-      home.goalsFor += homeGoals;
-      home.goalsAgainst += awayGoals;
-      away.goalsFor += awayGoals;
-      away.goalsAgainst += homeGoals;
-      if (homeGoals > awayGoals) {
-        home.wins += 1;
-        away.losses += 1;
-      } else if (homeGoals < awayGoals) {
-        away.wins += 1;
-        home.losses += 1;
-      } else {
-        home.draws += 1;
-        away.draws += 1;
-      }
-    }
+  const matches = [];
+  const roundRows = [];
+  for (const [homeId, awayId] of fixtures) {
+    const home = clubById.get(homeId);
+    const away = clubById.get(awayId);
+    if (!home || !away) continue;
+    const expected = expectedGoals(home.baseRating ?? 0, away.baseRating ?? 0);
+    const homeGoals = poisson(expected.home, random);
+    const awayGoals = poisson(expected.away, random);
+    matches.push({
+      homeId,
+      homeName: home.name,
+      homeCountryCode: home.countryCode ?? null,
+      homeGoals,
+      awayId,
+      awayName: away.name,
+      awayCountryCode: away.countryCode ?? null,
+      awayGoals,
+    });
+    roundRows.push(clubMatchRow(home, homeGoals, awayGoals));
+    roundRows.push(clubMatchRow(away, awayGoals, homeGoals));
   }
 
-  const standings = [...rows.values()]
-    .map((row) => ({
-      ...row,
-      goalDifference: row.goalsFor - row.goalsAgainst,
-      points: row.wins * WIN_POINTS + row.draws * DRAW_POINTS,
-    }))
-    .sort((a, b) =>
-      b.points - a.points
-      || b.goalDifference - a.goalDifference
-      || b.goalsFor - a.goalsFor
-      || b.baseRating - a.baseRating
-      || a.name.localeCompare(b.name, "pt-BR"))
-    .map((row, index) => ({
-      ...row,
-      position: index + 1,
-      // Campos compartilhados com os demais resultados (para reaproveitar a UI):
-      personId: row.clubId,
-      pointsAwarded: row.wins * WIN_POINTS + row.draws * DRAW_POINTS,
-    }));
-
-  const championRow = standings[0];
+  const standings = sortTable(roundRows);
+  const leagueTable = accumulateLeagueTable(clubs, [...previousMatchRows, ...roundRows]);
+  const isFinalRound = Boolean(competition.seasonFinalRound);
+  const seasonYear = Number(occurrenceStart.slice(0, 4));
   const updatedAt = `${occurrenceEnd}T23:59:59.000Z`;
-  const seasonChampion = championRow
+  const championRow = leagueTable[0];
+  const seasonChampion = isFinalRound && championRow
     ? {
       personId: championRow.clubId,
       name: championRow.name,
@@ -190,7 +226,7 @@ export function simulateLeagueSeason({
   return {
     result: {
       id: `result_${competition.id}_${occurrenceStart}`,
-      kind: "league",
+      kind: "league-round",
       competitionId: competition.id,
       competitionName: competition.name,
       sportId: competition.sportId ?? null,
@@ -211,14 +247,17 @@ export function simulateLeagueSeason({
       competitionModel: competition.competitionModel ?? "season_stage",
       seasonId: competition.seasonId ?? null,
       seasonName: competition.seasonName ?? null,
-      seasonRound: 1,
-      seasonRoundCount: 1,
+      seasonRound: competition.seasonRound ?? null,
+      seasonRoundCount: competition.seasonRoundCount ?? null,
+      seasonFinalRound: isFinalRound,
       seasonChampion,
       occurrenceStart,
       occurrenceEnd,
       simulatedAt: updatedAt,
-      participantCount: standings.length,
+      participantCount: matches.length * 2,
       standings,
+      matches,
+      leagueTable,
     },
   };
 }
