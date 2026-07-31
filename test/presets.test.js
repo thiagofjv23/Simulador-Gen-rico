@@ -9,16 +9,139 @@ import {
   presetById,
 } from "../js/presets.js";
 
-test("o catálogo de presets contém ATP, Atletismo e Futebol", () => {
-  assert.equal(CALENDAR_PRESETS.length, 3);
-  assert.deepEqual(CALENDAR_PRESETS.map(({ id }) => id), [
-    "atp-world-tour-2026",
-    "world-athletics-2026",
-    "football-leagues-2026",
-  ]);
+const FIA = presetById("fia-ecosystem-2026");
+const F1_MODALITY = "modality_motorsport_formula1";
+const F2_MODALITY = "modality_motorsport_formula2";
+const F3_MODALITY = "modality_motorsport_formula3";
+const FREC_MODALITY = "modality_motorsport_formula_regional";
+const FRECME_MODALITY = "modality_motorsport_formula_regional_middle_east";
+
+test("o catálogo de presets contém ATP, Ecossistema FIA, Atletismo e Futebol", () => {
+  assert.equal(CALENDAR_PRESETS.length, 4);
   assert.equal(presetById("atp-world-tour-2026")?.competitions.length, 59);
-  // O Ecossistema FIA (automobilismo) saiu do catálogo.
-  assert.equal(presetById("fia-ecosystem-2026"), null);
+  assert.ok(presetById("world-athletics-2026"));
+  assert.ok(FIA);
+  assert.equal(buildPresetCompetitions(FIA).length, 24 + 14 + 10 + 8 + 4);
+});
+
+test("a Fórmula 1 do ecossistema cria 24 etapas anuais de três dias", () => {
+  const competitions = buildPresetCompetitions(FIA)
+    .filter(({ modalityId }) => modalityId === F1_MODALITY);
+  assert.equal(competitions.length, 24);
+  assert.ok(competitions.every(({ recurrence }) => recurrence === "yearly"));
+  assert.ok(competitions.every(
+    ({ scoringSystemId }) => scoringSystemId === "formula1-grand-prix",
+  ));
+  assert.ok(competitions.every(
+    ({ competitionModel }) => competitionModel === "season_stage",
+  ));
+  assert.deepEqual(
+    competitions.map(({ startDate, endDate }) => [
+      new Date(`${startDate}T12:00:00Z`),
+      new Date(`${endDate}T12:00:00Z`),
+    ]).map(([start, end]) => (end - start) / 86400000 + 1),
+    Array(24).fill(3),
+  );
+  assert.equal(competitions[0].startDate, "2026-03-06");
+  assert.equal(competitions.at(-1).endDate, "2026-12-06");
+  assert.equal(competitions.at(-1).seasonFinalRound, true);
+});
+
+test("o ecossistema carrega os 22 pilotos de F1 com a equipe ao lado do nome", () => {
+  const people = buildPresetPeople(FIA, "2026-01-01T00:00:00.000Z")
+    .filter(({ modalityId }) => modalityId === F1_MODALITY);
+  assert.equal(people.length, 22);
+  assert.equal(new Set(people.map(({ id }) => id)).size, 22);
+  assert.ok(people.every(({ name, teamName }) => name.endsWith(`(${teamName})`)));
+  assert.equal(
+    people.find(({ driverName }) => driverName === "Max Verstappen").baseRating,
+    99,
+  );
+});
+
+test("o ecossistema inclui F2 e F3 com etapas e pilotos de 2026", () => {
+  const competitions = buildPresetCompetitions(FIA);
+  const f2 = competitions.filter(({ modalityId }) => modalityId === F2_MODALITY);
+  const f3 = competitions.filter(({ modalityId }) => modalityId === F3_MODALITY);
+
+  assert.equal(f2.length, 14);
+  assert.equal(f3.length, 10);
+  assert.ok([...f2, ...f3].every(
+    ({ competitionModel }) => competitionModel === "season_stage",
+  ));
+  assert.ok([...f2, ...f3].every(
+    ({ scoringSystemId }) => scoringSystemId === "formula1-grand-prix",
+  ));
+  assert.ok(f2.every(({ sport, discipline }) =>
+    sport === "Automobilismo" && discipline === "Fórmula 2"));
+  assert.ok(f3.every(({ sport, discipline }) =>
+    sport === "Automobilismo" && discipline === "Fórmula 3"));
+  assert.equal(f2.at(-1).seasonFinalRound, true);
+  assert.equal(f3.at(-1).seasonFinalRound, true);
+  // As etapas de apoio reaproveitam janelas de três dias da Fórmula 1.
+  assert.equal(f2[0].startDate, "2026-03-06");
+  assert.equal(f3.at(-1).endDate, "2026-09-06");
+
+  const people = buildPresetPeople(FIA, "2026-01-01T00:00:00.000Z");
+  assert.equal(people.filter(({ modalityId }) => modalityId === F2_MODALITY).length, 22);
+  assert.equal(people.filter(({ modalityId }) => modalityId === F3_MODALITY).length, 30);
+  assert.ok(people.every(({ name, teamName }) => name.endsWith(`(${teamName})`)));
+});
+
+test("o ecossistema inclui a Fórmula Regional de 2026 com 8 rodadas e 30 pilotos", () => {
+  const frec = buildPresetCompetitions(FIA)
+    .filter(({ modalityId }) => modalityId === FREC_MODALITY);
+  assert.equal(frec.length, 8);
+  assert.ok(frec.every(({ competitionModel }) => competitionModel === "season_stage"));
+  assert.ok(frec.every(({ scoringSystemId }) => scoringSystemId === "formula1-grand-prix"));
+  assert.ok(frec.every(({ discipline }) => discipline === "Fórmula Regional Europeia"));
+  assert.ok(frec.every(({ name }) => name.startsWith("Fórmula Regional Europeia —")));
+  assert.equal(frec[0].startDate, "2026-04-24");
+  assert.equal(frec.at(-1).endDate, "2026-09-13");
+  assert.equal(frec.at(-1).seasonFinalRound, true);
+
+  const people = buildPresetPeople(FIA, "2026-01-01T00:00:00.000Z")
+    .filter(({ modalityId }) => modalityId === FREC_MODALITY);
+  assert.equal(people.length, 30);
+  assert.ok(people.every(({ name, teamName }) => name.endsWith(`(${teamName})`)));
+});
+
+test("o ecossistema inclui a Fórmula Regional Oriente Médio de 2026", () => {
+  const frecme = buildPresetCompetitions(FIA)
+    .filter(({ modalityId }) => modalityId === FRECME_MODALITY);
+  assert.equal(frecme.length, 4);
+  assert.ok(frecme.every(({ competitionModel }) => competitionModel === "season_stage"));
+  assert.ok(frecme.every(({ discipline }) => discipline === "Fórmula Regional Oriente Médio"));
+  assert.ok(frecme.every(({ slots }) => slots === 36));
+  assert.equal(frecme[0].startDate, "2026-01-16");
+  assert.equal(frecme.at(-1).endDate, "2026-02-12");
+  assert.equal(frecme.at(-1).seasonFinalRound, true);
+  // Cada etapa recebe os 36 participantes.
+  assert.ok(frecme.every(({ participantIds }) => participantIds.length === 36));
+});
+
+test("pilotos homônimos viram o mesmo atleta em vez de duplicar pessoas", () => {
+  const people = buildPresetPeople(FIA, "2026-01-01T00:00:00.000Z");
+  // 22 F1 + 22 F2 + 30 F3 + 30 FREC-EU + 11 exclusivos do Oriente Médio.
+  assert.equal(people.length, 22 + 22 + 30 + 30 + 11);
+  // Nenhum ID de pessoa se repete.
+  assert.equal(new Set(people.map(({ id }) => id)).size, people.length);
+
+  const frecmeRound = buildPresetCompetitions(FIA)
+    .find(({ modalityId }) => modalityId === FRECME_MODALITY);
+  // Um piloto compartilhado aponta para o atleta já existente da Europeia...
+  assert.ok(frecmeRound.participantIds.includes("person_frec_al-dhaheri"));
+  // ...e um piloto exclusivo do Oriente Médio tem sua própria pessoa.
+  assert.ok(frecmeRound.participantIds.includes("person_frecme_powell"));
+  assert.ok(people.some(({ id }) => id === "person_frecme_powell"));
+  assert.ok(!people.some(({ id }) => id === "person_frecme_al-dhaheri"));
+});
+
+test("todas as 60 etapas do ecossistema têm IDs estáveis e únicos", () => {
+  const competitions = buildPresetCompetitions(FIA);
+  assert.equal(competitions.length, 60);
+  assert.equal(new Set(competitions.map(({ id }) => id)).size, 60);
+  assert.ok(competitions.every(({ presetId }) => presetId === "fia-ecosystem-2026"));
 });
 
 test("o catálogo inclui a Liga Mundial de Atletismo com formato/métrica por prova", () => {
@@ -47,9 +170,30 @@ test("o catálogo inclui a Liga Mundial de Atletismo com formato/métrica por pr
   assert.equal(people.find(({ name }) => name === "Noah Lyles").baseRating, 95);
 });
 
-test("presets sem equipe no nome dos atletas não geram clubes", () => {
-  // O tênis passou a ser misto, mas os atletas da ATP não trazem equipe no
-  // nome, então nenhum clube é derivado.
+test("o ecossistema FIA deriva as equipes dos nomes dos pilotos", () => {
+  const people = buildPresetPeople(FIA, "2026-01-01T00:00:00.000Z");
+  const clubs = buildPresetClubs(FIA, people, "2026-01-01T00:00:00.000Z");
+
+  // Um clube por (modalidade, equipe); todos ligados ao automobilismo.
+  assert.ok(clubs.every(({ sportId }) => sportId === "sport_motorsport"));
+  assert.ok(clubs.every(({ isClub, entityType }) => isClub && entityType === "equipe"));
+  assert.ok(clubs.every(({ id }) => new Set(clubs.map((c) => c.id)).size === clubs.length));
+
+  const f1 = clubs.filter(({ modalityId }) => modalityId === F1_MODALITY);
+  assert.equal(f1.length, 11); // 11 equipes de F1
+  assert.ok(f1.every(({ memberPersonIds }) => memberPersonIds.length === 2));
+
+  // Rating do "carro" = média dos pilotos (Verstappen 99 + Hadjar 86 -> 93).
+  const redBull = f1.find(({ name }) => name === "Red Bull Racing");
+  assert.equal(redBull.baseRating, 93);
+  assert.deepEqual(redBull.memberPersonIds, [
+    "person_f1_max-verstappen",
+    "person_f1_isack-hadjar",
+  ]);
+  assert.equal(f1.find(({ name }) => name === "McLaren").baseRating, 96);
+});
+
+test("presets de esporte de atleta puro não geram equipes", () => {
   const atp = presetById("atp-world-tour-2026");
   const atpPeople = buildPresetPeople(atp, "2026-01-01T00:00:00.000Z");
   assert.deepEqual(buildPresetClubs(atp, atpPeople), []);

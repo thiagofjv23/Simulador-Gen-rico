@@ -9,16 +9,15 @@ import {
   validateSportSelection,
 } from "../js/sports.js";
 
-test("o catálogo oficial tem 36 esportes com ids únicos", () => {
-  assert.equal(SPORTS.length, 36);
-  assert.equal(new Set(SPORTS.map(({ id }) => id)).size, 36);
+test("o catálogo oficial tem 37 esportes com ids únicos", () => {
+  assert.equal(SPORTS.length, 37);
+  assert.equal(new Set(SPORTS.map(({ id }) => id)).size, 37);
   // Esportes com dados/presets atuais.
   assert.equal(SPORTS.find(({ id }) => id === "sport_tennis").name, "Tênis");
   assert.equal(SPORTS.find(({ id }) => id === "sport_athletics").name, "Atletismo");
   assert.equal(SPORTS.find(({ id }) => id === "sport_football").name, "Futebol");
-  // O automobilismo saiu do catálogo.
-  assert.equal(SPORTS.some(({ id }) => id === "sport_motorsport"), false);
-  // Alguns dos novos esportes.
+  assert.equal(SPORTS.find(({ id }) => id === "sport_motorsport").name, "Automobilismo");
+  // Alguns dos demais esportes.
   assert.ok(SPORTS.some(({ id }) => id === "sport_basketball"));
   assert.ok(SPORTS.some(({ id }) => id === "sport_volleyball"));
   assert.equal(
@@ -41,13 +40,37 @@ test("o futebol traz as duas ligas nacionais como modalidades", () => {
   assert.deepEqual(football, ["Campeonato Brasileiro Série A", "J1 League"]);
 });
 
-test("teamRatingConfigForModality usa o padrão independent/0", () => {
-  // Sem modalidades com peso configurado, o padrão é sempre independent/0.
-  assert.deepEqual(teamRatingConfigForModality("modality_tennis_mens_singles"), {
-    teamRatingModel: "independent",
-    teamWeight: 0,
+test("o automobilismo traz as cinco categorias como modalidades mistas", () => {
+  const motorsport = modalitiesForSport("sport_motorsport").map(({ name }) => name);
+  assert.deepEqual(motorsport, [
+    "Fórmula 1",
+    "Fórmula 2",
+    "Fórmula 3",
+    "Fórmula Regional Europeia",
+    "Fórmula Regional Oriente Médio",
+  ]);
+});
+
+test("a Fórmula 1 usa rating de equipe com peso; as demais categorias não", () => {
+  // F1: carros construídos pela equipe influenciam a etapa.
+  assert.deepEqual(teamRatingConfigForModality("modality_motorsport_formula1"), {
+    teamRatingModel: "weighted",
+    teamWeight: 60,
   });
-  assert.deepEqual(teamRatingConfigForModality("modality_desconhecida"), {
+  // F2/F3/Regionais: chassi padrão, equipe não influencia (peso 0).
+  for (const modalityId of [
+    "modality_motorsport_formula2",
+    "modality_motorsport_formula3",
+    "modality_motorsport_formula_regional",
+    "modality_motorsport_formula_regional_middle_east",
+  ]) {
+    assert.deepEqual(teamRatingConfigForModality(modalityId), {
+      teamRatingModel: "independent",
+      teamWeight: 0,
+    });
+  }
+  // Modalidade sem peso configurado usa o padrão independent/0.
+  assert.deepEqual(teamRatingConfigForModality("modality_tennis_mens_singles"), {
     teamRatingModel: "independent",
     teamWeight: 0,
   });

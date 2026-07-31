@@ -159,6 +159,13 @@ export const SPORTS = [
     entityType: "atleta",
   },
   {
+    id: "sport_motorsport",
+    name: "Automobilismo",
+    defaultScoringSystemId: "formula1-grand-prix",
+    rankingModel: "seasonal",
+    entityType: "mista",
+  },
+  {
     id: "sport_rowing",
     name: "Remo",
     defaultScoringSystemId: "time-proportional",
@@ -265,6 +272,55 @@ export const SPORTS = [
   },
 ];
 
+// Modalidades de automobilismo (misto: atletas + equipes). A Fórmula 1 tem
+// carros construídos pela própria equipe, então o rating da equipe influencia a
+// etapa (modelo "weighted", peso alto). As categorias de monoposto padrão
+// (F2, F3 e Regionais) usam o mesmo chassi para todos, então a equipe não
+// influencia a prova (modelo "independent", peso 0) — mas continuam mistas,
+// para que o ranking de equipe (soma dos atletas) se crie do mesmo jeito.
+const MOTORSPORT_MODALITIES = [
+  {
+    id: "modality_motorsport_formula1",
+    sportId: "sport_motorsport",
+    name: "Fórmula 1",
+    rankingModel: "seasonal",
+    teamRatingModel: "weighted",
+    teamWeight: 60,
+  },
+  {
+    id: "modality_motorsport_formula2",
+    sportId: "sport_motorsport",
+    name: "Fórmula 2",
+    rankingModel: "seasonal",
+    teamRatingModel: "independent",
+    teamWeight: 0,
+  },
+  {
+    id: "modality_motorsport_formula3",
+    sportId: "sport_motorsport",
+    name: "Fórmula 3",
+    rankingModel: "seasonal",
+    teamRatingModel: "independent",
+    teamWeight: 0,
+  },
+  {
+    id: "modality_motorsport_formula_regional",
+    sportId: "sport_motorsport",
+    name: "Fórmula Regional Europeia",
+    rankingModel: "seasonal",
+    teamRatingModel: "independent",
+    teamWeight: 0,
+  },
+  {
+    id: "modality_motorsport_formula_regional_middle_east",
+    sportId: "sport_motorsport",
+    name: "Fórmula Regional Oriente Médio",
+    rankingModel: "seasonal",
+    teamRatingModel: "independent",
+    teamWeight: 0,
+  },
+];
+
 // Modalidades de futebol: cada liga nacional é uma modalidade com seu próprio
 // campeonato de pontos corridos (turno e returno). O esporte é só de equipes.
 const FOOTBALL_MODALITIES = [
@@ -336,6 +392,7 @@ export const MODALITIES = [
     name: "Simples masculino",
     rankingModel: "cumulative",
   },
+  ...MOTORSPORT_MODALITIES,
   ...ATHLETICS_MODALITIES,
   ...FOOTBALL_MODALITIES,
 ];

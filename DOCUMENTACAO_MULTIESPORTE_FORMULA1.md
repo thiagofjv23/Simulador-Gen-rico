@@ -856,3 +856,35 @@ ausente, basquete presente), o seletor de presets traz ATP/Atletismo/Futebol, e 
 preset de futebol ainda cria 76 competições — sem erros de console. Total após
 esta etapa: **156 testes** (o único vermelho segue sendo a asserção desatualizada
 do preset de 100 m, alheia a este passo).
+
+## 30. Catálogo mundial de países e retorno do automobilismo
+
+**Países (geografia completa)**: o catálogo de países foi completado — **206
+países** distribuídos pelos 6 continentes (todos com `id` derivado do `code`,
+`code`, `name` e `continentId` válidos, sem duplicatas). Verificação e correções
+mínimas: um `];` solto antes do `.map` foi removido (erro de sintaxe) e
+`test/geography.test.js` passou a checar o catálogo completo (contagem ≥ 200 e
+cobertura por continente) em vez das 20 entradas antigas. Os códigos usados pelo
+elenco genérico e pelos presets (USA, CAN, JAM, BRA...) estão todos presentes.
+
+**Automobilismo de volta ao catálogo**: o esporte e o preset do automobilismo,
+retirados na etapa anterior, foram **reinseridos nos lugares corretos** e com a
+mesma formatação:
+
+- `js/sports.js`: `sport_motorsport` (Automobilismo, `mista`, `seasonal`) entra
+  em `SPORTS` na posição alfabética por id (entre `sport_modern_pentathlon` e
+  `sport_rowing`). As cinco categorias voltam como o const `MOTORSPORT_MODALITIES`
+  (F1 = `weighted`/60; F2, F3 e Regionais = `independent`/0), no mesmo estilo de
+  `FOOTBALL_MODALITIES`, e são espalhadas em `MODALITIES`.
+- `js/presets.js`: os dados do automobilismo (grids e calendários de F1–Regionais)
+  voltam à sua seção original, e o **Ecossistema FIA** volta a `CALENDAR_PRESETS`.
+
+Agora o catálogo tem **37 esportes** e **4 presets** (ATP, Ecossistema FIA,
+Atletismo, Futebol); a FIA gera 60 competições, 115 pilotos e 53 equipes. Testes
+específicos restaurados (`formula1-season.test.js`, `team-influence.test.js` e os
+testes de FIA em `presets.test.js`); `sports.test.js` voltou a cobrir as
+modalidades e o peso de equipe do automobilismo. Smoke de navegador: importar a
+FIA cria 53 equipes e o painel de equipes de F1 mostra as 11 equipes (McLaren no
+topo) — sem erros de console. Total após esta etapa: **171 testes** (o único
+vermelho segue sendo a asserção desatualizada do preset de 100 m, alheia a este
+passo).
