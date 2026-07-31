@@ -235,8 +235,6 @@ export const COUNTRIES = [
   { code: "SKN", name: "São Cristóvão e Nevis", continentId: "continent_north_america" },
   { code: "VIN", name: "São Vicente e Granadinas", continentId: "continent_north_america" },
   { code: "TTO", name: "Trinidad e Tobago", continentId: "continent_north_america" },
-];
-
 ].map((country) => ({
   ...country,
   id: country.id ?? `country_${country.code.toLocaleLowerCase()}`,
