@@ -169,6 +169,7 @@
           <button class="hub-tab active" type="button" data-hub="central">Visão geral</button>
           <button class="hub-tab" type="button" data-hub="ranking">Rankings</button>
           <button class="hub-tab" type="button" data-hub="teams">Equipes</button>
+          <button class="hub-tab" type="button" data-hub="season">Temporada</button>
           <button class="hub-tab" type="button" data-hub="champions">Campeões</button>
           <button class="hub-tab" type="button" data-hub="seasons">Temporadas</button>
         </nav>
@@ -356,6 +357,33 @@
           </section>
           <div id="teams-list" class="teams-list"></div>
           <p id="teams-empty" class="ranking-empty hidden"></p>
+        </section>
+
+        <section id="hub-season" class="hub-panel hidden">
+          <section class="competitions-header">
+            <div>
+              <p class="eyebrow">TEMPORADA</p>
+              <h2>Temporada atual e campeões</h2>
+              <p>
+                Acompanhe os campeonatos de etapa de temporada: a classificação
+                atual, a navegação por rodadas e o histórico de campeões. Séries
+                por ranking (tênis, atletismo) mostram as etapas e seus resultados.
+              </p>
+            </div>
+          </section>
+          <div id="season-top" class="season-top"></div>
+          <div class="ranking-controls">
+            <label class="compact-field">
+              <span>Esporte</span>
+              <select id="season-sport"></select>
+            </label>
+            <label class="compact-field">
+              <span>Campeonato</span>
+              <select id="season-unit"></select>
+            </label>
+          </div>
+          <div id="season-detail" class="season-detail"></div>
+          <p id="season-empty" class="ranking-empty hidden"></p>
         </section>
 
         <section id="hub-champions" class="hub-panel hidden">

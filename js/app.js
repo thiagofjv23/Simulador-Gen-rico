@@ -139,6 +139,16 @@ import {
   finishedEvents,
   pastSeasons,
 } from "./history.js";
+import {
+  buildSeasonUnits,
+  defaultRoundIndex,
+  leagueClassification,
+  pastChampions,
+  qualifiedInfo,
+  rankingStages,
+  roundStates,
+  topSeasonUnits,
+} from "./season.js";
 
 const elements = {
   worldName: document.querySelector("#world-name"),
@@ -165,6 +175,7 @@ const elements = {
     central: document.querySelector("#hub-central"),
     ranking: document.querySelector("#hub-ranking"),
     teams: document.querySelector("#hub-teams"),
+    season: document.querySelector("#hub-season"),
     champions: document.querySelector("#hub-champions"),
     seasons: document.querySelector("#hub-seasons"),
   },
@@ -206,6 +217,11 @@ const elements = {
   teamsModality: document.querySelector("#teams-modality"),
   teamsList: document.querySelector("#teams-list"),
   teamsEmpty: document.querySelector("#teams-empty"),
+  seasonTop: document.querySelector("#season-top"),
+  seasonSport: document.querySelector("#season-sport"),
+  seasonUnit: document.querySelector("#season-unit"),
+  seasonDetail: document.querySelector("#season-detail"),
+  seasonEmpty: document.querySelector("#season-empty"),
   resultsTabCount: document.querySelector("#results-tab-count"),
   resultsTotal: document.querySelector("#results-total"),
   resultsLatest: document.querySelector("#results-latest"),
@@ -328,6 +344,7 @@ const state = {
   activeView: "calendar",
   activeHub: "central",
   advancing: false,
+  season: { unitKey: null, roundIndex: null },
 };
 
 let toastTimer;
@@ -1666,6 +1683,392 @@ function renderTeamsSection() {
   renderTeams();
 }
 
+// ---------------------------------------------------------------------------
+// Aba "Temporada": classificação atual, navegação por rodadas, campeões
+// anteriores (campeonatos de etapa de temporada) e etapas das séries por ranking.
+// ---------------------------------------------------------------------------
+
+function seasonYearNow() {
+  return Number(state.world.currentDate.slice(0, 4));
+}
+
+function competitorName(id) {
+  return state.people.find((person) => person.id === id)?.name
+    ?? state.clubs.find((club) => club.id === id)?.name
+    ?? id;
+}
+
+function seasonBlock(headingText) {
+  const section = document.createElement("section");
+  section.className = "season-block";
+  const heading = document.createElement("p");
+  heading.className = "eyebrow";
+  heading.textContent = headingText;
+  section.append(heading);
+  return section;
+}
+
+function seasonUnitLeaderLabel(unit, year) {
+  if (unit.kind === "league") {
+    const leader = leagueClassification(unit, state.results, year).rows[0];
+    return leader ? `Líder: ${leader.name}` : "A começar";
+  }
+  return `${unit.stages.length} etapa${unit.stages.length === 1 ? "" : "s"}`;
+}
+
+function renderSeasonTop(topUnits, selectedUnit, year) {
+  elements.seasonTop.replaceChildren();
+  topUnits.forEach((unit) => {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "season-square";
+    if (unit.key === selectedUnit.key) card.classList.add("active");
+    const eyebrow = document.createElement("span");
+    eyebrow.className = "eyebrow";
+    eyebrow.textContent = unit.sportName;
+    const title = document.createElement("strong");
+    title.textContent = unit.title;
+    const meta = document.createElement("span");
+    meta.className = "season-square-meta";
+    meta.textContent = `Prestígio ${unit.prestige} · ${seasonUnitLeaderLabel(unit, year)}`;
+    card.append(eyebrow, title, meta);
+    card.addEventListener("click", () => {
+      state.season.unitKey = unit.key;
+      state.season.roundIndex = null;
+      renderSeasonSection();
+    });
+    elements.seasonTop.append(card);
+  });
+}
+
+function setupSeasonSelectors(units, unit) {
+  const sports = [...new Map(units.map((u) => [u.sportId, u.sportName])).entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  fillTeamsSelect(elements.seasonSport, sports, unit.sportId);
+  const unitsForSport = units
+    .filter((u) => u.sportId === elements.seasonSport.value)
+    .map((u) => ({ id: u.key, name: u.title }));
+  fillTeamsSelect(elements.seasonUnit, unitsForSport, unit.key);
+}
+
+function renderClassificationTable(classification) {
+  const scroll = document.createElement("div");
+  scroll.className = "ranking-table-scroll";
+  const table = document.createElement("table");
+  table.className = "ranking-table result-table";
+  const isTable = classification.kind === "table";
+  table.innerHTML = isTable
+    ? `<thead><tr><th>Pos.</th><th>Clube</th><th>País</th><th title="Jogos">J</th>
+        <th title="Vitórias">V</th><th title="Empates">E</th><th title="Derrotas">D</th>
+        <th title="Gols pró">GP</th><th title="Gols contra">GC</th>
+        <th title="Saldo">SG</th><th>Pts</th></tr></thead><tbody></tbody>`
+    : `<thead><tr><th>Pos.</th><th>Competidor</th><th>País</th><th>Etapas</th><th>Pontos</th></tr></thead><tbody></tbody>`;
+  const body = table.querySelector("tbody");
+  classification.rows.forEach((row, index) => {
+    const position = row.position ?? index + 1;
+    const tr = document.createElement("tr");
+    if (position <= 3) tr.classList.add(`top-${position}`);
+    const cells = isTable
+      ? [
+        ["ranking-position", position],
+        ["ranking-person", row.name, true],
+        ["", row.countryCode ?? ""],
+        ["", row.played],
+        ["", row.wins],
+        ["", row.draws],
+        ["", row.losses],
+        ["", row.goalsFor],
+        ["", row.goalsAgainst],
+        ["", row.goalDifference > 0 ? `+${row.goalDifference}` : row.goalDifference],
+        ["ranking-points", row.points],
+      ]
+      : [
+        ["ranking-position", position],
+        ["ranking-person", row.name, true],
+        ["", row.countryCode ?? ""],
+        ["", row.events ?? 0],
+        ["ranking-points", (row.points ?? 0).toLocaleString("pt-BR")],
+      ];
+    cells.forEach(([className, value, strong]) => {
+      const cell = document.createElement("td");
+      if (className) cell.className = className;
+      if (strong) {
+        const node = document.createElement("strong");
+        node.textContent = value;
+        cell.append(node);
+      } else {
+        cell.textContent = value;
+      }
+      tr.append(cell);
+    });
+    body.append(tr);
+  });
+  scroll.append(table);
+  return scroll;
+}
+
+function renderQualifiedBox(competition) {
+  const info = qualifiedInfo(competition, state.competitions, state.results);
+  if (!info) return null;
+  const box = document.createElement("div");
+  box.className = "season-qualified";
+  const label = document.createElement("strong");
+  label.textContent = `Classificados (${info.qualifiedIds.length})`;
+  const names = document.createElement("span");
+  names.textContent = info.qualifiedIds.length
+    ? info.qualifiedIds.map(competitorName).join(", ")
+    : "Nenhum classificado ainda.";
+  const remaining = document.createElement("span");
+  remaining.className = "season-qualified-remaining";
+  remaining.textContent = `${info.remaining} vaga${info.remaining === 1 ? "" : "s"} restante${info.remaining === 1 ? "" : "s"}`;
+  box.append(label, names, remaining);
+  return box;
+}
+
+function renderRoundBody(roundState) {
+  const round = roundState.round;
+  const wrapper = document.createElement("div");
+
+  if (Array.isArray(round.roundFixtures)) {
+    const clubsById = new Map(state.clubs.map((club) => [club.id, club]));
+    const matchesByPair = new Map(
+      (roundState.result?.matches ?? []).map((match) => [`${match.homeId}|${match.awayId}`, match]),
+    );
+    const list = document.createElement("div");
+    list.className = "league-matches";
+    round.roundFixtures.forEach(([homeId, awayId]) => {
+      const line = document.createElement("div");
+      line.className = "league-match";
+      const home = document.createElement("span");
+      home.className = "league-match-home";
+      home.textContent = clubsById.get(homeId)?.name ?? homeId;
+      const score = document.createElement("strong");
+      score.className = "league-match-score";
+      const match = matchesByPair.get(`${homeId}|${awayId}`);
+      score.textContent = roundState.decided && match
+        ? `${match.homeGoals} × ${match.awayGoals}`
+        : "×";
+      const away = document.createElement("span");
+      away.className = "league-match-away";
+      away.textContent = clubsById.get(awayId)?.name ?? awayId;
+      line.append(home, score, away);
+      list.append(line);
+    });
+    wrapper.append(list);
+    if (!roundState.decided) {
+      const note = document.createElement("p");
+      note.className = "field-help";
+      note.textContent = "Confrontos a disputar.";
+      wrapper.append(note);
+    }
+    return wrapper;
+  }
+
+  // Etapas de ranking dentro de um season_stage (ex.: automobilismo).
+  if (roundState.decided && roundState.result?.standings?.length) {
+    const scroll = document.createElement("div");
+    scroll.className = "ranking-table-scroll";
+    const table = document.createElement("table");
+    table.className = "ranking-table result-table";
+    table.innerHTML = `<thead><tr><th>Pos.</th><th>Competidor</th><th>País</th><th>Pontos na etapa</th></tr></thead><tbody></tbody>`;
+    const body = table.querySelector("tbody");
+    roundState.result.standings.slice(0, 10).forEach((standing) => {
+      const tr = document.createElement("tr");
+      if (standing.position <= 3) tr.classList.add(`top-${standing.position}`);
+      const pos = document.createElement("td");
+      pos.className = "ranking-position";
+      pos.textContent = standing.position;
+      const name = document.createElement("td");
+      name.className = "ranking-person";
+      const strong = document.createElement("strong");
+      strong.textContent = standing.name;
+      name.append(strong);
+      const country = document.createElement("td");
+      country.textContent = standing.countryCode ?? "";
+      const points = document.createElement("td");
+      points.className = "ranking-points";
+      points.textContent = `+${standing.pointsAwarded ?? 0}`;
+      tr.append(pos, name, country, points);
+      body.append(tr);
+    });
+    scroll.append(table);
+    wrapper.append(scroll);
+    return wrapper;
+  }
+
+  const note = document.createElement("p");
+  note.className = "empty-state";
+  const count = round.participantIds?.length ?? 0;
+  note.textContent = count
+    ? `Etapa a disputar · ${count} participantes.`
+    : "Etapa a disputar.";
+  wrapper.append(note);
+  return wrapper;
+}
+
+function renderRoundNav(unit, year) {
+  const states = roundStates(unit, state.results);
+  const block = seasonBlock("RODADAS");
+  if (!states.length) return block;
+
+  let index = state.season.roundIndex;
+  if (index == null || index < 0 || index >= states.length) {
+    index = defaultRoundIndex(states);
+  }
+  state.season.roundIndex = index;
+  const current = states[index];
+
+  const nav = document.createElement("div");
+  nav.className = "season-round-nav";
+  const prev = document.createElement("button");
+  prev.type = "button";
+  prev.className = "season-round-arrow";
+  prev.textContent = "‹";
+  prev.setAttribute("aria-label", "Rodada anterior");
+  prev.disabled = index === 0;
+  prev.addEventListener("click", () => {
+    state.season.roundIndex = index - 1;
+    renderSeasonSection();
+  });
+  const title = document.createElement("strong");
+  title.className = "season-round-title";
+  title.textContent = `Rodada ${current.roundNumber}`
+    + (current.decided ? "" : " · próxima");
+  const next = document.createElement("button");
+  next.type = "button";
+  next.className = "season-round-arrow";
+  next.textContent = "›";
+  next.setAttribute("aria-label", "Próxima rodada");
+  next.disabled = index === states.length - 1;
+  next.addEventListener("click", () => {
+    state.season.roundIndex = index + 1;
+    renderSeasonSection();
+  });
+  nav.append(prev, title, next);
+  block.append(nav);
+
+  block.append(renderRoundBody(current));
+  const qualified = renderQualifiedBox(current.round);
+  if (qualified) block.append(qualified);
+  return block;
+}
+
+function renderPastChampions(unit, year) {
+  const champions = pastChampions(unit, state.results, year);
+  if (!champions.length) return null;
+  const block = seasonBlock("CAMPEÕES ANTERIORES");
+  const list = document.createElement("ul");
+  list.className = "season-champions";
+  champions.forEach((entry) => {
+    const item = document.createElement("li");
+    const yearEl = document.createElement("strong");
+    yearEl.textContent = entry.year;
+    const name = document.createElement("span");
+    name.textContent = `${entry.championName} (${entry.points} pts)`;
+    item.append(yearEl, name);
+    list.append(item);
+  });
+  block.append(list);
+  return block;
+}
+
+function renderRankingStages(unit, year) {
+  const block = seasonBlock(`ETAPAS DA TEMPORADA ${year}`);
+  const stages = rankingStages(unit, state.results);
+  if (!stages.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty-state";
+    empty.textContent = "Nenhuma etapa nesta temporada.";
+    block.append(empty);
+    return block;
+  }
+  const list = document.createElement("div");
+  list.className = "season-stages";
+  stages.forEach(({ stage, decided, result }) => {
+    const item = document.createElement("article");
+    item.className = "season-stage";
+    if (decided) item.classList.add("decided");
+    const head = document.createElement("div");
+    head.className = "season-stage-head";
+    const name = document.createElement("strong");
+    name.textContent = stage.name;
+    const date = document.createElement("span");
+    date.textContent = formatShortDate(stage.occurrenceEnd);
+    head.append(name, date);
+    item.append(head);
+
+    const status = document.createElement("p");
+    status.className = "season-stage-status";
+    if (decided && result?.standings?.length) {
+      const winner = result.standings[0];
+      status.textContent =
+        `Vencedor: ${winner.name} · +${winner.pointsAwarded ?? result.winnerPoints ?? 0} pts ao ranking`;
+    } else {
+      status.classList.add("pending");
+      status.textContent = "Ainda por decidir.";
+    }
+    item.append(status);
+
+    const qualified = renderQualifiedBox(stage);
+    if (qualified) item.append(qualified);
+    list.append(item);
+  });
+  block.append(list);
+  return block;
+}
+
+function renderSeasonDetail(unit, year) {
+  elements.seasonDetail.replaceChildren();
+  if (unit.kind === "league") {
+    const classification = leagueClassification(unit, state.results, year);
+    const block = seasonBlock(
+      "CLASSIFICAÇÃO"
+      + (classification.throughRound ? ` · APÓS A RODADA ${classification.throughRound}` : ""),
+    );
+    if (classification.rows.some((row) => (row.played ?? row.events ?? 0) > 0)) {
+      block.append(renderClassificationTable(classification));
+    } else {
+      const empty = document.createElement("p");
+      empty.className = "empty-state";
+      empty.textContent = "A temporada ainda não começou.";
+      block.append(empty);
+    }
+    elements.seasonDetail.append(block);
+    elements.seasonDetail.append(renderRoundNav(unit, year));
+    const champions = renderPastChampions(unit, year);
+    if (champions) elements.seasonDetail.append(champions);
+  } else {
+    elements.seasonDetail.append(renderRankingStages(unit, year));
+  }
+}
+
+function renderSeasonSection() {
+  const year = seasonYearNow();
+  const units = buildSeasonUnits(state.competitions, year);
+  elements.seasonEmpty.classList.toggle("hidden", units.length > 0);
+  if (!units.length) {
+    elements.seasonTop.replaceChildren();
+    elements.seasonSport.replaceChildren();
+    elements.seasonUnit.replaceChildren();
+    elements.seasonDetail.replaceChildren();
+    elements.seasonEmpty.textContent =
+      "Nenhum campeonato de temporada ativo. Importe um preset com etapas de temporada"
+      + " (ex.: Fórmula 1 ou futebol) ou uma série por ranking (tênis, atletismo).";
+    return;
+  }
+
+  let unit = units.find((candidate) => candidate.key === state.season.unitKey);
+  if (!unit) {
+    unit = topSeasonUnits(units, 1)[0];
+    state.season.unitKey = unit.key;
+    state.season.roundIndex = null;
+  }
+  renderSeasonTop(topSeasonUnits(units, 3), unit, year);
+  setupSeasonSelectors(units, unit);
+  renderSeasonDetail(unit, year);
+}
+
 function formatRankingChange(change) {
   if (change > 0) return `▲ ${change}`;
   if (change < 0) return `▼ ${Math.abs(change)}`;
@@ -1969,6 +2372,7 @@ function render() {
   renderRanking();
   renderCentral();
   renderTeamsSection();
+  renderSeasonSection();
   renderChampions();
   renderSeasons();
   renderResults();
@@ -3898,6 +4302,21 @@ function attachEventListeners() {
     renderTeams();
   });
   elements.teamsModality.addEventListener("change", renderTeams);
+  elements.seasonSport.addEventListener("change", () => {
+    const year = seasonYearNow();
+    const units = buildSeasonUnits(state.competitions, year)
+      .filter((unit) => unit.sportId === elements.seasonSport.value);
+    if (units.length) {
+      state.season.unitKey = units[0].key;
+      state.season.roundIndex = null;
+    }
+    renderSeasonSection();
+  });
+  elements.seasonUnit.addEventListener("change", () => {
+    state.season.unitKey = elements.seasonUnit.value;
+    state.season.roundIndex = null;
+    renderSeasonSection();
+  });
   elements.setupForm.addEventListener("submit", handleSetup);
   elements.continueGameButton.addEventListener("click", handleContinueGame);
   elements.newGameButton.addEventListener("click", handleNewGame);

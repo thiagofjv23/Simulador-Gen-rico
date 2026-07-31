@@ -731,3 +731,54 @@ as rodadas são simuladas uma a uma — a ficha da Rodada 3 mostra 10 placares (
 Temporadas mostra a tabela parcial ao vivo — sem erros de console. Total após esta
 etapa: **150 testes** (o único vermelho segue sendo a asserção desatualizada do
 preset de 100 m, alheia a este passo).
+
+## 27. Aba "Temporada" (página dedicada aos campeonatos)
+
+Nova aba **Temporada** na Central dos Esportes, com uma página dedicada aos
+campeonatos de **etapa de temporada** e às séries por ranking. Feature de UI —
+nenhuma mecânica de simulação foi alterada.
+
+**Módulo puro** `js/season.js` (só lê competições e resultados existentes):
+
+- `buildSeasonUnits(competitions, year)` — monta as unidades ativas no ano: uma
+  por campeonato `season_stage` (agrupado por `seasonId`: Brasileirão, F1, F2...)
+  e uma por série de ranking (agrupada por esporte + modalidade das competições
+  independentes: tênis, atletismo).
+- `topSeasonUnits` — os campeonatos de maior prestígio, de qualquer esporte.
+- `leagueClassification` — classificação corrente: a **tabela de futebol**
+  (leagueTable, com saldo) quando existe, ou a **soma dos pontos** das etapas
+  (automobilismo) via `aggregateSeasonStandings`.
+- `roundStates` / `defaultRoundIndex` — estado de cada rodada (decidida ou não) e
+  a rodada exibida por default (a **próxima** ainda não decidida, ou a última).
+- `rankingStages` — etapas de uma série por ranking com seu estado.
+- `pastChampions` — campeões de anos encerrados (via `pastSeasons`).
+- `qualifiedInfo` — para eventos com vaga por **classificatória**: quem já está
+  classificado (via `qualifierParticipantIdsFor`) e quantas vagas restam.
+
+**UI** (`app.js`/`index.html`/`styles.css`):
+
+- **Quadros do topo**: os **3 campeonatos de maior prestígio** (independente do
+  esporte); clicar seleciona o campeonato.
+- **Seletores** de esporte e de campeonato/modalidade, para ver um por vez.
+- **Campeonatos de liga/temporada** (futebol, automobilismo): a **classificação**
+  (a mesma tabela que aparece em Resultados) e um quadro **"Rodada N"** com as
+  disputas da rodada. Ao lado do título, **duas setas** (‹ ›) navegam entre as
+  rodadas — resultados anteriores (placares/classificação da etapa) e confrontos
+  futuros ("a disputar"). Na primeira/última rodada, a seta inválida fica
+  **obscurecida e não-clicável**. Abaixo, o **histórico de campeões anteriores**.
+- **Esportes por ranking** (tênis, atletismo): a lista de **etapas** da temporada
+  com o vencedor e os pontos ao ranking das já decididas, e **"Ainda por decidir"**
+  nas que não ocorreram.
+- **Classificados**: qualquer evento com vaga por classificatória mostra um bloco
+  com os já classificados e o número de vagas restantes.
+
+Verificação: `test/season.test.js` (unidades, top por prestígio, classificação de
+futebol com saldo, estado das rodadas e rodada default, etapas de ranking,
+campeões anteriores, classificados). Smoke de navegador: com F1 + futebol
+importados, os quadros do topo mostram F1/Brasileirão/F2 por prestígio; o
+Brasileirão exibe a tabela de 20 clubes e a navegação por rodadas (Rodada 3 ·
+próxima → voltar para a Rodada 2 com "Juventude 1 × 2 Palmeiras"); o automobilismo
+mostra a classificação por pontos; e o tênis (ATP) lista as 59 etapas como "Ainda
+por decidir" — sem erros de console. Total após esta etapa: **157 testes** (o
+único vermelho segue sendo a asserção desatualizada do preset de 100 m, alheia a
+este passo).
