@@ -48,6 +48,7 @@ test("validateRoster e normalizeRoster criam atletas e clubes", () => {
   assert.equal(people[0].sportId, "sport_tennis");
   assert.equal(people[0].countryId, "country_bra"); // geografia hidratada
   assert.equal(people[0].rosterType, "user");
+  assert.deepEqual(people[0].rivals, []); // atributo Rivais presente
 
   const clubData = {
     target: "club", sportId: "sport_football", modalityId: "modality_football_brasileirao",

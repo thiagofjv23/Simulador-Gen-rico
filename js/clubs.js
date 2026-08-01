@@ -128,6 +128,9 @@ export function createClub({
   gender = null,
   countryCode = null,
   memberPersonIds = [],
+  // Rivais: outros CLUBES escolhidos como rivais deste (lista de ids). Ainda sem
+  // função; existe para toda equipe (ver também createInitialPeople).
+  rivals = [],
   rosterType = "generic",
   presetId = null,
   createdAt = new Date().toISOString(),
@@ -146,6 +149,7 @@ export function createClub({
     entityType: "equipe",
     isClub: true,
     memberPersonIds: [...new Set(memberPersonIds)],
+    rivals: [...new Set(rivals)],
     rosterType,
     presetId,
     createdAt,

@@ -278,6 +278,7 @@ export function normalizeRoster(data, timestamp = new Date().toISOString()) {
         age: Number(entry.age) || 24,
         baseRating,
         momentum,
+        rivals: [],
         sportId: data.sportId,
         modalityId: data.modalityId,
         rosterType: "user",

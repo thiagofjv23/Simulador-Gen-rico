@@ -1271,6 +1271,9 @@ export function buildPresetPeople(preset, timestamp = new Date().toISOString()) 
   // já existente (mesmo nome em outra categoria) não são duplicados.
   return resolvePresetRoster(preset).peopleToCreate.map((person) => ({
     ...person,
+    // Todo atleta de preset recebe o atributo Rivais (lista de ids, sem função
+    // ainda), preservando o que já vier definido.
+    rivals: person.rivals ?? [],
     createdAt: person.createdAt ?? timestamp,
     updatedAt: timestamp,
   }));

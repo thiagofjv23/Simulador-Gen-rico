@@ -99,6 +99,17 @@ test("createClub cria uma equipe com a mesma estrutura de um atleta", () => {
   ]);
 });
 
+test("todo clube gerado tem o atributo Rivais (lista de ids)", () => {
+  const club = createClub({ id: "club_x", name: "X", sportId: "sport_football" });
+  assert.deepEqual(club.rivals, []);
+  const withRivals = createClub({
+    id: "club_y", name: "Y", sportId: "sport_football",
+    rivals: ["club_a", "club_b", "club_a"],
+  });
+  // Sem duplicatas.
+  assert.deepEqual(withRivals.rivals, ["club_a", "club_b"]);
+});
+
 test("um atleta comum não é confundido com um clube", () => {
   assert.equal(isClub({ id: "person_x", isClub: false }), false);
   assert.equal(isClub({ id: "person_x" }), false);

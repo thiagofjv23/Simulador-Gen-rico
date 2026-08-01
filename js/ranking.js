@@ -153,6 +153,9 @@ export function createInitialPeople(createdAt = new Date().toISOString()) {
         age: 18 + (seed % 17),
         baseRating: clamp(country.strength + baseVariation, 45, 99),
         momentum: (seed * 11) % 11 - 5,
+        // Rivais: outros ATLETAS escolhidos como rivais (lista de ids). Ainda
+        // sem função; existe para todo atleta.
+        rivals: [],
         sportId: null,
         modalityId: null,
         rosterType: "generic",

@@ -74,6 +74,7 @@ import {
   simulateCompetition,
 } from "./simulation.js";
 import { simulateLeagueRound } from "./league.js";
+import { clampMomentum, momentumDeltasForResult } from "./momentum.js";
 import { mergeRollingRanking } from "./athletics.js";
 import {
   CONTINENTS,
@@ -3395,6 +3396,25 @@ async function reloadResults() {
   state.results = await getAllResults();
 }
 
+// Garante o atributo Rivais em todo atleta e clube (inclusive saves antigos).
+async function ensureRivalsAttribute() {
+  const peopleMissing = state.people.filter((person) => !Array.isArray(person.rivals));
+  if (peopleMissing.length) {
+    const updated = peopleMissing.map((person) => ({ ...person, rivals: [] }));
+    await savePeople(updated);
+    const byId = new Map(updated.map((person) => [person.id, person]));
+    state.people = state.people.map((person) => byId.get(person.id) ?? person);
+    state.ranking = combineRanking(state.people, state.rankingEntries);
+  }
+  const clubsMissing = state.clubs.filter((club) => !Array.isArray(club.rivals));
+  if (clubsMissing.length) {
+    const updated = clubsMissing.map((club) => ({ ...club, rivals: [] }));
+    await saveClubs(updated);
+    const byId = new Map(updated.map((club) => [club.id, club]));
+    state.clubs = state.clubs.map((club) => byId.get(club.id) ?? club);
+  }
+}
+
 // Carrega os clubes/equipes persistidos. A estrutura existe para os esportes de
 // equipe e mistos; enquanto nenhum clube é criado, a lista fica vazia.
 async function reloadClubs() {
@@ -4047,6 +4067,45 @@ function simulateLeagueForCompetition(competition) {
   return result;
 }
 
+// Ajusta o momentum dos participantes de um resultado (atletas ou clubes) e
+// persiste. O momentum passa a variar conforme o desempenho frente à expectativa
+// de posição (ver js/momentum.js), mantido no intervalo -5..+5.
+async function applyMomentumFromResult(result) {
+  const entityById = new Map();
+  state.people.forEach((person) => entityById.set(person.id, person));
+  state.clubs.forEach((club) => entityById.set(club.id, club));
+
+  const deltas = momentumDeltasForResult(result, entityById);
+  if (!deltas.size) return;
+
+  const updatedPeople = [];
+  const updatedClubs = [];
+  const timestamp = `${result.occurrenceEnd}T23:59:59.000Z`;
+  for (const [id, delta] of deltas) {
+    const entity = entityById.get(id);
+    if (!entity || !delta) continue;
+    const nextMomentum = clampMomentum((entity.momentum ?? 0) + delta);
+    if (nextMomentum === entity.momentum) continue;
+    const updated = { ...entity, momentum: nextMomentum, updatedAt: timestamp };
+    if (entity.isClub) updatedClubs.push(updated);
+    else updatedPeople.push(updated);
+  }
+
+  if (updatedPeople.length) {
+    await savePeople(updatedPeople);
+    const byId = new Map(updatedPeople.map((person) => [person.id, person]));
+    state.people = state.people.map((person) => byId.get(person.id) ?? person);
+  }
+  if (updatedClubs.length) {
+    await saveClubs(updatedClubs);
+    const byId = new Map(updatedClubs.map((club) => [club.id, club]));
+    state.clubs = state.clubs.map((club) => byId.get(club.id) ?? club);
+  }
+  if (updatedPeople.length || updatedClubs.length) {
+    state.ranking = combineRanking(state.people, state.rankingEntries);
+  }
+}
+
 async function processSimulationDate(isoDate) {
   const scheduled = occurrencesBetween(state.competitions, isoDate, isoDate)
     .filter((competition) => competition.occurrenceEnd === isoDate)
@@ -4064,6 +4123,7 @@ async function processSimulationDate(isoDate) {
       if (simulated) {
         await saveCompetitionResult(simulated, []);
         state.results.push(simulated);
+        await applyMomentumFromResult(simulated);
         simulatedCount += 1;
       }
       continue;
@@ -4104,6 +4164,7 @@ async function processSimulationDate(isoDate) {
       ...rankingEntries,
     ];
     state.ranking = combineRanking(state.people, state.rankingEntries);
+    await applyMomentumFromResult(result);
     simulatedCount += 1;
   }
 
@@ -4249,6 +4310,7 @@ async function loadCurrentGame() {
   await reloadUserPresets();
   await seedFromUserData();
   await ensureRosterForImportedPresets();
+  await ensureRivalsAttribute();
   await resetSeasonRankingsIfNeeded(state.world.currentDate);
   recomputeRollingRankings(state.world.currentDate);
   state.selectedDate = state.world.currentDate;
@@ -4332,6 +4394,7 @@ async function handleSetup(submitEvent) {
   await Promise.all([reloadResults(), reloadCompetitionEntries(), reloadClubs()]);
   await reloadUserPresets();
   await seedFromUserData();
+  await ensureRivalsAttribute();
   state.selectedDate = state.world.currentDate;
   state.viewDate = parseISODate(state.world.currentDate);
   elements.setupDialog.close();

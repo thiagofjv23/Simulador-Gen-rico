@@ -21,6 +21,8 @@ test("cria exatamente 100 pessoas com IDs permanentes e únicos", () => {
   assert.equal(new Set(people.map(({ id }) => id)).size, 100);
   assert.equal(new Set(people.map(({ name }) => name)).size, 100);
   assert.ok(people.every(({ sportId, modalityId }) => !sportId && !modalityId));
+  // Todo atleta gerado tem o atributo Rivais (lista vazia por padrão).
+  assert.ok(people.every(({ rivals }) => Array.isArray(rivals) && rivals.length === 0));
 });
 
 test("os atletas genéricos recebem somente o primeiro esporte carregado", () => {

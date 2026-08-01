@@ -933,3 +933,84 @@ mostra as 6 tabelas por prova; ao avançar o calendário (escolhendo os convidad
 a tabela do 100 m se popula e a do Brasileirão também — sem erros de console.
 Total após esta etapa: **171 testes** (todos verdes; a antiga asserção do 100 m
 foi atualizada ao remodelar o preset de atletismo).
+
+## 32. Atributo "Rivais" e momentum dinâmico
+
+Esta etapa cobre dois pedidos: (A) um novo atributo **Rivais** para atletas e
+clubes e (B) transformar o **momentum** em um valor **dinâmico**, que reage aos
+resultados das competições. Nenhuma outra feature foi alterada além do
+estritamente necessário para estes dois pontos.
+
+### A. Atributo "Rivais"
+
+Cada atleta e cada clube passa a ter um atributo `rivals`: uma **lista de ids** de
+outras entidades do mesmo tipo (atletas são rivais de atletas, clubes de clubes).
+Por ora o atributo **não tem função** — só é armazenado e mantido — e **não há UI**
+para editá-lo ainda. O objetivo desta etapa é garantir que **todo atleta e clube
+gerado** já nasça com o campo.
+
+Para isso o atributo foi acrescentado nos **quatro pontos onde entidades são
+criadas**, sempre como lista vazia por padrão:
+
+- `createInitialPeople` (js/ranking.js) — os 100 atletas genéricos iniciais.
+- `createClub` (js/clubs.js) — todo clube; aceita uma lista opcional e **remove
+  duplicatas** (`[...new Set(rivals)]`).
+- `buildPresetPeople` (js/presets.js) — atletas importados de presets preservam
+  `rivals` se o preset trouxer, senão `[]`.
+- `normalizeRoster` (js/editors.js) — atletas criados pelo editor in-game.
+
+Além disso, uma **migração de carregamento** (`ensureRivalsAttribute` em
+js/app.js) faz o *backfill* de saves antigos: ao abrir um jogo existente,
+qualquer pessoa ou clube sem `rivals` (ou com um valor que não é array) recebe
+`[]` e é regravado. É chamada em `loadCurrentGame` e em `handleSetup`, de modo que
+partidas salvas antes desta feature também passam a ter o atributo.
+
+### B. Momentum dinâmico
+
+Antes o `momentum` (−5 a +5, com as mesmas cores na UI) era **estático**: fixado
+na geração e nunca mudava. Agora ele **varia conforme os resultados**. A regra
+geral: quando uma entidade de **ratingbase maior fica atrás de** (perde para) uma
+de rating menor, o momentum dela **cai** — e a que superou a expectativa **sobe**.
+O intervalo (−5..+5) e as cores da UI são preservados.
+
+Toda a lógica ficou isolada em um **módulo puro novo**, js/momentum.js, sem tocar
+no motor de simulação:
+
+- **Partidas 1v1** (ligas de futebol e etapas de 2 participantes): o cálculo é
+  **direto e proporcional à diferença de ratingbase** dos dois. Se o favorito
+  vence, ninguém muda; numa **zebra**, o vencedor de menor rating ganha e o
+  favorito perde a mesma magnitude (`matchMomentumMagnitude`: 1 a 3, cresce com o
+  tamanho da zebra).
+- **Etapas com vários participantes**: usa o sistema **"Expectativa de posição"**
+  (`expectedPositions`). A expectativa vem do ratingbase — o de maior rating é
+  esperado em 1º, o segundo em 2º, e assim por diante. A mudança de momentum vem
+  da **distância entre a posição final e a esperada** (`positionMomentumDelta`):
+  quanto maior a distância, maior o ganho (terminou muito acima do previsto) ou a
+  perda (muito abaixo), limitada a ±3 por etapa.
+
+O `momentum` continua alimentando o `performanceIndex` da simulação, então a
+variação vira uma **mecânica de forma** determinística para os próximos eventos.
+
+**Ligação com o app**: `applyMomentumFromResult` (js/app.js) roda **depois de cada
+resultado** (tanto no caminho de liga/equipe quanto no de atleta em
+`processSimulationDate`). Ela monta um mapa de ratings das entidades, chama
+`momentumDeltasForResult`, soma cada delta ao momentum atual com `clampMomentum`
+(mantendo −5..+5), grava via `savePeople`/`saveClubs`, atualiza o estado em
+memória e recombina o ranking. Os resultados já carregam o que é preciso: as
+etapas trazem `standings` com `baseRating`, e as ligas trazem `matches` com os ids
+e gols de mandante/visitante.
+
+### Verificação
+
+- **test/momentum.test.js** (novo): intervalo do `clampMomentum`,
+  `expectedPositions`, `positionMomentumDelta` (distância → magnitude),
+  `matchMomentumMagnitude` (só muda em zebra, cresce com o gap) e
+  `momentumDeltasForResult` nos três casos (liga por partida, 2 participantes por
+  diferença de rating, vários por expectativa de posição).
+- Testes de geração atualizados para exigir `rivals` presente: **clubs**,
+  **ranking**, **presets** e **editors**.
+- Smoke de navegador: após simular 26 resultados, **74 atletas** e **27 clubes**
+  tiveram o momentum alterado, todos dentro de −5..+5; `rivals` presente em 100%
+  de atletas e clubes; sem erros de console.
+
+Total após esta etapa: **180 testes** (todos verdes).

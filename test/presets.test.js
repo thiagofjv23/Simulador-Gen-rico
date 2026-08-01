@@ -269,6 +269,14 @@ test("converte o preset em competições mundiais de tênis com IDs estáveis", 
   assert.ok(competitions.every(({ qualification }) => qualification !== "open"));
 });
 
+test("todo atleta de preset tem o atributo Rivais", () => {
+  for (const id of ["atp-world-tour-2026", "world-athletics-2026", "fia-ecosystem-2026"]) {
+    const people = buildPresetPeople(presetById(id), "2026-01-01T00:00:00.000Z");
+    assert.ok(people.length > 0);
+    assert.ok(people.every(({ rivals }) => Array.isArray(rivals)));
+  }
+});
+
 test("o preset da ATP carrega o top 50 real de 2026 como elenco oficial", () => {
   const preset = presetById("atp-world-tour-2026");
   const players = buildPresetPeople(preset, "2026-01-01T00:00:00.000Z");
