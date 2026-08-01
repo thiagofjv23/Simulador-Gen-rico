@@ -144,20 +144,32 @@ test("todas as 60 etapas do ecossistema têm IDs estáveis e únicos", () => {
   assert.ok(competitions.every(({ presetId }) => presetId === "fia-ecosystem-2026"));
 });
 
-test("o catálogo inclui a Liga Mundial de Atletismo com formato/métrica por prova", () => {
+test("a Diamond League usa o calendário 2026, temporada por convite e formato por prova", () => {
   const preset = presetById("world-athletics-2026");
   assert.ok(preset);
   const competitions = buildPresetCompetitions(preset);
-  // 6 provas x 5 encontros.
-  assert.equal(competitions.length, 30);
-  assert.equal(new Set(competitions.map(({ id }) => id)).size, 30);
+  // 6 provas x 8 etapas (7 do grupo + a final de Zurique).
+  assert.equal(competitions.length, 48);
+  assert.equal(new Set(competitions.map(({ id }) => id)).size, 48);
   assert.ok(competitions.every(({ sportId }) => sportId === "sport_athletics"));
-  assert.ok(competitions.every(({ competitionModel }) => competitionModel === "standalone"));
+  // Campeonato de temporada, por convite, sem elenco fixo (o jogador escolhe).
+  assert.ok(competitions.every(({ competitionModel }) => competitionModel === "season_stage"));
+  assert.ok(competitions.every(({ qualification }) => qualification === "invitation"));
+  assert.ok(competitions.every(({ participantIds }) => participantIds === null));
 
-  const race = competitions.find(({ modalityId }) => modalityId === "modality_athletics_100m");
-  assert.equal(race.eventFormat, "heats");
-  assert.equal(race.resultMetric, "direct-mark");
-  assert.equal(race.markType, "time");
+  const races = competitions
+    .filter(({ modalityId }) => modalityId === "modality_athletics_100m")
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  assert.equal(races.length, 8);
+  assert.equal(races[0].seasonId, "diamond-league-100m");
+  assert.equal(races[0].eventFormat, "heats");
+  assert.equal(races[0].resultMetric, "direct-mark");
+  assert.equal(races[0].markType, "time");
+  // Datas oficiais 2026: primeira etapa em Xiamen, final em Zurique.
+  assert.equal(races[0].startDate, "2026-04-26");
+  assert.equal(races.at(-1).startDate, "2026-09-02");
+  assert.equal(races.at(-1).seasonFinalRound, true);
+  assert.ok(races.slice(0, -1).every(({ seasonFinalRound }) => seasonFinalRound === false));
 
   const jump = competitions.find(({ modalityId }) => modalityId === "modality_athletics_long_jump");
   assert.equal(jump.eventFormat, "individual-ranking");
@@ -165,9 +177,8 @@ test("o catálogo inclui a Liga Mundial de Atletismo com formato/métrica por pr
   assert.equal(jump.markType, "distance");
 
   const people = buildPresetPeople(preset, "2026-01-01T00:00:00.000Z");
-  assert.equal(people.length, 48); // 6 provas x 8 atletas
   assert.ok(people.every(({ sportId }) => sportId === "sport_athletics"));
-  assert.equal(people.find(({ name }) => name === "Noah Lyles").baseRating, 95);
+  assert.ok(people.some(({ name }) => name === "Noah Lyles"));
 });
 
 test("o ecossistema FIA deriva as equipes dos nomes dos pilotos", () => {

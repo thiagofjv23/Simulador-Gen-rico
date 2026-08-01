@@ -36,6 +36,7 @@
           Resultados
           <span id="results-tab-count" class="tab-count">0</span>
         </button>
+        <button class="view-tab" type="button" data-view="tables">Tabelas</button>
       </nav>
 
       <main id="calendar-view" class="workspace app-view">
@@ -471,6 +472,27 @@
           </div>
           <div id="results-list" class="results-list"></div>
         </section>
+      </main>
+
+      <main id="tables-view" class="results-view app-view hidden">
+        <section class="competitions-header">
+          <div>
+            <p class="eyebrow">TABELAS</p>
+            <h2>Tabelas de classificação</h2>
+            <p>
+              As classificações das competições que geram pontuação — ligas e
+              campeonatos de temporada (futebol, automobilismo) e a Diamond League
+              do atletismo. Escolha um preset para ver suas tabelas; elas são
+              geradas automaticamente e se atualizam a cada simulação.
+            </p>
+          </div>
+          <label class="compact-field">
+            <span>Preset</span>
+            <select id="tables-preset"></select>
+          </label>
+        </section>
+        <div id="tables-list" class="tables-list"></div>
+        <p id="tables-empty" class="ranking-empty hidden"></p>
       </main>
     </div>
 

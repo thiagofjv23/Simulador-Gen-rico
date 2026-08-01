@@ -888,3 +888,48 @@ FIA cria 53 equipes e o painel de equipes de F1 mostra as 11 equipes (McLaren no
 topo) — sem erros de console. Total após esta etapa: **171 testes** (o único
 vermelho segue sendo a asserção desatualizada do preset de 100 m, alheia a este
 passo).
+
+## 31. Diamond League e a aba "Tabelas"
+
+**Diamond League no preset de atletismo**: as etapas genéricas anteriores (5
+encontros inventados, modelo `standalone`) foram substituídas pela **Wanda
+Diamond League 2026** com o **calendário oficial** (Xiamen → Zurique, 15 etapas).
+A competição foi montada **usando apenas as opções já existentes do criador de
+competições** — nenhuma função ou ferramenta nova:
+
+- Cada prova (100 m, 800 m, 1500 m, salto em distância, salto em altura,
+  arremesso) vira um **campeonato de temporada** (`competitionModel:
+  "season_stage"`), com `seasonId` próprio (`diamond-league-100m` etc.), que
+  **acumula pontos etapa a etapa** e coroa o campeão na **final de Zurique**.
+- O **critério de classificação é "Por convite"** (`qualification: "invitation"`):
+  o jogador escolhe os participantes de cada etapa, sem elenco fixo.
+- As provas se dividem em dois grupos que se **alternam pelo calendário** (7
+  etapas cada) e todas se reencontram na final — 6 provas × 8 etapas = **48
+  competições**. Datas oficiais de 2026.
+- A resolução de etapa por prova é preservada (baterias + tempo nas corridas;
+  ranqueamento individual + distância nos saltos e arremesso), assim como os
+  elencos de atletas.
+
+Para isso, o construtor de presets passou a **repassar** duas opções já
+existentes do criador de competições — `qualification` e `slots` — da série para
+as competições (antes ficavam fixas em "por ranking"). Nenhuma mecânica nova: são
+as mesmas opções do diálogo de competição. Por convite, as competições não têm
+elenco fixo (`participantIds: null`), então a seleção do jogador vale.
+
+**Nova aba "Tabelas"** (ao lado de Resultados): reúne as **tabelas de
+classificação de todas as competições que geram pontuação** — ligas e campeonatos
+de temporada (futebol, automobilismo) e a Diamond League do atletismo. Um seletor
+por **preset** mostra as tabelas dos campeonatos daquele preset; elas são
+**geradas automaticamente** e **atualizam a cada simulação** (derivam dos
+resultados). A aba **reaproveita** a classificação já usada na aba Temporada:
+a **tabela de futebol** (com saldo de gols) para as ligas, e a **soma de pontos**
+para o automobilismo e para a Diamond League — este é o modelo que contempla como
+a Diamond League funciona (pontos acumulados por etapa, campeão na final).
+
+Verificação: `test/presets.test.js` (48 competições, `season_stage`, convite, sem
+elenco fixo, calendário Xiamen→Zurique, formato por prova). Smoke de navegador:
+importar a Diamond League cria 48 competições; a aba Tabelas lista os presets e
+mostra as 6 tabelas por prova; ao avançar o calendário (escolhendo os convidados),
+a tabela do 100 m se popula e a do Brasileirão também — sem erros de console.
+Total após esta etapa: **171 testes** (todos verdes; a antiga asserção do 100 m
+foi atualizada ao remodelar o preset de atletismo).

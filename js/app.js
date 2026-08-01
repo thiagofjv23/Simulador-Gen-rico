@@ -240,6 +240,10 @@ const elements = {
   resultsTotal: document.querySelector("#results-total"),
   resultsLatest: document.querySelector("#results-latest"),
   resultsList: document.querySelector("#results-list"),
+  tablesView: document.querySelector("#tables-view"),
+  tablesPreset: document.querySelector("#tables-preset"),
+  tablesList: document.querySelector("#tables-list"),
+  tablesEmpty: document.querySelector("#tables-empty"),
   startDialog: document.querySelector("#start-dialog"),
   continueGameButton: document.querySelector("#continue-game-button"),
   newGameButton: document.querySelector("#new-game-button"),
@@ -2118,6 +2122,78 @@ function renderSeasonSection() {
   renderSeasonDetail(unit, year);
 }
 
+// ---------------------------------------------------------------------------
+// Aba "Tabelas": as tabelas de classificação de todas as competições que geram
+// pontuação (campeonatos de temporada), agrupadas por preset. Reaproveita a
+// classificação já usada na aba Temporada (tabela de futebol; soma de pontos no
+// automobilismo e na Diamond League).
+// ---------------------------------------------------------------------------
+
+const NO_PRESET_KEY = "__avulsas__";
+
+function presetTablesGroups(year) {
+  // Só campeonatos de temporada (que geram tabela de pontuação).
+  const units = buildSeasonUnits(state.competitions, year)
+    .filter((unit) => unit.kind === "league");
+  const groups = new Map();
+  for (const unit of units) {
+    const key = unit.presetId ?? NO_PRESET_KEY;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(unit);
+  }
+  return groups;
+}
+
+function setupTablesPresetSelect(groups) {
+  const options = [...groups.keys()].map((key) => ({
+    id: key,
+    name: key === NO_PRESET_KEY
+      ? "Competições avulsas"
+      : findPreset(key)?.name ?? key,
+  })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  fillTeamsSelect(elements.tablesPreset, options, elements.tablesPreset.value);
+}
+
+function renderTablesSection() {
+  const year = seasonYearNow();
+  const groups = presetTablesGroups(year);
+  elements.tablesList.replaceChildren();
+  elements.tablesEmpty.classList.toggle("hidden", groups.size > 0);
+  if (!groups.size) {
+    elements.tablesPreset.replaceChildren();
+    elements.tablesEmpty.textContent =
+      "Nenhuma competição com tabela de classificação. Importe um preset de liga"
+      + " ou campeonato de temporada (futebol, automobilismo, Diamond League).";
+    return;
+  }
+
+  setupTablesPresetSelect(groups);
+  const key = groups.has(elements.tablesPreset.value)
+    ? elements.tablesPreset.value
+    : [...groups.keys()][0];
+  elements.tablesPreset.value = key;
+
+  // Uma tabela por campeonato do preset selecionado, ordenada por prestígio.
+  const units = [...groups.get(key)]
+    .sort((a, b) => b.prestige - a.prestige || a.title.localeCompare(b.title, "pt-BR"));
+  units.forEach((unit) => {
+    const classification = leagueClassification(unit, state.results, year);
+    const block = seasonBlock(
+      unit.title.toUpperCase()
+      + (classification.throughRound ? ` · APÓS A RODADA ${classification.throughRound}` : ""),
+    );
+    if (classification.rows.some((row) => (row.played ?? row.events ?? 0) > 0)) {
+      block.append(renderClassificationTable(classification));
+    } else {
+      const empty = document.createElement("p");
+      empty.className = "empty-state";
+      empty.textContent = "A competição ainda não começou.";
+      block.append(empty);
+    }
+    elements.tablesList.append(block);
+  });
+}
+
 function formatRankingChange(change) {
   if (change > 0) return `▲ ${change}`;
   if (change < 0) return `▼ ${Math.abs(change)}`;
@@ -2425,6 +2501,7 @@ function render() {
   renderChampions();
   renderSeasons();
   renderResults();
+  renderTablesSection();
 }
 
 function switchView(view) {
@@ -2434,6 +2511,7 @@ function switchView(view) {
     competitions: elements.competitionsView,
     sports: elements.sportsView,
     results: elements.resultsView,
+    tables: elements.tablesView,
   };
   Object.entries(views).forEach(([viewName, viewElement]) => {
     viewElement.classList.toggle("hidden", viewName !== view);
@@ -4699,6 +4777,7 @@ function attachEventListeners() {
     state.season.roundIndex = null;
     renderSeasonSection();
   });
+  elements.tablesPreset.addEventListener("change", renderTablesSection);
   elements.setupForm.addEventListener("submit", handleSetup);
   elements.continueGameButton.addEventListener("click", handleContinueGame);
   elements.newGameButton.addEventListener("click", handleNewGame);
