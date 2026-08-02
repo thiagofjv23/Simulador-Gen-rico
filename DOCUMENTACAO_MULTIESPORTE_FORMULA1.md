@@ -1198,3 +1198,48 @@ modalidade, toda modalidade do catálogo passou a declarar um **`entityType`**:
   integridade acusa `entityType` inválido ou incompatível.
 
 Total após esta etapa: **212 testes** (todos verdes).
+
+## 36. Geração de nomes por nacionalidade (faker + passo de build)
+
+Base do gerador de atletas/clubes: nomes realistas conforme a nacionalidade,
+usando a biblioteca **@faker-js/faker**. Como o app roda no navegador sem
+bundler, foi adicionado um **passo de build** que empacota o faker num artefato
+versionado; o app continua abrindo estaticamente (offline) e o build só é
+necessário para (re)gerar o bundle.
+
+### Passo de build (novo)
+
+- **package.json**: `@faker-js/faker` e `esbuild` como `devDependencies` e o
+  script `npm run build:names`.
+- **build/faker-entry.js**: cria uma instância `Faker` por grupo de idioma (com
+  fallback para inglês) e a exporta.
+- **js/vendor/faker-names.js**: bundle ESM gerado pelo esbuild (~1,4 MB,
+  versionado). Exporta `fakerByGroup`. É carregado por **import dinâmico**, só
+  quando o gerador roda — a inicialização normal do app não paga esse custo.
+- **.gitignore**: passa a ignorar `node_modules/`.
+- Reproduzir o bundle: `npm install && npm run build:names`.
+
+### Agrupamento por idioma (js/names.js, puro/testável)
+
+- `languageGroupForCountry(countryCode)`: mapeia cada país a um grupo de idioma
+  (português, inglês, espanhol, francês, alemão, italiano, russo, árabe,
+  japonês, chinês, coreano, neerlandês, polonês, turco, nórdico, persa). Países
+  cujo idioma **não é coberto** pela biblioteca caem em **inglês**, conforme
+  especificado.
+- `createNameGenerator(fakerByGroup, { seed })`: recebe o provedor faker (do
+  bundle no navegador; injetável nos testes) e devolve `personName(countryCode)`
+  e `clubName(countryCode)`. O nome de clube combina a **cidade/estado do país**
+  (locale do faker) com uma **denominação esportiva** (AC, SC, FC, United…). O
+  módulo **não importa o faker**, então a lógica é testada com um provedor de
+  mentira, sem exigir a biblioteca.
+
+### Verificação
+
+- **test/names.test.js**: agrupamento por idioma (com fallback inglês), uso do
+  faker do grupo correto e composição do nome de clube — tudo com provedor
+  stub, mantendo o `node --test` sem dependências.
+- Integração real conferida à parte: o bundle gera nomes coerentes por idioma
+  (português, russo em cirílico, japonês, árabe, chinês) e cai em inglês para
+  países não cobertos (ex.: Grécia).
+
+Total após esta etapa: **216 testes** (todos verdes).
