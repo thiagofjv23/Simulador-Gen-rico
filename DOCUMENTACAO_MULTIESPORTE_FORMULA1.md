@@ -976,17 +976,24 @@ O intervalo (−5..+5) e as cores da UI são preservados.
 Toda a lógica ficou isolada em um **módulo puro novo**, js/momentum.js, sem tocar
 no motor de simulação:
 
-- **Partidas 1v1** (ligas de futebol e etapas de 2 participantes): o cálculo é
-  **direto e proporcional à diferença de ratingbase** dos dois. Se o favorito
-  vence, ninguém muda; numa **zebra**, o vencedor de menor rating ganha e o
-  favorito perde a mesma magnitude (`matchMomentumMagnitude`: 1 a 3, cresce com o
-  tamanho da zebra).
+- **Regra do vencedor**: **vencer sempre eleva a moral**. O vencedor de qualquer
+  etapa **nunca** fica com delta negativo nem zero — ganha momentum mesmo quando
+  já era o favorito. O tamanho desse ganho (`winnerMomentumGain`, 1 a 3) soma ao
+  piso `+1` dois componentes: o **prestígio** da competição (competição mais
+  prestigiada rende mais) e a **diferença de ratingbase** para o rival mais forte
+  que venceu. Um favorito muito acima do rival recebe só o piso; uma **zebra**
+  (venceu alguém de rating muito maior) recebe bem mais.
+- **Partidas 1v1** (ligas de futebol e etapas de 2 participantes): o vencedor
+  recebe o bônus de vitória acima. O perdedor só perde momentum numa **zebra** (o
+  de rating maior perdeu para o de rating menor), proporcional à diferença
+  (`matchMomentumMagnitude`: 1 a 3). Se o favorito vence, o perdedor não muda.
 - **Etapas com vários participantes**: usa o sistema **"Expectativa de posição"**
   (`expectedPositions`). A expectativa vem do ratingbase — o de maior rating é
   esperado em 1º, o segundo em 2º, e assim por diante. A mudança de momentum vem
   da **distância entre a posição final e a esperada** (`positionMomentumDelta`):
   quanto maior a distância, maior o ganho (terminou muito acima do previsto) ou a
-  perda (muito abaixo), limitada a ±3 por etapa.
+  perda (muito abaixo), limitada a ±3 por etapa. O **vencedor** (1º lugar) ganha
+  ao menos o bônus de vitória — se a zebra por posição for ainda maior, prevalece.
 
 O `momentum` continua alimentando o `performanceIndex` da simulação, então a
 variação vira uma **mecânica de forma** determinística para os próximos eventos.
@@ -1002,11 +1009,13 @@ e gols de mandante/visitante.
 
 ### Verificação
 
-- **test/momentum.test.js** (novo): intervalo do `clampMomentum`,
-  `expectedPositions`, `positionMomentumDelta` (distância → magnitude),
-  `matchMomentumMagnitude` (só muda em zebra, cresce com o gap) e
-  `momentumDeltasForResult` nos três casos (liga por partida, 2 participantes por
-  diferença de rating, vários por expectativa de posição).
+- **test/momentum.test.js**: intervalo do `clampMomentum`, `expectedPositions`,
+  `positionMomentumDelta` (distância → magnitude), `matchMomentumMagnitude` (só
+  muda em zebra, cresce com o gap), `winnerMomentumGain` (piso do vencedor,
+  prestígio e fator zebra elevam, favorito folgado fica no piso) e
+  `momentumDeltasForResult` nos três casos (liga por partida, 2 participantes,
+  vários por expectativa de posição), garantindo que o vencedor sempre ganha
+  momentum mesmo quando já era o favorito.
 - Testes de geração atualizados para exigir `rivals` presente: **clubs**,
   **ranking**, **presets** e **editors**.
 - Smoke de navegador: após simular 26 resultados, **74 atletas** e **27 clubes**
