@@ -1172,3 +1172,29 @@ adição nesta etapa.
   Open Wheel / Fórmula 1; o seletor de tier é preenchido com 1..4.
 
 Total após esta etapa: **207 testes** (todos verdes).
+
+## 35. Categorização das modalidades por tipo de entidade (pré-requisito do gerador)
+
+Para o gerador de atletas/clubes saber **que tipo de entidade criar** em cada
+modalidade, toda modalidade do catálogo passou a declarar um **`entityType`**:
+
+- `"atleta"` — atletas individuais (ex.: natação, atletismo, tênis);
+- `"equipe"` — clubes/equipes (ex.: futebol, polo aquático, vôlei);
+- `"mista"` — atletas e equipes no mesmo campeonato (ex.: automobilismo).
+
+- **js/modalities.js**: cada uma das 58 modalidades ganhou `entityType`. A
+  distribuição: 40 de atleta, 14 de equipe e 4 mistas (as de automobilismo).
+- **js/catalog.js**: novo `entityTypeForModality(modalityId)` (com padrão seguro
+  "atleta"), e a integridade do catálogo passa a exigir que o `entityType` da
+  modalidade seja **compatível com o do esporte** (js/sports.js): esporte só de
+  atleta não aceita modalidade de equipe e vice-versa; esporte misto aceita
+  qualquer uma. Um mesmo esporte misto pode ter modalidades de tipos diferentes
+  (ex.: Esportes Aquáticos reúne natação (atleta) e polo aquático (equipe)).
+
+### Verificação
+
+- **test/catalog.test.js**: toda modalidade tem `entityType` válido e compatível
+  com o esporte; `entityTypeForModality` classifica atleta/equipe/mista; a
+  integridade acusa `entityType` inválido ou incompatível.
+
+Total após esta etapa: **212 testes** (todos verdes).

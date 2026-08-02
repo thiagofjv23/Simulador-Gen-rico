@@ -13,10 +13,13 @@ import {
   eventTypesForSport,
   sportHasEventTypes,
   eventTypeLabel,
+  entityTypeForModality,
   LEGACY_MODALITY_ALIASES,
   resolveCompetitionTaxonomy,
   validateCompetitionTaxonomy,
 } from "../js/catalog.js";
+import { entityTypeForSport, sportById } from "../js/sports.js";
+import { ENTITY_TYPES } from "../js/clubs.js";
 
 test("o catálogo é íntegro: ids únicos e referências coerentes", () => {
   assert.deepEqual(validateCatalogIntegrity(), []);
@@ -45,6 +48,43 @@ test("detecta problemas de integridade em catálogos inválidos", () => {
   const errors = validateCatalogIntegrity(SPORTS, badModalities, badEventTypes).join(" ");
   assert.match(errors, /esporte inexistente/i);
   assert.match(errors, /esporte diferente/i);
+});
+
+test("toda modalidade tem entityType válido e compatível com o esporte", () => {
+  for (const modality of CATALOG_MODALITIES) {
+    assert.ok(ENTITY_TYPES[modality.entityType], `${modality.id} sem entityType válido`);
+    const sportEntity = ENTITY_TYPES[entityTypeForSport(modality.sportId)];
+    if (modality.entityType === "atleta" || modality.entityType === "mista") {
+      assert.ok(sportEntity.allowsAthletes, `${modality.id} exige atletas que o esporte não permite`);
+    }
+    if (modality.entityType === "equipe" || modality.entityType === "mista") {
+      assert.ok(sportEntity.allowsClubs, `${modality.id} exige clubes que o esporte não permite`);
+    }
+  }
+});
+
+test("entityTypeForModality classifica atleta/equipe/mista", () => {
+  assert.equal(entityTypeForModality("modality_swimming"), "atleta");
+  assert.equal(entityTypeForModality("modality_water_polo"), "equipe");
+  assert.equal(entityTypeForModality("modality_football"), "equipe");
+  assert.equal(entityTypeForModality("modality_motorsport_open_wheel"), "mista");
+  assert.equal(entityTypeForModality("inexistente"), "atleta"); // padrão seguro
+});
+
+test("integridade acusa entityType inválido ou incompatível", () => {
+  const badType = validateCatalogIntegrity(
+    undefined,
+    [{ id: "modality_x", sportId: "sport_athletics", name: "X", entityType: "nada" }],
+    [],
+  ).join(" ");
+  assert.match(badType, /entityType inválido/i);
+  // Atletismo é só de atleta: uma modalidade "equipe" é incompatível.
+  const incompat = validateCatalogIntegrity(
+    undefined,
+    [{ id: "modality_y", sportId: "sport_athletics", name: "Y", entityType: "equipe" }],
+    [],
+  ).join(" ");
+  assert.match(incompat, /incompatível com o esporte/i);
 });
 
 test("lookups por esporte e por modalidade", () => {

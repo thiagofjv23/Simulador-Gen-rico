@@ -13,7 +13,8 @@
 //
 // Automobilismo ainda não está neste catálogo (entra num passo posterior); por
 // isso a validação isenta esportes que ainda não possuem tipos de evento aqui.
-import { SPORTS, sportById } from "./sports.js";
+import { SPORTS, sportById, entityTypeForSport } from "./sports.js";
+import { ENTITY_TYPES, DEFAULT_ENTITY_TYPE } from "./clubs.js";
 import CATALOG_MODALITIES from "./modalities.js";
 import EVENT_TYPES from "./eventtypes.js";
 
@@ -58,6 +59,19 @@ export function validateCatalogIntegrity(
     if (!modality.name?.trim()) {
       errors.push(`Modalidade ${modality.id} sem nome.`);
     }
+    // entityType (atleta/equipe/mista) deve existir e ser compatível com o
+    // entityType do esporte: só de atleta não aceita equipe e vice-versa; mista
+    // aceita qualquer uma.
+    if (!ENTITY_TYPES[modality.entityType]) {
+      errors.push(`Modalidade ${modality.id} com entityType inválido: ${modality.entityType}.`);
+    } else if (sportIds.has(modality.sportId)) {
+      const sportEntity = ENTITY_TYPES[entityTypeForSport(modality.sportId, sports)];
+      const needsAthletes = modality.entityType === "atleta" || modality.entityType === "mista";
+      const needsClubs = modality.entityType === "equipe" || modality.entityType === "mista";
+      if ((needsAthletes && !sportEntity.allowsAthletes) || (needsClubs && !sportEntity.allowsClubs)) {
+        errors.push(`Modalidade ${modality.id}: entityType incompatível com o esporte.`);
+      }
+    }
   }
 
   const eventTypeIds = new Set();
@@ -82,6 +96,13 @@ export function validateCatalogIntegrity(
 
 export function catalogModalityById(modalityId) {
   return MODALITY_BY_ID.get(modalityId) ?? null;
+}
+
+// Tipo de entidade (atleta/equipe/mista) que disputa uma modalidade do catálogo.
+// É o que o gerador usa para decidir se cria atletas, clubes ou ambos.
+export function entityTypeForModality(modalityId) {
+  const entityType = MODALITY_BY_ID.get(modalityId)?.entityType;
+  return ENTITY_TYPES[entityType] ? entityType : DEFAULT_ENTITY_TYPE;
 }
 
 export function eventTypeById(eventTypeId) {
