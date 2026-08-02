@@ -1333,3 +1333,18 @@ um item da lista".
   seletor legado).
 - Conferido em navegador: Basquete, Esportes Aquáticos e Boxe carregam
   modalidades e tipos de evento corretos, com os campos válidos ao enviar.
+
+### Complemento: aceitar as modalidades do catálogo ao salvar
+
+Com o formulário passando a usar as modalidades do catálogo, dois pontos ainda
+rejeitavam a criação com "Escolha uma modalidade válida":
+
+- **js/competition.js**: `validateCompetition` valida a modalidade contra a união
+  das modalidades **legadas + do catálogo** (`[...MODALITIES, ...CATALOG_MODALITIES]`),
+  aceitando as do catálogo (formulário) e as legadas (presets/edição).
+- **js/app.js**: o construtor do formulário resolve a modalidade escolhida pelo
+  **catálogo** (`catalogModalityById`, com fallback para as legadas), de modo que o
+  `modalityId` gravado seja o do catálogo em vez de `null`.
+
+Conferido em navegador: criar uma competição de Basquete (esporte sem preset)
+conclui sem erro, com modalidade e tipo de evento do catálogo.

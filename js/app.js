@@ -3577,10 +3577,10 @@ async function handleCompetitionSubmit(submitEvent) {
     ? elements.competitionSeasonName.value.trim()
     : null;
   const selectedSport = sportById(elements.competitionSport.value, state.sports);
-  const selectedModality = modalityById(
-    elements.competitionDiscipline.value,
-    state.modalities,
-  );
+  // A modalidade escolhida vem do catálogo (js/modalities.js); com fallback para
+  // as modalidades legadas, para o caso de editar uma competição antiga.
+  const selectedModality = catalogModalityById(elements.competitionDiscipline.value)
+    ?? modalityById(elements.competitionDiscipline.value, state.modalities);
   const isMixedSport = selectedSport
     ? entityTypeForSport(selectedSport.id, state.sports) === "mista"
     : false;

@@ -2,8 +2,8 @@ import {
   geographicScopeLabel,
   validateGeographicScope,
 } from "./geography.js";
-import { validateSportSelection } from "./sports.js";
-import { validateCompetitionTaxonomy } from "./catalog.js";
+import { validateSportSelection, SPORTS, MODALITIES } from "./sports.js";
+import { validateCompetitionTaxonomy, CATALOG_MODALITIES } from "./catalog.js";
 import { scoringSystemById, scoringSystemLabel } from "./scoring.js";
 import { eventFormatById } from "./eventformat.js";
 import { markTypeById, resultMetricById } from "./metric.js";
@@ -239,7 +239,9 @@ export function validateCompetition(competition, { competitions = [] } = {}) {
   const errors = [];
 
   if (!competition.name?.trim()) errors.push("Informe o nome da competição.");
-  errors.push(...validateSportSelection(competition));
+  // A modalidade pode ser do catálogo (js/modalities.js, usada pelo formulário)
+  // ou uma legada (presets já existentes) — ambas são aceitas.
+  errors.push(...validateSportSelection(competition, SPORTS, [...MODALITIES, ...CATALOG_MODALITIES]));
   // Toda competição precisa estar atrelada a esporte + modalidade + tipo de
   // evento (ver js/catalog.js). Esportes ainda fora do catálogo ficam isentos.
   errors.push(...validateCompetitionTaxonomy(competition));
