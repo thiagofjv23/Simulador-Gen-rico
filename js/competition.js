@@ -3,6 +3,7 @@ import {
   validateGeographicScope,
 } from "./geography.js";
 import { validateSportSelection } from "./sports.js";
+import { validateCompetitionTaxonomy } from "./catalog.js";
 import { scoringSystemById, scoringSystemLabel } from "./scoring.js";
 import { eventFormatById } from "./eventformat.js";
 import { markTypeById, resultMetricById } from "./metric.js";
@@ -196,6 +197,9 @@ export function validateCompetition(competition, { competitions = [] } = {}) {
 
   if (!competition.name?.trim()) errors.push("Informe o nome da competição.");
   errors.push(...validateSportSelection(competition));
+  // Toda competição precisa estar atrelada a esporte + modalidade + tipo de
+  // evento (ver js/catalog.js). Esportes ainda fora do catálogo ficam isentos.
+  errors.push(...validateCompetitionTaxonomy(competition));
   if (!competition.startDate) errors.push("Informe a data inicial.");
   if (!competition.endDate) errors.push("Informe a data final.");
   if (

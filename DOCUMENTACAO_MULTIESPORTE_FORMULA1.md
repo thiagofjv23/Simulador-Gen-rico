@@ -1023,3 +1023,84 @@ e gols de mandante/visitante.
   de atletas e clubes; sem erros de console.
 
 Total após esta etapa: **180 testes** (todos verdes).
+
+## 33. Catálogo esporte → modalidade → tipo de evento
+
+Objetivo: estruturar a hierarquia para que **todo esporte tenha suas modalidades
+e toda modalidade tenha seus tipos de evento**, e garantir que **nenhuma
+competição exista sem estar atrelada a esporte + modalidade + tipo de evento**.
+
+### Dados canônicos (dois arquivos novos)
+
+- **js/modalities.js** (`export default`): 54 modalidades, cada uma com `id`,
+  `sportId` e `name`. É o nível intermediário (ex.: `modality_swimming`,
+  `modality_athletics`, `modality_tennis`).
+- **js/eventtypes.js** (`export default`): 185 tipos de evento, cada um com `id`,
+  `modalityId`, `sportId` e `name`. É o nível mais fino (ex.: `event_athletics_100m`,
+  `event_tennis_singles`, `event_football_tournament`).
+
+Automobilismo **ainda não entra** neste catálogo — é adicionado num passo
+posterior (esporte Automobilismo com as modalidades Open Wheel, GT, Endurance e
+Rally).
+
+### Módulo de domínio (js/catalog.js)
+
+Junta `SPORTS` + modalidades + tipos de evento num único ponto de consulta e
+validação:
+
+- **`validateCatalogIntegrity()`**: ids únicos e referências coerentes entre os
+  três níveis (toda modalidade aponta para um esporte existente; todo tipo de
+  evento pertence à sua modalidade e repete o mesmo esporte). Pura, usada nos
+  testes.
+- **Lookups**: `catalogModalityById`, `eventTypeById`, `catalogModalitiesForSport`,
+  `eventTypesForModality`, `eventTypesForSport`, `eventTypeLabel`,
+  `sportHasEventTypes`.
+- **`resolveCompetitionTaxonomy(competition)`**: devolve o par
+  (modalidade, tipo de evento) canônico de uma competição, aceitando tanto um
+  `eventTypeId` explícito (competições novas) quanto uma **modalidade legada
+  mapeável** (competições e presets já existentes).
+- **`validateCompetitionTaxonomy(competition)`**: garante o vínculo com os três
+  níveis. Esportes ainda fora do catálogo (sem tipos de evento, ex.: automobilismo)
+  ficam **isentos** até serem adicionados.
+
+### Integração aditiva (parallel) e mapa de compatibilidade
+
+A taxonomia legada de **js/sports.js** (modalidades finas como
+`modality_athletics_100m`, `modality_tennis_mens_singles`,
+`modality_football_brasileirao`) **continua alimentando os motores de
+simulação/ranking** — nada foi reescrito. O `LEGACY_MODALITY_ALIASES` traduz cada
+modalidade legada para o par (modalidade, tipo de evento) do catálogo:
+
+- tênis: `modality_tennis_mens_singles` → `modality_tennis` / `event_tennis_singles`;
+- futebol: as duas ligas caem em `modality_football` / `event_football_tournament`;
+- atletismo: `modality_athletics_<x>` → `modality_athletics` / `event_athletics_<x>`
+  (gerado a partir dos próprios tipos de evento).
+
+Assim, o **ranking permanente e o campeão de temporada continuam por tipo de
+evento** (mesma granularidade de hoje: cada prova de atletismo tem seu ranking;
+Brasileirão e J-League seguem separados). Todas as **319 competições dos presets**
+resolvem os três níveis (as 60 de automobilismo ficam isentas por ora).
+
+### Enforcement e formulário
+
+- **`validateCompetition`** (js/competition.js) passa a chamar
+  `validateCompetitionTaxonomy`: competições de esportes já no catálogo precisam
+  resolver modalidade + tipo de evento (via `eventTypeId` ou modalidade legada
+  mapeável).
+- **Formulário de competição**: novo seletor **“Tipo de evento”**
+  (`#competition-event-type`, `name="eventTypeId"`), preenchido a partir da
+  modalidade escolhida (`updateEventTypeSelect`), com um padrão sensato
+  pré-selecionado. O card da competição passa a exibir também o tipo de evento.
+
+### Verificação
+
+- **test/catalog.test.js** (novo): integridade do catálogo, lookups, mapa de
+  compatibilidade, `resolveCompetitionTaxonomy` e `validateCompetitionTaxonomy`
+  (aceita legado mapeável, isenta automobilismo, exige tipo de evento no catálogo,
+  rejeita tipo de evento de outra modalidade).
+- **test/competition.test.js**: aceita `eventTypeId` explícito, exige o vínculo
+  em esporte do catálogo e isenta automobilismo.
+- **test/ui-contract.test.js**: o formulário expõe o seletor de tipo de evento e o
+  app o preenche pela modalidade.
+
+Total após esta etapa: **202 testes** (todos verdes).

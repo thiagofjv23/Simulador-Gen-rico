@@ -42,6 +42,37 @@ test("aceita uma competição completa e válida", () => {
   assert.deepEqual(validateCompetition(validCompetition), []);
 });
 
+test("aceita uma competição com tipo de evento explícito do catálogo", () => {
+  assert.deepEqual(
+    validateCompetition({ ...validCompetition, eventTypeId: "event_tennis_singles" }),
+    [],
+  );
+});
+
+test("exige atrelar a competição a um tipo de evento em esporte do catálogo", () => {
+  const semTipo = {
+    ...validCompetition,
+    modalityId: "modality_tennis_desconhecida",
+  };
+  assert.match(validateCompetition(semTipo).join(" "), /tipo de evento/i);
+});
+
+test("isenta esportes ainda fora do catálogo (automobilismo)", () => {
+  const motorsport = {
+    ...validCompetition,
+    sportId: "sport_motorsport",
+    modalityId: "modality_motorsport_formula1",
+    sport: "Automobilismo",
+    discipline: "Fórmula 1",
+    scoringSystemId: "formula1-grand-prix",
+    geographicScope: "world",
+    continentId: null,
+    countryId: null,
+  };
+  // Não deve haver erro relativo a tipo de evento enquanto o esporte não entra no catálogo.
+  assert.doesNotMatch(validateCompetition(motorsport).join(" "), /tipo de evento/i);
+});
+
 test("aceita um modelo de rating de equipe válido com peso no intervalo", () => {
   assert.deepEqual(
     validateCompetition({

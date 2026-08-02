@@ -14,6 +14,18 @@ test("o formulário de competição usa seletores de esporte e modalidade", asyn
   assert.match(html, /id="scoring-system-help"/);
 });
 
+test("o formulário de competição também vincula um tipo de evento", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("index.html", projectRoot), "utf8"),
+    readFile(new URL("js/app.js", projectRoot), "utf8"),
+  ]);
+  assert.match(html, /<select id="competition-event-type"[^>]*name="eventTypeId"/);
+  assert.match(html, /id="event-type-help"/);
+  // O seletor de tipo de evento é preenchido a partir da modalidade escolhida.
+  assert.match(app, /updateEventTypeSelect/);
+  assert.match(app, /eventTypesForModality/);
+});
+
 test("o cadastro de competição permite escolher formato de prova e métrica", async () => {
   const [html, app] = await Promise.all([
     readFile(new URL("index.html", projectRoot), "utf8"),

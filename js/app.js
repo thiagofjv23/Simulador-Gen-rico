@@ -97,6 +97,11 @@ import {
   teamRatingConfigForModality,
 } from "./sports.js";
 import {
+  eventTypesForModality,
+  eventTypeLabel as catalogEventTypeLabel,
+  resolveCompetitionTaxonomy,
+} from "./catalog.js";
+import {
   TEAM_RATING_MODELS,
   teamRatingModelInfo,
   normalizeTeamWeight,
@@ -283,6 +288,8 @@ const elements = {
   competitionName: document.querySelector("#competition-name"),
   competitionSport: document.querySelector("#competition-sport"),
   competitionDiscipline: document.querySelector("#competition-discipline"),
+  competitionEventType: document.querySelector("#competition-event-type"),
+  eventTypeHelp: document.querySelector("#event-type-help"),
   competitionScoringSystem: document.querySelector("#competition-scoring-system"),
   scoringSystemHelp: document.querySelector("#scoring-system-help"),
   winnerPointsHelp: document.querySelector("#winner-points-help"),
@@ -456,6 +463,36 @@ function updateModalitySelect(preferredValue = "") {
     elements.competitionDiscipline.value = preferredValue;
   }
   elements.competitionDiscipline.disabled = !elements.competitionSport.value;
+  updateEventTypeSelect();
+}
+
+// Preenche o seletor de tipo de evento a partir da modalidade escolhida
+// (esporte → modalidade → tipo de evento, ver js/catalog.js). A modalidade do
+// formulário é a legada; o catálogo a resolve para a modalidade e o tipo de
+// evento canônicos, e as opções são os tipos de evento dessa modalidade, com um
+// padrão sensato pré-selecionado. Esportes ainda fora do catálogo (ex.:
+// automobilismo) ficam sem tipos de evento e o campo aparece desabilitado.
+function updateEventTypeSelect(preferredValue = "") {
+  const resolved = resolveCompetitionTaxonomy({
+    sportId: elements.competitionSport.value,
+    modalityId: elements.competitionDiscipline.value,
+  });
+  const options = resolved.modalityId ? eventTypesForModality(resolved.modalityId) : [];
+  replaceSelectOptions(
+    elements.competitionEventType,
+    options,
+    options.length ? "Escolha o tipo de evento" : "Não se aplica a este esporte",
+  );
+  const preferred = preferredValue || resolved.eventTypeId || "";
+  if (preferred && options.some(({ id }) => id === preferred)) {
+    elements.competitionEventType.value = preferred;
+  }
+  elements.competitionEventType.disabled = !options.length;
+  if (elements.eventTypeHelp) {
+    elements.eventTypeHelp.textContent = options.length
+      ? "Vincula a competição a um tipo de evento da modalidade (esporte → modalidade → tipo de evento)."
+      : "Este esporte ainda não possui tipos de evento no catálogo.";
+  }
 }
 
 function updateRankingModalitySelect(preferredValue = "") {
@@ -998,8 +1035,12 @@ function renderCompetitionCard(competition) {
       : `até ${formatShortDate(competition.endDate)} · ${recurrenceLabel}`;
 
   card.querySelector("h3").textContent = competition.name;
+  const taxonomy = resolveCompetitionTaxonomy(competition);
+  const eventTypeSuffix = taxonomy.eventTypeId
+    ? ` · ${catalogEventTypeLabel(taxonomy.eventTypeId)}`
+    : "";
   card.querySelector(".competition-main > p").textContent =
-    `${competition.sport} · ${competition.discipline}`;
+    `${competition.sport} · ${competition.discipline}${eventTypeSuffix}`;
 
   const rules = card.querySelector(".competition-rules");
   rules.append(
@@ -3236,6 +3277,7 @@ function openCompetitionDialog(competitionId = null, defaultDate = state.selecte
     elements.competitionName.value = competition.name;
     elements.competitionSport.value = competition.sportId ?? "";
     updateModalitySelect(competition.modalityId ?? "");
+    updateEventTypeSelect(competition.eventTypeId ?? "");
     updateScoringSystem({
       preferredValue: competition.scoringSystemId ?? "generic-proportional",
     });
@@ -3475,6 +3517,12 @@ async function handleCompetitionSubmit(submitEvent) {
     name: elements.competitionName.value.trim(),
     sportId: selectedSport?.id ?? null,
     modalityId: selectedModality?.id ?? null,
+    eventTypeId: elements.competitionEventType.value
+      || resolveCompetitionTaxonomy({
+        sportId: selectedSport?.id ?? null,
+        modalityId: selectedModality?.id ?? null,
+      }).eventTypeId
+      || null,
     sport: selectedSport?.name ?? "",
     discipline: selectedModality?.name ?? "",
     scoringSystemId: elements.competitionScoringSystem.value,
@@ -4784,6 +4832,7 @@ function attachEventListeners() {
     applyModalityTeamRatingDefaults();
   });
   elements.competitionDiscipline.addEventListener("change", () => {
+    updateEventTypeSelect();
     updateQualifierTargetOptions();
     applyModalityTeamRatingDefaults();
   });
