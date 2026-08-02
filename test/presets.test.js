@@ -3,11 +3,13 @@ import assert from "node:assert/strict";
 
 import {
   CALENDAR_PRESETS,
+  buildLeaguePresetCompetitions,
   buildPresetClubs,
   buildPresetCompetitions,
   buildPresetPeople,
   presetById,
 } from "../js/presets.js";
+import { resolveCompetitionTaxonomy } from "../js/catalog.js";
 
 const FIA = presetById("fia-ecosystem-2026");
 const F1_MODALITY = "modality_motorsport_formula1";
@@ -22,6 +24,37 @@ test("o catálogo de presets contém ATP, Ecossistema FIA, Atletismo e Futebol",
   assert.ok(presetById("world-athletics-2026"));
   assert.ok(FIA);
   assert.equal(buildPresetCompetitions(FIA).length, 24 + 14 + 10 + 8 + 4);
+});
+
+test("toda competição de preset está atrelada a tipo de evento e tier", () => {
+  for (const preset of CALENDAR_PRESETS) {
+    const competitions = preset.kind === "league"
+      ? buildLeaguePresetCompetitions(preset)
+      : buildPresetCompetitions(preset);
+    for (const competition of competitions) {
+      assert.ok(competition.eventTypeId, `${competition.name} sem eventTypeId`);
+      assert.ok(
+        Number.isInteger(competition.tier) && competition.tier >= 1 && competition.tier <= 4,
+        `${competition.name} com tier inválida`,
+      );
+      // O tipo de evento resolvido bate com o gravado.
+      assert.equal(
+        resolveCompetitionTaxonomy(competition).eventTypeId,
+        competition.eventTypeId,
+      );
+    }
+  }
+});
+
+test("a pirâmide FIA usa as tiers 1..4 (F1→Regional) via Open Wheel", () => {
+  const byModality = (modalityId) =>
+    buildPresetCompetitions(FIA).find((c) => c.modalityId === modalityId);
+  assert.equal(byModality(F1_MODALITY).tier, 1);
+  assert.equal(byModality(F2_MODALITY).tier, 2);
+  assert.equal(byModality(F3_MODALITY).tier, 3);
+  assert.equal(byModality(FREC_MODALITY).tier, 4);
+  assert.equal(byModality(F1_MODALITY).eventTypeId, "event_motorsport_formula1");
+  assert.equal(byModality(FRECME_MODALITY).eventTypeId, "event_motorsport_formula_regional_middle_east");
 });
 
 test("a Fórmula 1 do ecossistema cria 24 etapas anuais de três dias", () => {

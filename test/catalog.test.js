@@ -58,9 +58,23 @@ test("lookups por esporte e por modalidade", () => {
   assert.equal(eventTypeLabel("desconhecido"), "Não informado");
 });
 
-test("automobilismo ainda não está no catálogo (entra depois)", () => {
-  assert.equal(sportHasEventTypes("sport_motorsport"), false);
+test("automobilismo está no catálogo com Open Wheel/GT/Endurance/Rally", () => {
+  assert.equal(sportHasEventTypes("sport_motorsport"), true);
   assert.equal(sportHasEventTypes("sport_tennis"), true);
+  const modalities = catalogModalitiesForSport("sport_motorsport").map(({ id }) => id);
+  assert.deepEqual(modalities.sort(), [
+    "modality_motorsport_endurance",
+    "modality_motorsport_gt",
+    "modality_motorsport_open_wheel",
+    "modality_motorsport_rally",
+  ]);
+  // Open Wheel preserva a estrutura F1/F2/F3/regional como tipos de evento.
+  const openWheel = eventTypesForModality("modality_motorsport_open_wheel").map(({ id }) => id);
+  assert.ok(openWheel.includes("event_motorsport_formula1"));
+  assert.ok(openWheel.includes("event_motorsport_formula2"));
+  assert.ok(openWheel.includes("event_motorsport_formula3"));
+  assert.ok(openWheel.includes("event_motorsport_formula_regional_europe"));
+  assert.ok(openWheel.includes("event_motorsport_formula_regional_middle_east"));
 });
 
 test("o mapa de compatibilidade resolve modalidades legadas", () => {
@@ -117,7 +131,13 @@ test("validateCompetitionTaxonomy aceita competição legada mapeável", () => {
   );
 });
 
-test("validateCompetitionTaxonomy isenta esporte fora do catálogo", () => {
+test("automobilismo legado resolve via Open Wheel (F1/F2/F3/regional)", () => {
+  const resolved = resolveCompetitionTaxonomy({
+    sportId: "sport_motorsport",
+    modalityId: "modality_motorsport_formula1",
+  });
+  assert.equal(resolved.modalityId, "modality_motorsport_open_wheel");
+  assert.equal(resolved.eventTypeId, "event_motorsport_formula1");
   assert.deepEqual(
     validateCompetitionTaxonomy({
       sportId: "sport_motorsport",

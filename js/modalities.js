@@ -344,4 +344,27 @@ export default [
     sportId: "sport_wrestling",
     name: "Luta Greco-Romana",
   },
+
+  // Automobilismo (sport_motorsport). Open Wheel reúne as categorias de monoposto
+  // (Fórmula 1/2/3 e Regionais); GT, Endurance e Rally completam as famílias.
+  {
+    id: "modality_motorsport_open_wheel",
+    sportId: "sport_motorsport",
+    name: "Open Wheel",
+  },
+  {
+    id: "modality_motorsport_gt",
+    sportId: "sport_motorsport",
+    name: "GT",
+  },
+  {
+    id: "modality_motorsport_endurance",
+    sportId: "sport_motorsport",
+    name: "Endurance",
+  },
+  {
+    id: "modality_motorsport_rally",
+    sportId: "sport_motorsport",
+    name: "Rally",
+  },
 ];

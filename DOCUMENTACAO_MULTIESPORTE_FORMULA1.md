@@ -1104,3 +1104,71 @@ resolvem os três níveis (as 60 de automobilismo ficam isentas por ora).
   app o preenche pela modalidade.
 
 Total após esta etapa: **202 testes** (todos verdes).
+
+## 34. Automobilismo no catálogo e estrutura de tiers
+
+Duas features encadeadas: (A) trazer o **Automobilismo** para o catálogo
+esporte → modalidade → tipo de evento e adequar todos os presets a ele; (B)
+introduzir a **tier** (1 a 4) em toda competição. Nenhum motor precisou de
+exceção só para preset — tudo coube nos parâmetros genéricos já existentes.
+
+### A. Automobilismo (Open Wheel, GT, Endurance, Rally)
+
+- **js/modalities.js**: 4 modalidades novas de `sport_motorsport` — Open Wheel,
+  GT, Endurance e Rally.
+- **js/eventtypes.js**: os tipos de evento de **Open Wheel preservam a estrutura
+  já existente** (Fórmula 1, Fórmula 2, Fórmula 3, Fórmula Regional Europeia e
+  Oriente Médio); GT, Endurance e Rally recebem tipos de evento representativos
+  (GT World Challenge/GT3, WEC/24h, WRC/Rally Raid).
+- **js/catalog.js**: o `LEGACY_MODALITY_ALIASES` passa a mapear as modalidades
+  legadas de monoposto (`modality_motorsport_formula1`…`_regional_middle_east`)
+  para a modalidade **Open Wheel** e o tipo de evento correspondente. Assim o
+  motor de temporada continua lendo a modalidade legada, enquanto a competição
+  fica atrelada aos três níveis do catálogo. Com o esporte agora no catálogo, ele
+  **deixa de ser isento** — todas as 60 etapas de automobilismo dos presets
+  resolvem esporte + modalidade + tipo de evento.
+
+### B. Tier (1 a 4) em toda competição
+
+- **js/competition.js**: `COMPETITION_TIERS` (1 = elite … 4 = regional),
+  `tierForPrestige(prestige)` (sugestão a partir do prestígio: ≥85→1, ≥65→2,
+  ≥45→3, senão 4) e `tierLabel`. `validateCompetition` passa a **exigir uma tier
+  inteira de 1 a 4** em toda competição.
+- **Formulário**: novo seletor **“Tier”** (`#competition-tier`, `name="tier"`,
+  obrigatório), com padrão sugerido pelo prestígio e sobrescrevível; o card da
+  competição ganha um selo de tier.
+- **Presets**: cada competição de preset recebe `tier` — a pirâmide FIA usa a
+  tier explícita (F1=1, F2=2, F3=3, Regionais=4) e as demais derivam do prestígio
+  (Grand Slams, Diamond League e primeiras divisões nacionais caem no Tier 1).
+  Distribuição resultante nos presets: 162 no Tier 1, 106 no Tier 2, 39 no Tier 3
+  e 12 no Tier 4.
+
+### Adequação dos presets ao catálogo
+
+Os construtores `buildPresetCompetitions` e `buildLeaguePresetCompetitions`
+passam a gravar **`eventTypeId`** (resolvido pelo catálogo) e **`tier`** em cada
+competição. As **319 competições** dos presets carregam os três níveis e uma tier,
+e todas passam por `validateCompetition` sem erros.
+
+### Motores universais
+
+Nenhuma exceção específica de preset foi criada. Toda a estrutura dos presets
+(pontuação, métrica, formato de prova, modelo de competição) já era coberta pelos
+parâmetros genéricos do criador de competições, então nenhum motor precisou de
+adição nesta etapa.
+
+### Verificação
+
+- **test/catalog.test.js**: automobilismo presente com Open Wheel/GT/Endurance/
+  Rally e resolução das categorias legadas via Open Wheel.
+- **test/competition.test.js**: exige tier 1–4; `tierForPrestige`/`tierLabel`;
+  automobilismo resolve o tipo de evento pela modalidade legada.
+- **test/presets.test.js**: toda competição de preset tem `eventTypeId` e `tier`;
+  a pirâmide FIA usa as tiers 1..4 via Open Wheel.
+- **test/ui-contract.test.js**: o formulário exige uma tier.
+- **Smoke de navegador** (Chromium headless): app inicia sem erros de console; ao
+  escolher Atletismo o seletor de tipo de evento lista as 27 provas; ao escolher a
+  modalidade legada “Fórmula 1” em Automobilismo o tipo de evento resolve para
+  Open Wheel / Fórmula 1; o seletor de tier é preenchido com 1..4.
+
+Total após esta etapa: **207 testes** (todos verdes).

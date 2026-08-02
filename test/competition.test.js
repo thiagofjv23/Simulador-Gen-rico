@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   MIXED_QUALIFICATION_COMBINATIONS,
+  COMPETITION_TIERS,
   buildCalendarEvent,
   competitionStats,
   invitationOpensOn,
@@ -10,6 +11,8 @@ import {
   qualificationMethods,
   slotsForQualificationMethod,
   sortCompetitions,
+  tierForPrestige,
+  tierLabel,
   validateCompetition,
 } from "../js/competition.js";
 
@@ -30,6 +33,7 @@ const validCompetition = {
   endDate: "2028-04-24",
   recurrence: "yearly",
   prestige: 75,
+  tier: 2,
   rankingPoints: 300,
   slots: 24,
   minimumRanking: 100,
@@ -57,7 +61,7 @@ test("exige atrelar a competição a um tipo de evento em esporte do catálogo",
   assert.match(validateCompetition(semTipo).join(" "), /tipo de evento/i);
 });
 
-test("isenta esportes ainda fora do catálogo (automobilismo)", () => {
+test("automobilismo resolve o tipo de evento pela modalidade legada", () => {
   const motorsport = {
     ...validCompetition,
     sportId: "sport_motorsport",
@@ -69,8 +73,9 @@ test("isenta esportes ainda fora do catálogo (automobilismo)", () => {
     continentId: null,
     countryId: null,
   };
-  // Não deve haver erro relativo a tipo de evento enquanto o esporte não entra no catálogo.
-  assert.doesNotMatch(validateCompetition(motorsport).join(" "), /tipo de evento/i);
+  // Já está no catálogo: a modalidade legada resolve para Open Wheel / Fórmula 1,
+  // então não há erro de tipo de evento.
+  assert.deepEqual(validateCompetition(motorsport), []);
 });
 
 test("aceita um modelo de rating de equipe válido com peso no intervalo", () => {
@@ -108,6 +113,25 @@ test("rejeita prestígio e vagas fora dos limites", () => {
   const errors = validateCompetition(invalid).join(" ");
   assert.match(errors, /prestígio/i);
   assert.match(errors, /vagas/i);
+});
+
+test("exige uma tier de 1 a 4 em toda competição", () => {
+  assert.match(validateCompetition({ ...validCompetition, tier: undefined }).join(" "), /tier/i);
+  assert.match(validateCompetition({ ...validCompetition, tier: 0 }).join(" "), /tier/i);
+  assert.match(validateCompetition({ ...validCompetition, tier: 5 }).join(" "), /tier/i);
+  assert.deepEqual(validateCompetition({ ...validCompetition, tier: 1 }), []);
+  assert.deepEqual(validateCompetition({ ...validCompetition, tier: 4 }), []);
+});
+
+test("tierForPrestige mapeia prestígio para tier (1 = maior)", () => {
+  assert.equal(tierForPrestige(100), 1); // Grand Slam / Fórmula 1
+  assert.equal(tierForPrestige(88), 1); // Diamond League
+  assert.equal(tierForPrestige(75), 2); // ATP 500
+  assert.equal(tierForPrestige(55), 3); // ATP 250
+  assert.equal(tierForPrestige(30), 4); // regional
+  assert.equal(COMPETITION_TIERS.length, 4);
+  assert.equal(tierLabel(1), "Tier 1");
+  assert.equal(tierLabel(99), "Não informado");
 });
 
 test("rejeita pontuação do vencedor fora dos limites", () => {

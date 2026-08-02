@@ -340,4 +340,28 @@ export default [
   { id: "event_wrestling_greco_roman_lightweight", modalityId: "modality_wrestling_greco_roman", sportId: "sport_wrestling", name: "Greco-Romana - Categoria Leve" },
   { id: "event_wrestling_greco_roman_middleweight", modalityId: "modality_wrestling_greco_roman", sportId: "sport_wrestling", name: "Greco-Romana - Categoria Médio" },
   { id: "event_wrestling_greco_roman_heavyweight", modalityId: "modality_wrestling_greco_roman", sportId: "sport_wrestling", name: "Greco-Romana - Categoria Pesado" },
+
+  // ==========================================
+  // AUTOMOBILISMO (sport_motorsport)
+  // ==========================================
+  // Open Wheel (modality_motorsport_open_wheel) — categorias de monoposto já
+  // existentes: Fórmula 1, 2, 3 e as Fórmulas Regionais.
+  { id: "event_motorsport_formula1", modalityId: "modality_motorsport_open_wheel", sportId: "sport_motorsport", name: "Fórmula 1" },
+  { id: "event_motorsport_formula2", modalityId: "modality_motorsport_open_wheel", sportId: "sport_motorsport", name: "Fórmula 2" },
+  { id: "event_motorsport_formula3", modalityId: "modality_motorsport_open_wheel", sportId: "sport_motorsport", name: "Fórmula 3" },
+  { id: "event_motorsport_formula_regional_europe", modalityId: "modality_motorsport_open_wheel", sportId: "sport_motorsport", name: "Fórmula Regional Europeia" },
+  { id: "event_motorsport_formula_regional_middle_east", modalityId: "modality_motorsport_open_wheel", sportId: "sport_motorsport", name: "Fórmula Regional Oriente Médio" },
+
+  // GT (modality_motorsport_gt)
+  { id: "event_motorsport_gt_world_challenge", modalityId: "modality_motorsport_gt", sportId: "sport_motorsport", name: "GT World Challenge" },
+  { id: "event_motorsport_gt3_sprint", modalityId: "modality_motorsport_gt", sportId: "sport_motorsport", name: "GT3 Sprint" },
+  { id: "event_motorsport_gt3_endurance", modalityId: "modality_motorsport_gt", sportId: "sport_motorsport", name: "GT3 Endurance" },
+
+  // Endurance (modality_motorsport_endurance)
+  { id: "event_motorsport_endurance_wec", modalityId: "modality_motorsport_endurance", sportId: "sport_motorsport", name: "Campeonato Mundial de Endurance (WEC)" },
+  { id: "event_motorsport_endurance_24h", modalityId: "modality_motorsport_endurance", sportId: "sport_motorsport", name: "Prova de 24 Horas" },
+
+  // Rally (modality_motorsport_rally)
+  { id: "event_motorsport_rally_wrc", modalityId: "modality_motorsport_rally", sportId: "sport_motorsport", name: "Campeonato Mundial de Rali (WRC)" },
+  { id: "event_motorsport_rally_raid", modalityId: "modality_motorsport_rally", sportId: "sport_motorsport", name: "Rally Raid" },
 ];

@@ -47,6 +47,10 @@ import {
   QUALIFICATION_CRITERIA,
   MIXED_QUALIFICATION_COMBINATIONS,
   COMPETITION_MODELS,
+  COMPETITION_TIERS,
+  DEFAULT_TIER,
+  tierForPrestige,
+  tierLabel,
   buildCalendarEvent,
   competitionStats,
   competitionModelLabel,
@@ -330,6 +334,8 @@ const elements = {
   competitionEndDate: document.querySelector("#competition-end-date"),
   competitionYearly: document.querySelector("#competition-yearly"),
   competitionPrestige: document.querySelector("#competition-prestige"),
+  competitionTier: document.querySelector("#competition-tier"),
+  competitionTierHelp: document.querySelector("#competition-tier-help"),
   competitionRankingPoints: document.querySelector("#competition-ranking-points"),
   competitionSlots: document.querySelector("#competition-slots"),
   competitionNotes: document.querySelector("#competition-notes"),
@@ -542,6 +548,27 @@ function setupTeamRatingOptions() {
     elements.competitionTeamRatingModel,
     Object.values(TEAM_RATING_MODELS).map(({ id, label }) => ({ id, name: label })),
   );
+}
+
+function setupTierOptions() {
+  fillSelectOptions(
+    elements.competitionTier,
+    COMPETITION_TIERS.map((tier) => ({
+      id: String(tier.id),
+      name: `${tier.label} — ${tier.description.split(":")[0]}`,
+    })),
+  );
+}
+
+// Mostra a explicação do tier selecionado e, quando o campo ainda está no
+// padrão, acompanha o prestígio (Tier 1 = maior). O jogador pode sobrescrever.
+function updateTierHelp() {
+  const tier = Number(elements.competitionTier.value) || DEFAULT_TIER;
+  const info = COMPETITION_TIERS.find(({ id }) => id === tier);
+  if (elements.competitionTierHelp) {
+    elements.competitionTierHelp.textContent = info?.description
+      ?? "Nível de prestígio da competição: Tier 1 (maior) a Tier 4 (menor).";
+  }
 }
 
 // O painel de rating de equipe só aparece para esportes mistos (atletas +
@@ -1044,6 +1071,7 @@ function renderCompetitionCard(competition) {
 
   const rules = card.querySelector(".competition-rules");
   rules.append(
+    createBadge(tierLabel(competition.tier ?? tierForPrestige(competition.prestige)), "tier"),
     createBadge(`${competition.slots} vagas`),
     createBadge(qualificationLabel(competition.qualification)),
     createBadge(geographicScopeLabel(competition), "geography"),
@@ -3257,6 +3285,10 @@ function resetCompetitionForm(defaultDate) {
   elements.competitionTeamWeight.value = 0;
   elements.deleteCompetitionButton.classList.add("hidden");
   elements.competitionFormError.textContent = "";
+  elements.competitionTier.value = String(
+    tierForPrestige(Number(elements.competitionPrestige.value) || 50),
+  );
+  updateTierHelp();
   updateScoringSystem({ preferredValue: "generic-proportional" });
   updateCompetitionModelFields();
   updateEventFormatFields();
@@ -3294,6 +3326,10 @@ function openCompetitionDialog(competitionId = null, defaultDate = state.selecte
     elements.competitionEndDate.value = competition.endDate;
     elements.competitionYearly.checked = competition.recurrence === "yearly";
     elements.competitionPrestige.value = competition.prestige;
+    elements.competitionTier.value = String(
+      competition.tier ?? tierForPrestige(competition.prestige),
+    );
+    updateTierHelp();
     elements.competitionRankingPoints.value = competition.rankingPoints ?? 100;
     updateScoringSystem({
       preferredValue: competition.scoringSystemId ?? "generic-proportional",
@@ -3577,6 +3613,8 @@ async function handleCompetitionSubmit(submitEvent) {
       ? "yearly"
       : "none",
     prestige: Number(elements.competitionPrestige.value),
+    tier: Number(elements.competitionTier.value)
+      || tierForPrestige(Number(elements.competitionPrestige.value)),
     rankingPoints: Number(elements.competitionRankingPoints.value),
     slots: Number(elements.competitionSlots.value),
     minimumRanking: null,
@@ -4851,6 +4889,7 @@ function attachEventListeners() {
   );
   elements.competitionEventFormat.addEventListener("change", updateEventFormatFields);
   elements.competitionResultMetric.addEventListener("change", updateEventFormatFields);
+  elements.competitionTier.addEventListener("change", updateTierHelp);
   elements.competitionGeographicScope.addEventListener(
     "change",
     () => updateCompetitionGeographyFields(),
@@ -4955,6 +4994,7 @@ function initialize() {
   setupScoringSystemOptions();
   setupEventFormatOptions();
   setupTeamRatingOptions();
+  setupTierOptions();
   setupMixedQualificationOptions();
   setupPresetOptions();
   switchHub(state.activeHub);

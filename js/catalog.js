@@ -134,6 +134,28 @@ export const LEGACY_MODALITY_ALIASES = (() => {
       modalityId: "modality_football",
       eventTypeId: "event_football_tournament",
     },
+    // Automobilismo: as categorias legadas de monoposto viram tipos de evento da
+    // modalidade Open Wheel (a estrutura F1/F2/F3/regional é preservada).
+    modality_motorsport_formula1: {
+      modalityId: "modality_motorsport_open_wheel",
+      eventTypeId: "event_motorsport_formula1",
+    },
+    modality_motorsport_formula2: {
+      modalityId: "modality_motorsport_open_wheel",
+      eventTypeId: "event_motorsport_formula2",
+    },
+    modality_motorsport_formula3: {
+      modalityId: "modality_motorsport_open_wheel",
+      eventTypeId: "event_motorsport_formula3",
+    },
+    modality_motorsport_formula_regional: {
+      modalityId: "modality_motorsport_open_wheel",
+      eventTypeId: "event_motorsport_formula_regional_europe",
+    },
+    modality_motorsport_formula_regional_middle_east: {
+      modalityId: "modality_motorsport_open_wheel",
+      eventTypeId: "event_motorsport_formula_regional_middle_east",
+    },
   };
   for (const eventType of EVENT_TYPES) {
     if (eventType.sportId !== "sport_athletics") continue;

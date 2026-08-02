@@ -1125,6 +1125,11 @@ h2 {
   color: #72e6c0;
 }
 
+.badge.tier {
+  border-color: rgb(245 197 91 / 32%);
+  color: #f5c55b;
+}
+
 .badge.simulated {
   border-color: rgb(109 124 255 / 32%);
   color: #b8c0ff;

@@ -26,6 +26,17 @@ test("o formulário de competição também vincula um tipo de evento", async ()
   assert.match(app, /eventTypesForModality/);
 });
 
+test("o formulário de competição exige uma tier", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("index.html", projectRoot), "utf8"),
+    readFile(new URL("js/app.js", projectRoot), "utf8"),
+  ]);
+  assert.match(html, /<select id="competition-tier"[^>]*name="tier"[^>]*required/);
+  assert.match(html, /id="competition-tier-help"/);
+  assert.match(app, /setupTierOptions/);
+  assert.match(app, /tierForPrestige/);
+});
+
 test("o cadastro de competição permite escolher formato de prova e métrica", async () => {
   const [html, app] = await Promise.all([
     readFile(new URL("index.html", projectRoot), "utf8"),

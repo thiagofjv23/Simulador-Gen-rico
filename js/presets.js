@@ -1,6 +1,8 @@
 import { createClub, clubIdFor } from "./clubs.js";
 import { entityTypeForSport } from "./sports.js";
 import { buildFixtures } from "./league.js";
+import { resolveCompetitionTaxonomy } from "./catalog.js";
+import { tierForPrestige } from "./competition.js";
 
 const ATP_2026_TOURNAMENTS = [
   ["brisbane", "Brisbane International presented by ANZ", "2026-01-05", "2026-01-11", "Brisbane, Austrália", "Dura", "ATP 250"],
@@ -1224,8 +1226,14 @@ export function buildPresetCompetitions(preset, timestamp = new Date().toISOStri
         name: tournament.name,
         sportId: series.sportId,
         modalityId: series.modalityId,
+        eventTypeId: resolveCompetitionTaxonomy({
+          sportId: series.sportId,
+          modalityId: series.modalityId,
+        }).eventTypeId,
         sport: series.sportName,
         discipline: series.modalityName,
+        // Tier explícito (ex.: pirâmide FIA) ou sugerido pelo prestígio.
+        tier: series.tier ?? tierForPrestige(settings.prestige),
         type: isSeasonStage ? "league" : "championship",
         qualification: series.qualification ?? "ranking",
         geographicScope: "world",
@@ -1331,8 +1339,14 @@ export function buildLeaguePresetCompetitions(preset, timestamp = new Date().toI
         name: `${league.competitionName} — Rodada ${round}`,
         sportId: "sport_football",
         modalityId: league.modalityId,
+        eventTypeId: resolveCompetitionTaxonomy({
+          sportId: "sport_football",
+          modalityId: league.modalityId,
+        }).eventTypeId,
         sport: "Futebol",
         discipline: league.modalityName,
+        // Primeira divisão nacional: tier alto, sugerido pelo prestígio da liga.
+        tier: tierForPrestige(league.prestige),
         type: "league",
         qualification: "ranking",
         geographicScope: "national",
