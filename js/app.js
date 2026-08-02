@@ -481,29 +481,35 @@ function setupGeographyOptions() {
 }
 
 function updateModalitySelect(preferredValue = "") {
+  const sportId = elements.competitionSport.value;
+  // Modalidades do catálogo (todos os esportes têm as suas), para que a lista
+  // carregue ao escolher o esporte — não só para os que têm preset.
   replaceSelectOptions(
     elements.competitionDiscipline,
-    modalitiesForSport(elements.competitionSport.value, state.modalities),
-    elements.competitionSport.value
-      ? "Escolha a modalidade"
-      : "Escolha primeiro o esporte",
+    catalogModalitiesForSport(sportId),
+    sportId ? "Escolha a modalidade" : "Escolha primeiro o esporte",
   );
-  if (
-    preferredValue
-    && [...elements.competitionDiscipline.options].some(({ value }) => value === preferredValue)
-  ) {
-    elements.competitionDiscipline.value = preferredValue;
+  // Aceita a modalidade do catálogo diretamente ou resolve uma modalidade legada
+  // (ex.: competições de preset ao editar) para a equivalente do catálogo.
+  let preferred = preferredValue;
+  if (preferred && !catalogModalityById(preferred)) {
+    preferred = resolveCompetitionTaxonomy({ sportId, modalityId: preferred }).modalityId ?? "";
   }
-  elements.competitionDiscipline.disabled = !elements.competitionSport.value;
+  const options = [...elements.competitionDiscipline.options].filter(({ value }) => value);
+  if (preferred && options.some(({ value }) => value === preferred)) {
+    elements.competitionDiscipline.value = preferred;
+  } else if (!elements.competitionDiscipline.value && options.length) {
+    // Seleciona a primeira modalidade para que os tipos de evento apareçam já.
+    elements.competitionDiscipline.value = options[0].value;
+  }
+  elements.competitionDiscipline.disabled = !sportId;
   updateEventTypeSelect();
 }
 
 // Preenche o seletor de tipo de evento a partir da modalidade escolhida
-// (esporte → modalidade → tipo de evento, ver js/catalog.js). A modalidade do
-// formulário é a legada; o catálogo a resolve para a modalidade e o tipo de
-// evento canônicos, e as opções são os tipos de evento dessa modalidade, com um
-// padrão sensato pré-selecionado. Esportes ainda fora do catálogo (ex.:
-// automobilismo) ficam sem tipos de evento e o campo aparece desabilitado.
+// (esporte → modalidade → tipo de evento, ver js/catalog.js). As opções são os
+// tipos de evento da modalidade, com o primeiro pré-selecionado. Uma modalidade
+// legada (ex.: preset ao editar) é resolvida para a modalidade do catálogo antes.
 function updateEventTypeSelect(preferredValue = "") {
   const resolved = resolveCompetitionTaxonomy({
     sportId: elements.competitionSport.value,
@@ -518,6 +524,9 @@ function updateEventTypeSelect(preferredValue = "") {
   const preferred = preferredValue || resolved.eventTypeId || "";
   if (preferred && options.some(({ id }) => id === preferred)) {
     elements.competitionEventType.value = preferred;
+  } else if (!elements.competitionEventType.value && options.length) {
+    // Seleciona o primeiro tipo de evento para o campo já ficar válido.
+    elements.competitionEventType.value = options[0].id;
   }
   elements.competitionEventType.disabled = !options.length;
   if (elements.eventTypeHelp) {

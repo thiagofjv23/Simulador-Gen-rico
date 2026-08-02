@@ -1314,3 +1314,22 @@ Interface do gerador (novo save e saves em andamento) e a tela de visualização
   opções de país e 7 de continente, sem erros de console.
 
 Total após esta etapa: **223 testes** (todos verdes).
+
+## 39. Correção: modalidades e tipos de evento no formulário de competição
+
+O seletor de modalidade do formulário de nova competição era preenchido pelas
+modalidades **legadas** (`state.modalities`), que só existem para os esportes com
+preset — os demais ficavam com a lista vazia e a criação falhava com "Selecione
+um item da lista".
+
+- **js/app.js (`updateModalitySelect`)**: passa a listar as modalidades do
+  **catálogo** do esporte (`catalogModalitiesForSport`), então todos os esportes
+  carregam suas modalidades ao serem escolhidos. A primeira modalidade é
+  pré-selecionada e, em cascata, os **tipos de evento** daquela modalidade
+  aparecem já preenchidos (o primeiro pré-selecionado). Ao **editar** uma
+  competição de preset (modalidade legada), ela é resolvida para a modalidade do
+  catálogo equivalente antes de selecionar.
+- Nada além do formulário de competição foi alterado (a tela de ranking mantém o
+  seletor legado).
+- Conferido em navegador: Basquete, Esportes Aquáticos e Boxe carregam
+  modalidades e tipos de evento corretos, com os campos válidos ao enviar.
