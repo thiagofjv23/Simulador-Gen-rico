@@ -1348,3 +1348,31 @@ rejeitavam a criação com "Escolha uma modalidade válida":
 
 Conferido em navegador: criar uma competição de Basquete (esporte sem preset)
 conclui sem erro, com modalidade e tipo de evento do catálogo.
+
+## 40. Entidades geradas atreladas a tipo de evento
+
+Além do esporte e da modalidade, cada atleta/clube gerado passa a ficar atrelado
+a um **tipo de evento** (esporte → modalidade → tipo de evento).
+
+- **js/generator.js**: mantém as **20 por nacionalidade por modalidade** e
+  distribui cada entidade, em rodízio, pelos tipos de evento da modalidade
+  (`eventTypesForModality`), gravando o `eventTypeId`. Modalidade com um único
+  evento manda todas para ele (ex.: futebol → torneio); modalidade com vários
+  espalha (ex.: atletismo entre as 27 provas — ~150 atletas por prova no mundo,
+  um tamanho de grid realista, em vez de milhares). Modalidade sem evento no
+  catálogo fica com `eventTypeId` nulo.
+- **Página Clubes/Atletas**: novo seletor **"Tipo de evento"** (em cascata, entre
+  modalidade e continente), que só mostra eventos com entidades ativas; o top 3
+  passa a exibir também a prova/evento de cada entidade.
+
+### Verificação
+
+- **test/generator.test.js**: toda entidade recebe `eventTypeId`; em modalidade de
+  muitos eventos as entidades se espalham; em modalidade de evento único todas
+  caem nele.
+- **test/ui-contract.test.js**: a página expõe o seletor de tipo de evento.
+- **Smoke de navegador**: gerar Atletismo criou 4120 atletas espalhados pelas 27
+  provas; na página, o seletor de evento listou as 27 e, ao filtrar por "100m
+  Rasos", o top 3 mostrou só atletas dessa prova.
+
+Total após esta etapa: **224 testes** (todos verdes).

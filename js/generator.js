@@ -6,7 +6,7 @@
 
 import { hydratePersonGeography } from "./geography.js";
 import { createClub, clubIdFor, ENTITY_TYPES } from "./clubs.js";
-import { entityTypeForModality } from "./catalog.js";
+import { entityTypeForModality, eventTypesForModality } from "./catalog.js";
 
 export const ENTITIES_PER_NATIONALITY = 20;
 export const MIN_AGE = 16;
@@ -101,6 +101,12 @@ export function generateModalityEntities({
   const sportSlug = slugify(sport.id.replace(/^sport_/, ""));
   const modalitySlug = slugify(modality.id.replace(/^modality_/, ""));
 
+  // Cada entidade fica atrelada a um tipo de evento da modalidade, distribuídos
+  // em rodízio pelo pool (esporte → modalidade → tipo de evento). Modalidade com
+  // um único evento manda todas para ele; sem eventos no catálogo, fica null.
+  const events = eventTypesForModality(modality.id);
+  const eventTypeFor = (index) => (events.length ? events[index % events.length].id : null);
+
   const personRatings = allows.allowsAthletes ? generateModalityRatings(total, rng) : [];
   const clubRatings = allows.allowsClubs ? generateModalityRatings(total, rng) : [];
   let cursor = 0;
@@ -108,6 +114,7 @@ export function generateModalityEntities({
   for (const country of countries) {
     for (let i = 0; i < perNationality; i += 1) {
       const index = cursor;
+      const eventTypeId = eventTypeFor(index);
       if (allows.allowsAthletes) {
         people.push(hydratePersonGeography({
           id: `person_gen_${sportSlug}_${modalitySlug}_${country.code.toLocaleLowerCase()}_${i}`,
@@ -121,13 +128,14 @@ export function generateModalityEntities({
           rivals: [],
           sportId: sport.id,
           modalityId: modality.id,
+          eventTypeId,
           rosterType: "generated",
           createdAt: timestamp,
           updatedAt: timestamp,
         }));
       }
       if (allows.allowsClubs) {
-        clubs.push(createClub({
+        const club = createClub({
           id: clubIdFor(sport.id, `gen_${modalitySlug}_${country.code.toLocaleLowerCase()}_${i}`),
           name: nameGen.clubName(country.code),
           sportId: sport.id,
@@ -138,7 +146,10 @@ export function generateModalityEntities({
           rosterType: "generated",
           createdAt: timestamp,
           updatedAt: timestamp,
-        }));
+        });
+        // createClub monta um objeto fixo; atrelamos o tipo de evento depois.
+        club.eventTypeId = eventTypeId;
+        clubs.push(club);
       }
       cursor += 1;
     }

@@ -74,6 +74,32 @@ test("modalidade de equipe gera só clubes", () => {
   assert.match(clubs[0].name, /^Clube /);
 });
 
+test("cada entidade fica atrelada a um tipo de evento, distribuído pela modalidade", () => {
+  // Atletismo tem muitos tipos de evento: as 20 por país são distribuídas.
+  const athletics = generateModalityEntities({
+    sport: sportById("sport_athletics"),
+    modality: catalogModalityById("modality_athletics"),
+    countries,
+    nameGen,
+    rng: createRng(4),
+  });
+  assert.ok(athletics.people.every((p) => p.eventTypeId), "todo atleta tem eventTypeId");
+  const events = new Set(athletics.people.map((p) => p.eventTypeId));
+  assert.ok(events.size > 1, "os atletas se espalham por vários tipos de evento");
+  // O eventTypeId pertence à modalidade do atleta.
+  assert.ok(athletics.people.every((p) => p.eventTypeId.startsWith("event_athletics_")));
+
+  // Futebol tem um único tipo de evento: todos os clubes caem nele.
+  const football = generateModalityEntities({
+    sport: sportById("sport_football"),
+    modality: catalogModalityById("modality_football"),
+    countries,
+    nameGen,
+    rng: createRng(5),
+  });
+  assert.ok(football.clubs.every((c) => c.eventTypeId === "event_football_tournament"));
+});
+
 test("modalidade mista gera atletas e clubes", () => {
   const { people, clubs } = generateModalityEntities({
     sport: sportById("sport_motorsport"),

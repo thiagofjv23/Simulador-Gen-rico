@@ -390,6 +390,7 @@ const elements = {
   entitiesView: document.querySelector("#entities-view"),
   entitiesSport: document.querySelector("#entities-sport"),
   entitiesModality: document.querySelector("#entities-modality"),
+  entitiesEventType: document.querySelector("#entities-event-type"),
   entitiesContinent: document.querySelector("#entities-continent"),
   entitiesCountry: document.querySelector("#entities-country"),
   entitiesTopAthletes: document.querySelector("#entities-top-athletes"),
@@ -4632,9 +4633,10 @@ function modalityDisplayName(modalityId) {
     ?? modalityId;
 }
 
-function matchesEntityFilters(entity, { sportId, modalityId, continentId, countryId }) {
+function matchesEntityFilters(entity, { sportId, modalityId, eventTypeId, continentId, countryId }) {
   if (sportId && entity.sportId !== sportId) return false;
   if (modalityId && entity.modalityId !== modalityId) return false;
+  if (eventTypeId && entity.eventTypeId !== eventTypeId) return false;
   if (continentId && entity.continentId !== continentId) return false;
   if (countryId && entity.countryId !== countryId) return false;
   return true;
@@ -4671,11 +4673,18 @@ function refreshEntitiesFilters() {
   const byModality = bySport.filter((e) => !elements.entitiesModality.value || e.modalityId === elements.entitiesModality.value);
 
   replaceSelectOptions(
+    elements.entitiesEventType,
+    distinctEntityOptions(byModality, (e) => e.eventTypeId, (e) => catalogEventTypeLabel(e.eventTypeId)),
+    "Todos os tipos de evento",
+  );
+  const byEventType = byModality.filter((e) => !elements.entitiesEventType.value || e.eventTypeId === elements.entitiesEventType.value);
+
+  replaceSelectOptions(
     elements.entitiesContinent,
-    distinctEntityOptions(byModality, (e) => e.continentId, (e) => state.continents.find((c) => c.id === e.continentId)?.name ?? e.continentId),
+    distinctEntityOptions(byEventType, (e) => e.continentId, (e) => state.continents.find((c) => c.id === e.continentId)?.name ?? e.continentId),
     "Todos os continentes",
   );
-  const byContinent = byModality.filter((e) => !elements.entitiesContinent.value || e.continentId === elements.entitiesContinent.value);
+  const byContinent = byEventType.filter((e) => !elements.entitiesContinent.value || e.continentId === elements.entitiesContinent.value);
 
   replaceSelectOptions(
     elements.entitiesCountry,
@@ -4703,7 +4712,8 @@ function renderEntityTopList(listElement, entities) {
     name.textContent = entity.name;
     const meta = document.createElement("span");
     meta.className = "entities-top-meta";
-    meta.textContent = [entity.countryName, modalityDisplayName(entity.modalityId)]
+    const eventLabel = entity.eventTypeId ? catalogEventTypeLabel(entity.eventTypeId) : "";
+    meta.textContent = [entity.countryName, modalityDisplayName(entity.modalityId), eventLabel]
       .filter(Boolean).join(" · ");
     item.append(rating, name, meta);
     listElement.append(item);
@@ -4714,6 +4724,7 @@ function renderEntitiesTop() {
   const filters = {
     sportId: elements.entitiesSport.value,
     modalityId: elements.entitiesModality.value,
+    eventTypeId: elements.entitiesEventType.value,
     continentId: elements.entitiesContinent.value,
     countryId: elements.entitiesCountry.value,
   };
@@ -5250,6 +5261,7 @@ function attachEventListeners() {
   [
     elements.entitiesSport,
     elements.entitiesModality,
+    elements.entitiesEventType,
     elements.entitiesContinent,
     elements.entitiesCountry,
   ].forEach((select) => select.addEventListener("change", onEntitiesFilterChange));

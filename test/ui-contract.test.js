@@ -66,6 +66,7 @@ test("há o gerador de atletas/clubes e a página Clubes/Atletas", async () => {
   assert.match(html, /data-view="entities"/);
   assert.match(html, /id="entities-sport"/);
   assert.match(html, /id="entities-modality"/);
+  assert.match(html, /id="entities-event-type"/);
   assert.match(html, /id="entities-continent"/);
   assert.match(html, /id="entities-country"/);
   assert.match(html, /id="entities-top-athletes"/);
