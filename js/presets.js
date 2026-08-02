@@ -1095,6 +1095,9 @@ export function presetSeries(preset) {
       sportName: series.sportName ?? preset.sportName,
       modalityId: series.modalityId,
       modalityName: series.modalityName,
+      // Tipo de evento explícito do catálogo (opcional); quando ausente, é
+      // resolvido pela modalidade (inclusive via mapa de compatibilidade).
+      eventTypeId: series.eventTypeId ?? null,
       scoringSystemId: series.scoringSystemId ?? preset.scoringSystemId ?? "generic-proportional",
       competitionModel: series.competitionModel ?? preset.competitionModel ?? "standalone",
       seasonId: series.seasonId ?? null,
@@ -1127,6 +1130,7 @@ export function presetSeries(preset) {
     sportName: preset.sportName,
     modalityId: preset.modalityId,
     modalityName: preset.modalityName,
+    eventTypeId: preset.eventTypeId ?? null,
     scoringSystemId: preset.scoringSystemId ?? "generic-proportional",
     competitionModel: preset.competitionModel ?? "standalone",
     seasonId: preset.seasonId ?? null,
@@ -1229,6 +1233,7 @@ export function buildPresetCompetitions(preset, timestamp = new Date().toISOStri
         eventTypeId: resolveCompetitionTaxonomy({
           sportId: series.sportId,
           modalityId: series.modalityId,
+          eventTypeId: series.eventTypeId,
         }).eventTypeId,
         sport: series.sportName,
         discipline: series.modalityName,
@@ -1342,11 +1347,12 @@ export function buildLeaguePresetCompetitions(preset, timestamp = new Date().toI
         eventTypeId: resolveCompetitionTaxonomy({
           sportId: "sport_football",
           modalityId: league.modalityId,
+          eventTypeId: league.eventTypeId,
         }).eventTypeId,
         sport: "Futebol",
         discipline: league.modalityName,
-        // Primeira divisão nacional: tier alto, sugerido pelo prestígio da liga.
-        tier: tierForPrestige(league.prestige),
+        // Tier explícito da liga ou sugerido pelo prestígio (1ª divisão = alta).
+        tier: league.tier ?? tierForPrestige(league.prestige),
         type: "league",
         qualification: "ranking",
         geographicScope: "national",
