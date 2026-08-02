@@ -1274,3 +1274,43 @@ biblioteca.
   determinismo por seed.
 
 Total após esta etapa: **222 testes** (todos verdes).
+
+## 38. Gerador na interface e página Clubes/Atletas
+
+Interface do gerador (novo save e saves em andamento) e a tela de visualização.
+
+### Diálogo do gerador (js/app.js + index.html)
+
+- **`runEntityGenerator(sportIds)`**: carrega o bundle do faker por **import
+  dinâmico** (só aqui), monta o gerador de nomes, chama `generateEntities`
+  (js/generator.js) para as modalidades do catálogo dos esportes escolhidos, grava
+  com `savePeople`/`saveClubs` e recarrega o estado.
+- **Diálogo `#generator-dialog`**: lista os esportes (com a contagem de
+  modalidades), com "Selecionar todos"/"Limpar", e um botão Gerar que mostra o
+  progresso e o total criado.
+- **Novo save**: a tela de criação do mundo tem a opção *"Usar o gerador…"*; ao
+  marcar, o diálogo abre logo após criar o mundo, para escolher em quais esportes
+  gerar.
+- **Saves em andamento**: o menu de ferramentas (🛠) ganhou o cartão *"Gerador de
+  atletas/clubes"*, que abre o mesmo diálogo.
+
+### Página "Clubes/Atletas" (nova aba)
+
+- Mostra os **3 melhores atletas** e os **3 melhores clubes** por rating (colunas
+  separadas), segundo os filtros.
+- **Filtros em cascata** de esporte, modalidade, continente e país que **só
+  exibem opções com entidades ativas** (construídos a partir das próprias
+  entidades). Ao gerar novas entidades, os filtros e os top 3 são recompostos
+  automaticamente (`renderEntitiesView`).
+
+### Verificação
+
+- **test/ui-contract.test.js**: a opção no novo save, o diálogo do gerador e a
+  página Clubes/Atletas (quatro seletores + dois top 3) existem, e o app expõe o
+  `runEntityGenerator`/`renderEntitiesView`/`openGeneratorDialog`.
+- **Smoke de navegador**: novo jogo → 🛠 → Gerador → gerar um esporte (Squash)
+  criou **4120 atletas** (206 países × 20), sem clubes (modalidade de atleta); a
+  página Clubes/Atletas listou o top 3 (99/98/97, conforme a curva), com 207
+  opções de país e 7 de continente, sem erros de console.
+
+Total após esta etapa: **223 testes** (todos verdes).

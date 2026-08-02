@@ -32,6 +32,7 @@
           <span id="competitions-tab-count" class="tab-count">0</span>
         </button>
         <button class="view-tab" type="button" data-view="sports">Central dos Esportes</button>
+        <button class="view-tab" type="button" data-view="entities">Clubes/Atletas</button>
         <button class="view-tab" type="button" data-view="results">
           Resultados
           <span id="results-tab-count" class="tab-count">0</span>
@@ -494,6 +495,56 @@
         <div id="tables-list" class="tables-list"></div>
         <p id="tables-empty" class="ranking-empty hidden"></p>
       </main>
+
+      <main id="entities-view" class="results-view app-view hidden">
+        <section class="competitions-header">
+          <div>
+            <p class="eyebrow">MUNDO</p>
+            <h2>Clubes e Atletas</h2>
+            <p>
+              As entidades que existem neste mundo, com os 3 melhores atletas e os
+              3 melhores clubes por rating na seleção. Os filtros só mostram
+              esportes, modalidades, continentes e países com entidades ativas.
+            </p>
+          </div>
+        </section>
+
+        <div class="entities-filters">
+          <label class="compact-field">
+            <span>Esporte</span>
+            <select id="entities-sport"></select>
+          </label>
+          <label class="compact-field">
+            <span>Modalidade</span>
+            <select id="entities-modality"></select>
+          </label>
+          <label class="compact-field">
+            <span>Continente</span>
+            <select id="entities-continent"></select>
+          </label>
+          <label class="compact-field">
+            <span>País</span>
+            <select id="entities-country"></select>
+          </label>
+        </div>
+
+        <div class="entities-top">
+          <section class="entities-top-column">
+            <h3>Top 3 atletas</h3>
+            <ol id="entities-top-athletes" class="entities-top-list"></ol>
+            <p id="entities-athletes-empty" class="ranking-empty hidden">Sem atletas para esta seleção.</p>
+          </section>
+          <section class="entities-top-column">
+            <h3>Top 3 clubes</h3>
+            <ol id="entities-top-clubs" class="entities-top-list"></ol>
+            <p id="entities-clubs-empty" class="ranking-empty hidden">Sem clubes para esta seleção.</p>
+          </section>
+        </div>
+
+        <p id="entities-empty" class="ranking-empty hidden">
+          Nenhuma entidade neste mundo ainda. Use o gerador (ícone 🛠) para criar atletas e clubes.
+        </p>
+      </main>
     </div>
 
     <dialog id="start-dialog" class="modal start-modal" aria-labelledby="start-title">
@@ -553,8 +604,48 @@
           continentes e países, e o ranking inicial será criado com 100 pessoas.
         </p>
 
+        <label class="check-field">
+          <input id="setup-use-generator" name="useGenerator" type="checkbox" />
+          <span>Usar o gerador de atletas e clubes após criar o mundo</span>
+        </label>
+        <p class="field-help">
+          Ao marcar, depois de criar o mundo você escolhe em quais esportes gerar
+          atletas e clubes (20 por nacionalidade em cada modalidade).
+        </p>
+
         <div class="modal-actions">
           <button class="button button-primary wide" type="submit">Criar mundo</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="generator-dialog" class="modal" aria-labelledby="generator-title">
+      <form id="generator-form" class="modal-content">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">GERADOR</p>
+            <h2 id="generator-title">Gerar atletas e clubes</h2>
+          </div>
+          <button class="icon-button close-button" id="close-generator-dialog" type="button" aria-label="Fechar">×</button>
+        </div>
+
+        <p class="modal-intro">
+          Escolha os esportes. Para cada modalidade, o gerador cria 20 entidades
+          por nacionalidade — atletas, clubes ou ambos, conforme a modalidade.
+        </p>
+
+        <div class="generator-actions-top">
+          <button type="button" id="generator-select-all" class="button">Selecionar todos</button>
+          <button type="button" id="generator-clear" class="button">Limpar</button>
+        </div>
+
+        <div id="generator-sports" class="generator-sports"></div>
+
+        <p id="generator-status" class="field-help"></p>
+        <p id="generator-error" class="form-error" role="alert"></p>
+
+        <div class="modal-actions">
+          <button class="button button-primary wide" type="submit" id="generator-run">Gerar</button>
         </div>
       </form>
     </dialog>

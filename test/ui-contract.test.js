@@ -53,6 +53,29 @@ test("o cadastro de competição permite escolher formato de prova e métrica", 
   assert.match(app, /eventFormatById\(format\)\?\.description/);
 });
 
+test("há o gerador de atletas/clubes e a página Clubes/Atletas", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("index.html", projectRoot), "utf8"),
+    readFile(new URL("js/app.js", projectRoot), "utf8"),
+  ]);
+  // Opção no novo save e diálogo do gerador.
+  assert.match(html, /id="setup-use-generator"/);
+  assert.match(html, /id="generator-dialog"/);
+  assert.match(html, /id="generator-sports"/);
+  // Página Clubes/Atletas com os quatro seletores e os dois top 3.
+  assert.match(html, /data-view="entities"/);
+  assert.match(html, /id="entities-sport"/);
+  assert.match(html, /id="entities-modality"/);
+  assert.match(html, /id="entities-continent"/);
+  assert.match(html, /id="entities-country"/);
+  assert.match(html, /id="entities-top-athletes"/);
+  assert.match(html, /id="entities-top-clubs"/);
+  // Wiring no app.
+  assert.match(app, /runEntityGenerator/);
+  assert.match(app, /renderEntitiesView/);
+  assert.match(app, /openGeneratorDialog/);
+});
+
 test("a tela de ranking permite escolher esporte e modalidade", async () => {
   const html = await readFile(new URL("index.html", projectRoot), "utf8");
   assert.match(html, /id="ranking-sport"/);

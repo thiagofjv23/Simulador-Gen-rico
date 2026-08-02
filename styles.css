@@ -2341,3 +2341,90 @@ h2 {
   color: var(--accent);
   white-space: nowrap;
 }
+
+/* Gerador de atletas/clubes */
+.generator-actions-top {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.generator-sports {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px 14px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px 2px;
+  border: 1px solid rgb(148 163 184 / 18%);
+  border-radius: 10px;
+}
+
+.generator-sport {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.generator-sport input:disabled + span {
+  opacity: 0.5;
+}
+
+/* Página Clubes/Atletas */
+.entities-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.entities-top {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+.entities-top-column h3 {
+  margin: 0 0 10px;
+}
+
+.entities-top-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.entities-top-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid rgb(148 163 184 / 18%);
+  border-radius: 12px;
+  background: rgb(148 163 184 / 6%);
+}
+
+.entities-top-rating {
+  grid-row: 1 / span 2;
+  font-size: 1.4rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.entities-top-item strong {
+  align-self: end;
+}
+
+.entities-top-meta {
+  grid-column: 2;
+  font-size: 0.82rem;
+  opacity: 0.75;
+}

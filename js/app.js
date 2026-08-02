@@ -104,7 +104,11 @@ import {
   eventTypesForModality,
   eventTypeLabel as catalogEventTypeLabel,
   resolveCompetitionTaxonomy,
+  catalogModalitiesForSport,
+  catalogModalityById,
 } from "./catalog.js";
+import { createNameGenerator } from "./names.js";
+import { generateEntities, createRng } from "./generator.js";
 import {
   TEAM_RATING_MODELS,
   teamRatingModelInfo,
@@ -371,6 +375,28 @@ const elements = {
   editorHint: document.querySelector("#editor-hint"),
   editorSaveSave: document.querySelector("#editor-save-save"),
   editorSaveDb: document.querySelector("#editor-save-db"),
+  // Gerador de atletas/clubes
+  setupUseGenerator: document.querySelector("#setup-use-generator"),
+  generatorDialog: document.querySelector("#generator-dialog"),
+  generatorForm: document.querySelector("#generator-form"),
+  closeGeneratorDialog: document.querySelector("#close-generator-dialog"),
+  generatorSports: document.querySelector("#generator-sports"),
+  generatorStatus: document.querySelector("#generator-status"),
+  generatorError: document.querySelector("#generator-error"),
+  generatorRun: document.querySelector("#generator-run"),
+  generatorSelectAll: document.querySelector("#generator-select-all"),
+  generatorClear: document.querySelector("#generator-clear"),
+  // Página Clubes/Atletas
+  entitiesView: document.querySelector("#entities-view"),
+  entitiesSport: document.querySelector("#entities-sport"),
+  entitiesModality: document.querySelector("#entities-modality"),
+  entitiesContinent: document.querySelector("#entities-continent"),
+  entitiesCountry: document.querySelector("#entities-country"),
+  entitiesTopAthletes: document.querySelector("#entities-top-athletes"),
+  entitiesTopClubs: document.querySelector("#entities-top-clubs"),
+  entitiesAthletesEmpty: document.querySelector("#entities-athletes-empty"),
+  entitiesClubsEmpty: document.querySelector("#entities-clubs-empty"),
+  entitiesEmpty: document.querySelector("#entities-empty"),
 };
 
 const state = {
@@ -2580,6 +2606,7 @@ function switchView(view) {
     calendar: elements.calendarView,
     competitions: elements.competitionsView,
     sports: elements.sportsView,
+    entities: elements.entitiesView,
     results: elements.resultsView,
     tables: elements.tablesView,
   };
@@ -2591,6 +2618,7 @@ function switchView(view) {
     tab.classList.toggle("active", isActive);
     tab.setAttribute("aria-current", isActive ? "page" : "false");
   });
+  if (view === "entities") renderEntitiesView();
 }
 
 function switchHub(hub) {
@@ -4486,7 +4514,220 @@ async function handleSetup(submitEvent) {
   elements.setupDialog.close();
   render();
   showToast("Mundo criado com calendário vazio e ranking de 100 pessoas.");
+  // Opção do novo save: abrir o gerador para escolher em quais esportes gerar.
+  if (elements.setupUseGenerator?.checked) openGeneratorDialog();
 }
+
+// ---------------------------------------------------------------------------
+// Gerador de atletas e clubes (novo save e saves em andamento).
+// ---------------------------------------------------------------------------
+
+// Gera e persiste as entidades dos esportes escolhidos. O bundle do faker é
+// carregado por import dinâmico só aqui, para não pesar na inicialização.
+async function runEntityGenerator(sportIds, { seed = Date.now() } = {}) {
+  const { fakerByGroup } = await import("./vendor/faker-names.js");
+  const nameGen = createNameGenerator(fakerByGroup, { seed });
+  const sports = sportIds
+    .map((id) => sportById(id, state.sports))
+    .filter(Boolean);
+  const timestamp = `${state.world?.currentDate ?? "2026-01-01"}T00:00:00.000Z`;
+  const { people, clubs } = generateEntities({
+    sports,
+    modalitiesForSport: (sportId) => catalogModalitiesForSport(sportId),
+    countries: state.countries,
+    nameGen,
+    rng: createRng(seed),
+    timestamp,
+  });
+  if (people.length) await savePeople(people);
+  if (clubs.length) await saveClubs(clubs);
+  await reloadRanking();
+  await reloadClubs();
+  return { people: people.length, clubs: clubs.length };
+}
+
+function renderGeneratorSports() {
+  const sports = [...state.sports].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  elements.generatorSports.replaceChildren();
+  for (const sport of sports) {
+    const count = catalogModalitiesForSport(sport.id).length;
+    const label = document.createElement("label");
+    label.className = "generator-sport";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = sport.id;
+    input.disabled = count === 0;
+    const span = document.createElement("span");
+    span.textContent = count
+      ? `${sport.name} · ${count} modalidade${count > 1 ? "s" : ""}`
+      : `${sport.name} · sem modalidades no catálogo`;
+    label.append(input, span);
+    elements.generatorSports.append(label);
+  }
+}
+
+function openGeneratorDialog() {
+  renderGeneratorSports();
+  elements.generatorStatus.textContent = "";
+  elements.generatorError.textContent = "";
+  elements.generatorRun.disabled = false;
+  if (!elements.generatorDialog.open) elements.generatorDialog.showModal();
+}
+
+function closeGeneratorDialog() {
+  if (elements.generatorDialog.open) elements.generatorDialog.close();
+}
+
+function selectedGeneratorSportIds() {
+  return [...elements.generatorSports.querySelectorAll("input[type=checkbox]:checked")]
+    .map((input) => input.value);
+}
+
+function setGeneratorSportsChecked(checked) {
+  elements.generatorSports
+    .querySelectorAll("input[type=checkbox]:not(:disabled)")
+    .forEach((input) => { input.checked = checked; });
+}
+
+async function handleGeneratorSubmit(submitEvent) {
+  submitEvent.preventDefault();
+  elements.generatorError.textContent = "";
+  const sportIds = selectedGeneratorSportIds();
+  if (!sportIds.length) {
+    elements.generatorError.textContent = "Escolha ao menos um esporte.";
+    return;
+  }
+  elements.generatorRun.disabled = true;
+  elements.generatorStatus.textContent = "Gerando… isso pode levar alguns segundos.";
+  try {
+    const { people, clubs } = await runEntityGenerator(sportIds);
+    elements.generatorStatus.textContent = `Gerados ${people} atleta(s) e ${clubs} clube(s).`;
+    renderEntitiesView();
+    showToast(`Gerador: ${people} atleta(s) e ${clubs} clube(s) criados.`);
+  } catch (error) {
+    console.error(error);
+    elements.generatorError.textContent = error?.message ?? "Falha ao gerar entidades.";
+  } finally {
+    elements.generatorRun.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Página Clubes/Atletas: top 3 por rating + filtros que só mostram opções com
+// entidades ativas (e se atualizam quando novas entidades são geradas).
+// ---------------------------------------------------------------------------
+
+function modalityDisplayName(modalityId) {
+  return catalogModalityById(modalityId)?.name
+    ?? modalityById(modalityId, state.modalities)?.name
+    ?? modalityId;
+}
+
+function matchesEntityFilters(entity, { sportId, modalityId, continentId, countryId }) {
+  if (sportId && entity.sportId !== sportId) return false;
+  if (modalityId && entity.modalityId !== modalityId) return false;
+  if (continentId && entity.continentId !== continentId) return false;
+  if (countryId && entity.countryId !== countryId) return false;
+  return true;
+}
+
+function distinctEntityOptions(entities, keyFn, labelFn) {
+  const seen = new Map();
+  for (const entity of entities) {
+    const key = keyFn(entity);
+    if (key && !seen.has(key)) seen.set(key, labelFn(entity));
+  }
+  return [...seen.entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+}
+
+// Reconstrói os quatro seletores em cascata a partir das entidades presentes,
+// preservando as seleções ainda válidas (replaceSelectOptions cuida disso).
+function refreshEntitiesFilters() {
+  const all = [...state.people, ...state.clubs];
+
+  replaceSelectOptions(
+    elements.entitiesSport,
+    distinctEntityOptions(all, (e) => e.sportId, (e) => sportById(e.sportId, state.sports)?.name ?? e.sportId),
+    "Todos os esportes",
+  );
+  const bySport = all.filter((e) => !elements.entitiesSport.value || e.sportId === elements.entitiesSport.value);
+
+  replaceSelectOptions(
+    elements.entitiesModality,
+    distinctEntityOptions(bySport, (e) => e.modalityId, (e) => modalityDisplayName(e.modalityId)),
+    "Todas as modalidades",
+  );
+  const byModality = bySport.filter((e) => !elements.entitiesModality.value || e.modalityId === elements.entitiesModality.value);
+
+  replaceSelectOptions(
+    elements.entitiesContinent,
+    distinctEntityOptions(byModality, (e) => e.continentId, (e) => state.continents.find((c) => c.id === e.continentId)?.name ?? e.continentId),
+    "Todos os continentes",
+  );
+  const byContinent = byModality.filter((e) => !elements.entitiesContinent.value || e.continentId === elements.entitiesContinent.value);
+
+  replaceSelectOptions(
+    elements.entitiesCountry,
+    distinctEntityOptions(byContinent, (e) => e.countryId, (e) => e.countryName ?? e.countryId),
+    "Todos os países",
+  );
+}
+
+function topEntitiesByRating(entities, count = 3) {
+  return [...entities]
+    .sort((a, b) => (b.baseRating ?? 0) - (a.baseRating ?? 0)
+      || String(a.id).localeCompare(String(b.id)))
+    .slice(0, count);
+}
+
+function renderEntityTopList(listElement, entities) {
+  listElement.replaceChildren();
+  for (const entity of entities) {
+    const item = document.createElement("li");
+    item.className = "entities-top-item";
+    const rating = document.createElement("span");
+    rating.className = "entities-top-rating";
+    rating.textContent = entity.baseRating ?? "—";
+    const name = document.createElement("strong");
+    name.textContent = entity.name;
+    const meta = document.createElement("span");
+    meta.className = "entities-top-meta";
+    meta.textContent = [entity.countryName, modalityDisplayName(entity.modalityId)]
+      .filter(Boolean).join(" · ");
+    item.append(rating, name, meta);
+    listElement.append(item);
+  }
+}
+
+function renderEntitiesTop() {
+  const filters = {
+    sportId: elements.entitiesSport.value,
+    modalityId: elements.entitiesModality.value,
+    continentId: elements.entitiesContinent.value,
+    countryId: elements.entitiesCountry.value,
+  };
+  const athletes = topEntitiesByRating(state.people.filter((e) => matchesEntityFilters(e, filters)));
+  const clubs = topEntitiesByRating(state.clubs.filter((e) => matchesEntityFilters(e, filters)));
+  renderEntityTopList(elements.entitiesTopAthletes, athletes);
+  renderEntityTopList(elements.entitiesTopClubs, clubs);
+  elements.entitiesAthletesEmpty.classList.toggle("hidden", athletes.length > 0);
+  elements.entitiesClubsEmpty.classList.toggle("hidden", clubs.length > 0);
+}
+
+function renderEntitiesView() {
+  const hasEntities = state.people.length > 0 || state.clubs.length > 0;
+  elements.entitiesEmpty.classList.toggle("hidden", hasEntities);
+  refreshEntitiesFilters();
+  renderEntitiesTop();
+}
+
+function onEntitiesFilterChange() {
+  refreshEntitiesFilters();
+  renderEntitiesTop();
+}
+
 
 // ---------------------------------------------------------------------------
 // Editores in-game: países, presets, ligas e atletas/clubes.
@@ -4610,6 +4851,22 @@ function showEditorChooser() {
     card.addEventListener("click", () => openEditor(type.id));
     elements.editorsChooser.append(card);
   });
+  // Gerador de atletas/clubes: abre um diálogo próprio (não segue o fluxo de
+  // colar .js dos demais editores).
+  const generatorCard = document.createElement("button");
+  generatorCard.type = "button";
+  generatorCard.className = "editor-choice";
+  const generatorTitle = document.createElement("strong");
+  generatorTitle.textContent = "Gerador de atletas/clubes";
+  const generatorDesc = document.createElement("span");
+  generatorDesc.textContent =
+    "Gera atletas e clubes por nacionalidade nos esportes escolhidos (20 por modalidade).";
+  generatorCard.append(generatorTitle, generatorDesc);
+  generatorCard.addEventListener("click", () => {
+    closeEditorsDialog();
+    openGeneratorDialog();
+  });
+  elements.editorsChooser.append(generatorCard);
 }
 
 function editorHintText(typeId) {
@@ -4970,6 +5227,23 @@ function attachEventListeners() {
   elements.invitationDialog.addEventListener("click", (event) => {
     if (event.target === elements.invitationDialog) closeInvitationSelection();
   });
+
+  // Gerador de atletas/clubes
+  elements.generatorForm.addEventListener("submit", handleGeneratorSubmit);
+  elements.closeGeneratorDialog.addEventListener("click", closeGeneratorDialog);
+  elements.generatorDialog.addEventListener("click", (event) => {
+    if (event.target === elements.generatorDialog) closeGeneratorDialog();
+  });
+  elements.generatorSelectAll.addEventListener("click", () => setGeneratorSportsChecked(true));
+  elements.generatorClear.addEventListener("click", () => setGeneratorSportsChecked(false));
+
+  // Filtros da página Clubes/Atletas
+  [
+    elements.entitiesSport,
+    elements.entitiesModality,
+    elements.entitiesContinent,
+    elements.entitiesCountry,
+  ].forEach((select) => select.addEventListener("change", onEntitiesFilterChange));
 
   elements.startDialog.addEventListener("cancel", (event) => event.preventDefault());
 
