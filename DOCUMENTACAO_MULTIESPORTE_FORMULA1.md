@@ -1243,3 +1243,34 @@ necessário para (re)gerar o bundle.
   países não cobertos (ex.: Grécia).
 
 Total após esta etapa: **216 testes** (todos verdes).
+
+## 37. Núcleo do gerador de atletas e clubes (js/generator.js)
+
+Lógica pura e determinística (dado um seed) que cria as entidades. Não importa o
+faker: recebe o gerador de nomes (js/names.js) injetado, então é testável sem a
+biblioteca.
+
+- **Quantidade**: para cada esporte escolhido, percorre suas modalidades e gera
+  **20 entidades por nacionalidade** (todas as da database) por modalidade. O
+  `entityType` da modalidade decide o que criar: `atleta` → atletas; `equipe` →
+  clubes; `mista` → **ambos**.
+- **Idade**: 16 a 40 anos (aleatória).
+- **Curva de rating** (`generateModalityRatings`): a maioria em **nível olímpico
+  não-elite** (média ~76, quase tudo abaixo de 90), uma **cauda fina chegando a
+  ~95** ("alguns nomes") e, por modalidade, **1–2 atletas forçados a 98–99** ("um
+  ou outro nome"). Os ratings são gerados em lote e consumidos em sequência, sem
+  distinção por país — todos os países têm a mesma chance de receber os melhores.
+- **Clubes**: mesma regra de quantidade e de rating; o nome vem de
+  `nameGen.clubName` (cidade/estado do país + denominação esportiva).
+- **Entidades**: no mesmo formato do resto do jogo (`hydratePersonGeography` e
+  `createClub`), com `rosterType: "generated"` para distingui-las. `createRng`
+  (mulberry32) dá reprodutibilidade.
+
+### Verificação
+
+- **test/generator.test.js**: a curva segue o esperado (média olímpica, cauda a
+  95, 1–2 a 98–99, maioria não-elite); modalidade de atleta/equipe/mista gera as
+  entidades certas na quantidade certa (20 por nacionalidade); ids únicos;
+  determinismo por seed.
+
+Total após esta etapa: **222 testes** (todos verdes).
