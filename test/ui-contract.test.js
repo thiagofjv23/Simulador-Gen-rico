@@ -58,10 +58,16 @@ test("há o gerador de atletas/clubes e a página Clubes/Atletas", async () => {
     readFile(new URL("index.html", projectRoot), "utf8"),
     readFile(new URL("js/app.js", projectRoot), "utf8"),
   ]);
-  // Opção no novo save e diálogo do gerador.
+  // Opção no novo save e diálogo do gerador por seleção (esporte, modalidade,
+  // abrangência e quantidade), que não fecha entre gerações.
   assert.match(html, /id="setup-use-generator"/);
   assert.match(html, /id="generator-dialog"/);
-  assert.match(html, /id="generator-sports"/);
+  assert.match(html, /id="generator-sport"/);
+  assert.match(html, /id="generator-modality"/);
+  assert.match(html, /id="generator-continent"/);
+  assert.match(html, /id="generator-country"/);
+  assert.match(html, /id="generator-count"/);
+  assert.match(html, /id="generator-done"/);
   // Página Clubes/Atletas com os quatro seletores e os dois top 3.
   assert.match(html, /data-view="entities"/);
   assert.match(html, /id="entities-sport"/);
@@ -72,7 +78,7 @@ test("há o gerador de atletas/clubes e a página Clubes/Atletas", async () => {
   assert.match(html, /id="entities-top-athletes"/);
   assert.match(html, /id="entities-top-clubs"/);
   // Wiring no app.
-  assert.match(app, /runEntityGenerator/);
+  assert.match(app, /runGeneratorSelection/);
   assert.match(app, /renderEntitiesView/);
   assert.match(app, /openGeneratorDialog/);
 });

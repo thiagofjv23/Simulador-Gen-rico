@@ -111,7 +111,7 @@ import {
   catalogModalityById,
 } from "./catalog.js";
 import { createNameGenerator } from "./names.js";
-import { generateEntities, createRng } from "./generator.js";
+import { generateSelectionEntities, createRng } from "./generator.js";
 import {
   ENTITY_TYPES,
   TEAM_RATING_MODELS,
@@ -398,12 +398,18 @@ const elements = {
   generatorDialog: document.querySelector("#generator-dialog"),
   generatorForm: document.querySelector("#generator-form"),
   closeGeneratorDialog: document.querySelector("#close-generator-dialog"),
-  generatorSports: document.querySelector("#generator-sports"),
+  generatorSport: document.querySelector("#generator-sport"),
+  generatorModality: document.querySelector("#generator-modality"),
+  generatorContinent: document.querySelector("#generator-continent"),
+  generatorCountry: document.querySelector("#generator-country"),
+  generatorCount: document.querySelector("#generator-count"),
+  generatorHelp: document.querySelector("#generator-help"),
   generatorStatus: document.querySelector("#generator-status"),
   generatorError: document.querySelector("#generator-error"),
+  generatorLog: document.querySelector("#generator-log"),
+  generatorLogEmpty: document.querySelector("#generator-log-empty"),
   generatorRun: document.querySelector("#generator-run"),
-  generatorSelectAll: document.querySelector("#generator-select-all"),
-  generatorClear: document.querySelector("#generator-clear"),
+  generatorDone: document.querySelector("#generator-done"),
   // Página Clubes/Atletas
   entitiesView: document.querySelector("#entities-view"),
   entitiesSport: document.querySelector("#entities-sport"),
@@ -434,6 +440,7 @@ const state = {
   competitionEntries: [],
   activeInvitation: null,
   activeTeamRename: null,
+  generatorLog: [],
   viewDate: new Date(2026, 0, 1, 12),
   selectedDate: "2026-01-01",
   activeView: "calendar",
@@ -4840,27 +4847,53 @@ async function handleSetup(submitEvent) {
 
 // Gera e persiste as entidades dos esportes escolhidos. O bundle do faker é
 // carregado por import dinâmico só aqui, para não pesar na inicialização.
-async function runEntityGenerator(sportIds, { seed = Date.now() } = {}) {
+// Sequência incremental para garantir ids únicos entre gerações da mesma sessão
+// (mesmo no mesmo milissegundo). Combinada com o tempo, também não colide entre
+// saves/sessões diferentes.
+let generatorBatchSeq = 0;
+
+// Resolve os países da abrangência escolhida: um país específico, todos os de um
+// continente, ou o mundo inteiro (nenhum filtro).
+function generatorSelectedCountries() {
+  const countryId = elements.generatorCountry.value;
+  if (countryId) return state.countries.filter((country) => country.id === countryId);
+  const continentId = elements.generatorContinent.value;
+  if (continentId) return state.countries.filter((country) => country.continentId === continentId);
+  return state.countries;
+}
+
+// Modalidades escolhidas: uma específica ou todas as do catálogo do esporte.
+function generatorSelectedModalities(sportId) {
+  const modalityId = elements.generatorModality.value;
+  if (modalityId) {
+    const modality = catalogModalityById(modalityId);
+    return modality ? [modality] : [];
+  }
+  return catalogModalitiesForSport(sportId);
+}
+
+async function runGeneratorSelection({ sportId, modalities, countries, total }) {
+  generatorBatchSeq += 1;
+  const seed = Date.now() + generatorBatchSeq;
+  const batchId = `${Date.now().toString(36)}${generatorBatchSeq.toString(36)}`;
   const { fakerByGroup } = await import("./vendor/faker-names.js");
   const nameGen = createNameGenerator(fakerByGroup, { seed });
-  const sports = sportIds
-    .map((id) => sportById(id, state.sports))
-    .filter(Boolean);
+  const sport = sportById(sportId, state.sports);
   const timestamp = `${state.world?.currentDate ?? "2026-01-01"}T00:00:00.000Z`;
-  const { people, clubs } = generateEntities({
-    sports,
-    modalitiesForSport: (sportId) => catalogModalitiesForSport(sportId),
-    countries: state.countries,
+  const { people, clubs } = generateSelectionEntities({
+    sport,
+    modalities,
+    countries,
+    total,
     nameGen,
     rng: createRng(seed),
     timestamp,
+    batchId,
   });
-  // Atletas: além de salvar, criam entradas de ranking por esporte+modalidade
-  // (como o editor de elenco), para entrarem no pool das competições. A seleção
-  // por competição depois filtra pelo tipo de evento (matchesEventType).
+  // Atletas: além de salvar, criam/atualizam as entradas de ranking da modalidade
+  // (reconstruídas a partir de todos os atletas dela, então gerações sucessivas
+  // se acumulam). Clubes: basta persistir e recarregar.
   if (people.length) await applyRosterPeople(people, timestamp);
-  // Clubes: as competições de equipe já os buscam em state.clubs por
-  // esporte+modalidade (+ tipo de evento); basta persistir e recarregar.
   if (clubs.length) {
     await saveClubs(clubs);
     await reloadClubs();
@@ -4868,74 +4901,145 @@ async function runEntityGenerator(sportIds, { seed = Date.now() } = {}) {
   return { people: people.length, clubs: clubs.length };
 }
 
-function renderGeneratorSports() {
-  const sports = [...state.sports].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-  elements.generatorSports.replaceChildren();
-  for (const sport of sports) {
-    const count = catalogModalitiesForSport(sport.id).length;
-    const label = document.createElement("label");
-    label.className = "generator-sport";
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    input.value = sport.id;
-    input.disabled = count === 0;
-    const span = document.createElement("span");
-    span.textContent = count
-      ? `${sport.name} · ${count} modalidade${count > 1 ? "s" : ""}`
-      : `${sport.name} · sem modalidades no catálogo`;
-    label.append(input, span);
-    elements.generatorSports.append(label);
+// Preenche o seletor de modalidades do gerador conforme o esporte escolhido.
+function updateGeneratorModalitySelect() {
+  const modalities = catalogModalitiesForSport(elements.generatorSport.value);
+  replaceSelectOptions(elements.generatorModality, modalities, "Todas as modalidades");
+  elements.generatorModality.value = "";
+}
+
+// Atualiza o texto de ajuda com o que a seleção vai gerar.
+function updateGeneratorHelp() {
+  const modalityCount = elements.generatorModality.value
+    ? 1
+    : catalogModalitiesForSport(elements.generatorSport.value).length;
+  const count = Number(elements.generatorCount.value) || 0;
+  const scope = elements.generatorCountry.value
+    ? "no país escolhido"
+    : elements.generatorContinent.value
+      ? "distribuídas pelos países do continente"
+      : "distribuídas por todos os países";
+  elements.generatorHelp.textContent = modalityCount
+    ? `Gera ${count} entidade(s) por modalidade (${modalityCount} modalidade(s)), ${scope}. `
+      + "Atletas ou clubes conforme a modalidade."
+    : "Este esporte não tem modalidades no catálogo.";
+}
+
+function renderGeneratorLog() {
+  const entries = state.generatorLog ?? [];
+  elements.generatorLog.replaceChildren();
+  elements.generatorLogEmpty.classList.toggle("hidden", entries.length > 0);
+  for (const entry of entries) {
+    const item = document.createElement("li");
+    item.textContent = entry;
+    elements.generatorLog.append(item);
   }
 }
 
 function openGeneratorDialog() {
-  renderGeneratorSports();
+  const sports = [...state.sports]
+    .filter((sport) => catalogModalitiesForSport(sport.id).length)
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  replaceSelectOptions(elements.generatorSport, sports, "Escolha o esporte");
+  elements.generatorSport.value = sports[0]?.id ?? "";
+  updateGeneratorModalitySelect();
+  replaceSelectOptions(
+    elements.generatorContinent,
+    [...state.continents].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+    "Todos os continentes",
+  );
+  elements.generatorContinent.value = "";
+  updateGeneratorCountrySelect();
+  elements.generatorCount.value = 10;
   elements.generatorStatus.textContent = "";
   elements.generatorError.textContent = "";
   elements.generatorRun.disabled = false;
+  state.generatorLog = [];
+  renderGeneratorLog();
+  updateGeneratorHelp();
   if (!elements.generatorDialog.open) elements.generatorDialog.showModal();
+}
+
+// Países do continente escolhido (ou todos), para o seletor de país do gerador.
+function updateGeneratorCountrySelect() {
+  const continentId = elements.generatorContinent.value;
+  const countries = (continentId
+    ? state.countries.filter((country) => country.continentId === continentId)
+    : state.countries
+  ).slice().sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  replaceSelectOptions(elements.generatorCountry, countries, "Todos os países");
+  elements.generatorCountry.value = "";
 }
 
 function closeGeneratorDialog() {
   if (elements.generatorDialog.open) elements.generatorDialog.close();
 }
 
-function selectedGeneratorSportIds() {
-  return [...elements.generatorSports.querySelectorAll("input[type=checkbox]:checked")]
-    .map((input) => input.value);
-}
-
-function setGeneratorSportsChecked(checked) {
-  elements.generatorSports
-    .querySelectorAll("input[type=checkbox]:not(:disabled)")
-    .forEach((input) => { input.checked = checked; });
-}
-
 async function handleGeneratorSubmit(submitEvent) {
   submitEvent.preventDefault();
   elements.generatorError.textContent = "";
-  const sportIds = selectedGeneratorSportIds();
-  if (!sportIds.length) {
-    elements.generatorError.textContent = "Escolha ao menos um esporte.";
+  const sportId = elements.generatorSport.value;
+  const sport = sportById(sportId, state.sports);
+  if (!sport) {
+    elements.generatorError.textContent = "Escolha um esporte.";
     return;
   }
+  const modalities = generatorSelectedModalities(sportId);
+  if (!modalities.length) {
+    elements.generatorError.textContent = "Este esporte não tem modalidades para gerar.";
+    return;
+  }
+  const total = Number(elements.generatorCount.value);
+  if (!Number.isInteger(total) || total < 1 || total > 2000) {
+    elements.generatorError.textContent = "A quantidade deve ser um inteiro entre 1 e 2000.";
+    return;
+  }
+  const countries = generatorSelectedCountries();
+  if (!countries.length) {
+    elements.generatorError.textContent = "Não há países na abrangência escolhida.";
+    return;
+  }
+
   elements.generatorRun.disabled = true;
+  elements.generatorDone.disabled = true;
   elements.generatorStatus.textContent = "Gerando… isso pode levar alguns segundos.";
   try {
-    const { people, clubs } = await runEntityGenerator(sportIds);
-    elements.generatorStatus.textContent = `Gerados ${people} atleta(s) e ${clubs} clube(s).`;
-    // Recompõe toda a interface: sem isso, seletores como o de Equipes (que só
-    // listam esportes com clubes) e o de modalidades do ranking não enxergavam as
-    // entidades recém-geradas até um próximo render.
+    const { people, clubs } = await runGeneratorSelection({
+      sportId, modalities, countries, total,
+    });
+    const scopeLabel = elements.generatorCountry.value
+      ? state.countries.find((c) => c.id === elements.generatorCountry.value)?.name
+      : elements.generatorContinent.value
+        ? state.continents.find((c) => c.id === elements.generatorContinent.value)?.name
+        : "Mundo";
+    const modalityLabel = elements.generatorModality.value
+      ? catalogModalityById(elements.generatorModality.value)?.name
+      : "Todas as modalidades";
+    state.generatorLog = [
+      `${sport.name} · ${modalityLabel} · ${scopeLabel}: ${people} atleta(s) e ${clubs} clube(s).`,
+      ...(state.generatorLog ?? []),
+    ];
+    elements.generatorStatus.textContent = `Gerados ${people} atleta(s) e ${clubs} clube(s). Escolha outra seleção ou conclua.`;
+    renderGeneratorLog();
+    // Recompõe a interface por baixo do diálogo (que continua aberto), para que os
+    // seletores de Equipes/rankings já enxerguem as entidades recém-geradas.
     render();
     renderEntitiesView();
-    showToast(`Gerador: ${people} atleta(s) e ${clubs} clube(s) criados.`);
   } catch (error) {
     console.error(error);
     elements.generatorError.textContent = error?.message ?? "Falha ao gerar entidades.";
   } finally {
     elements.generatorRun.disabled = false;
+    elements.generatorDone.disabled = false;
   }
+}
+
+function handleGeneratorDone() {
+  const total = (state.generatorLog ?? []).length;
+  closeGeneratorDialog();
+  render();
+  renderEntitiesView();
+  if (total) showToast(`Gerador concluído: ${total} geração(ões) nesta sessão.`);
 }
 
 // ---------------------------------------------------------------------------
@@ -5196,7 +5300,7 @@ function showEditorChooser() {
   generatorTitle.textContent = "Gerador de atletas/clubes";
   const generatorDesc = document.createElement("span");
   generatorDesc.textContent =
-    "Gera atletas e clubes por nacionalidade nos esportes escolhidos (20 por modalidade).";
+    "Gera atletas e clubes escolhendo esporte, modalidade, abrangência (continente ou país) e quantidade — uma seleção por vez, sem fechar a janela.";
   generatorCard.append(generatorTitle, generatorDesc);
   generatorCard.addEventListener("click", () => {
     closeEditorsDialog();
@@ -5573,8 +5677,18 @@ function attachEventListeners() {
   elements.generatorDialog.addEventListener("click", (event) => {
     if (event.target === elements.generatorDialog) closeGeneratorDialog();
   });
-  elements.generatorSelectAll.addEventListener("click", () => setGeneratorSportsChecked(true));
-  elements.generatorClear.addEventListener("click", () => setGeneratorSportsChecked(false));
+  elements.generatorDone.addEventListener("click", handleGeneratorDone);
+  elements.generatorSport.addEventListener("change", () => {
+    updateGeneratorModalitySelect();
+    updateGeneratorHelp();
+  });
+  elements.generatorModality.addEventListener("change", updateGeneratorHelp);
+  elements.generatorContinent.addEventListener("change", () => {
+    updateGeneratorCountrySelect();
+    updateGeneratorHelp();
+  });
+  elements.generatorCountry.addEventListener("change", updateGeneratorHelp);
+  elements.generatorCount.addEventListener("input", updateGeneratorHelp);
 
   // Filtros da página Clubes/Atletas
   [

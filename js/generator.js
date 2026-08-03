@@ -158,6 +158,113 @@ export function generateModalityEntities({
   return { people, clubs };
 }
 
+// Gera `total` entidades de UMA modalidade, distribuídas entre os países
+// informados por rodízio: para um continente (vários países) espalha; para um
+// único país, todas nele. `batchId` entra no id para não colidir com gerações
+// anteriores do mesmo país/modalidade (o jogador pode gerar o mesmo país várias
+// vezes). É o núcleo do gerador incremental por seleção.
+export function generateModalityBatch({
+  sport,
+  modality,
+  countries = [],
+  total = 0,
+  nameGen,
+  rng,
+  timestamp = new Date().toISOString(),
+  batchId = "b",
+}) {
+  const people = [];
+  const clubs = [];
+  const count = Math.max(0, Math.floor(Number(total) || 0));
+  if (!countries.length || count <= 0) return { people, clubs };
+
+  const entityType = entityTypeForModality(modality.id);
+  const allows = ENTITY_TYPES[entityType];
+  const sportSlug = slugify(sport.id.replace(/^sport_/, ""));
+  const modalitySlug = slugify(modality.id.replace(/^modality_/, ""));
+  const events = eventTypesForModality(modality.id);
+  const eventTypeFor = (index) => (events.length ? events[index % events.length].id : null);
+
+  const personRatings = allows.allowsAthletes ? generateModalityRatings(count, rng) : [];
+  const clubRatings = allows.allowsClubs ? generateModalityRatings(count, rng) : [];
+
+  for (let i = 0; i < count; i += 1) {
+    const country = countries[i % countries.length];
+    const eventTypeId = eventTypeFor(i);
+    const idSuffix = `${country.code.toLocaleLowerCase()}_${batchId}_${i}`;
+    if (allows.allowsAthletes) {
+      people.push(hydratePersonGeography({
+        id: `person_gen_${sportSlug}_${modalitySlug}_${idSuffix}`,
+        name: nameGen.personName(country.code),
+        driverName: nameGen.personName(country.code),
+        countryCode: country.code,
+        gender: "M",
+        age: randomInt(rng, MIN_AGE, MAX_AGE),
+        baseRating: personRatings[i],
+        momentum: 0,
+        rivals: [],
+        sportId: sport.id,
+        modalityId: modality.id,
+        eventTypeId,
+        rosterType: "generated",
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      }));
+    }
+    if (allows.allowsClubs) {
+      const club = createClub({
+        id: clubIdFor(sport.id, `gen_${modalitySlug}_${idSuffix}`),
+        name: nameGen.clubName(country.code),
+        sportId: sport.id,
+        modalityId: modality.id,
+        baseRating: clubRatings[i],
+        momentum: 0,
+        countryCode: country.code,
+        rosterType: "generated",
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      });
+      club.eventTypeId = eventTypeId;
+      clubs.push(club);
+    }
+  }
+
+  return { people, clubs };
+}
+
+// Gera uma seleção do gerador incremental: um esporte, uma ou mais modalidades e
+// um total (por modalidade) distribuído entre os países escolhidos. Retorna
+// { people, clubs } consolidados.
+export function generateSelectionEntities({
+  sport,
+  modalities = [],
+  countries = [],
+  total = 0,
+  nameGen,
+  rng = createRng(1),
+  timestamp = new Date().toISOString(),
+  batchId = "b",
+}) {
+  const people = [];
+  const clubs = [];
+  if (!sport) return { people, clubs };
+  for (const modality of modalities) {
+    const result = generateModalityBatch({
+      sport,
+      modality,
+      countries,
+      total,
+      nameGen,
+      rng,
+      timestamp,
+      batchId,
+    });
+    people.push(...result.people);
+    clubs.push(...result.clubs);
+  }
+  return { people, clubs };
+}
+
 // Gera as entidades de vários esportes. `modalitiesForSport(sportId)` devolve as
 // modalidades do catálogo de um esporte. Retorna { people, clubs } consolidados.
 export function generateEntities({

@@ -8,6 +8,8 @@ import {
   createRng,
   generateModalityRatings,
   generateModalityEntities,
+  generateModalityBatch,
+  generateSelectionEntities,
   generateEntities,
 } from "../js/generator.js";
 import { catalogModalityById, catalogModalitiesForSport } from "../js/catalog.js";
@@ -138,4 +140,69 @@ test("ids gerados são únicos", () => {
   });
   const ids = [...people, ...clubs].map((e) => e.id);
   assert.equal(new Set(ids).size, ids.length);
+});
+
+test("generateModalityBatch gera o total e distribui pelos países por rodízio", () => {
+  const sport = sportById("sport_athletics");
+  const modality = catalogModalityById("modality_athletics");
+  const { people, clubs } = generateModalityBatch({
+    sport, modality, countries, total: 7,
+    nameGen, rng: createRng(3), batchId: "b1",
+  });
+  // Atletismo é de atleta: 7 atletas, 0 clubes.
+  assert.equal(people.length, 7);
+  assert.equal(clubs.length, 0);
+  // Rodízio: 3 países → 3,2,2 conforme a ordem (BRA,USA,FRA repetidos).
+  const byCountry = (code) => people.filter((p) => p.countryCode === code).length;
+  assert.equal(byCountry("BRA"), 3);
+  assert.equal(byCountry("USA"), 2);
+  assert.equal(byCountry("FRA"), 2);
+});
+
+test("generateModalityBatch: um único país recebe todas as entidades", () => {
+  const sport = sportById("sport_football");
+  const modality = catalogModalityById("modality_football");
+  const only = [{ code: "BRA", name: "Brasil", continentId: "continent_south_america" }];
+  const { people, clubs } = generateModalityBatch({
+    sport, modality, countries: only, total: 4,
+    nameGen, rng: createRng(5), batchId: "b1",
+  });
+  // Futebol é de equipe: 4 clubes, todos do Brasil.
+  assert.equal(people.length, 0);
+  assert.equal(clubs.length, 4);
+  assert.ok(clubs.every((c) => c.countryCode === "BRA"));
+});
+
+test("generateModalityBatch: batchId diferente evita colisão de ids", () => {
+  const sport = sportById("sport_athletics");
+  const modality = catalogModalityById("modality_athletics");
+  const args = { sport, modality, countries, total: 3, nameGen };
+  const a = generateModalityBatch({ ...args, rng: createRng(1), batchId: "b1" });
+  const b = generateModalityBatch({ ...args, rng: createRng(1), batchId: "b2" });
+  const ids = new Set([...a.people, ...b.people].map((p) => p.id));
+  assert.equal(ids.size, a.people.length + b.people.length); // sem colisões
+});
+
+test("generateModalityBatch com total 0 ou sem países não gera nada", () => {
+  const sport = sportById("sport_athletics");
+  const modality = catalogModalityById("modality_athletics");
+  assert.deepEqual(
+    generateModalityBatch({ sport, modality, countries, total: 0, nameGen, rng: createRng(1) }),
+    { people: [], clubs: [] },
+  );
+  assert.deepEqual(
+    generateModalityBatch({ sport, modality, countries: [], total: 5, nameGen, rng: createRng(1) }),
+    { people: [], clubs: [] },
+  );
+});
+
+test("generateSelectionEntities gera o total por modalidade do esporte", () => {
+  const sport = sportById("sport_cycling");
+  const modalities = catalogModalitiesForSport("sport_cycling");
+  const { people } = generateSelectionEntities({
+    sport, modalities, countries, total: 4,
+    nameGen, rng: createRng(9), batchId: "b1",
+  });
+  // 4 por modalidade de ciclismo (todas de atleta).
+  assert.equal(people.length, 4 * modalities.length);
 });

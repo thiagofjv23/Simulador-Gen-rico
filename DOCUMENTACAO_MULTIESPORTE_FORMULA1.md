@@ -1572,3 +1572,50 @@ nome atual preenchido; ao salvar, o novo nome fica gravado no save.
   no save (persistida no IndexedDB) e atualizou a lista na hora. Sem erros no console.
 
 Total após esta etapa: **235 testes** (todos verdes).
+
+## 46. Gerador por seleção: escolha esporte, modalidade, abrangência e quantidade
+
+O gerador deixou de criar um número fixo de entidades por país. Agora, tanto no
+início do save quanto durante o jogo, o jogador monta cada geração escolhendo:
+
+- **Esporte** (só os que têm modalidades no catálogo);
+- **Modalidade** (uma específica ou "Todas as modalidades");
+- **Abrangência** — um **continente** ou um **país** (ou o mundo, sem filtro);
+- **Quantidade** de entidades a gerar.
+
+A quantidade é gerada **por modalidade** e distribuída pelos países da abrangência
+por rodízio: num continente, espalha entre seus países; num único país, todas nele
+(ex.: 10 atletas na Europa, 5 na Bolívia, 3 no Brasil). São atletas ou clubes
+conforme o `entityType` da modalidade.
+
+A janela **não fecha** após gerar: aparece a mensagem "Gerando…", depois a de
+conclusão, e o jogador pode escolher outra seleção (outros países, continentes ou
+modalidades) e gerar de novo. Cada geração entra num **registro da sessão** listado
+no diálogo. O botão **Concluir** fecha a janela.
+
+- **Núcleo puro** (js/generator.js `generateModalityBatch`, `generateSelectionEntities`):
+  `generateModalityBatch` gera um total distribuído entre os países por rodízio,
+  com um `batchId` no id de cada entidade para não colidir com gerações anteriores
+  do mesmo país/modalidade (o jogador pode gerar o mesmo país várias vezes).
+  `generateSelectionEntities` aplica isso às modalidades escolhidas.
+- **UI e fluxo** (index.html `#generator-dialog`; js/app.js `openGeneratorDialog`,
+  `handleGeneratorSubmit`, `runGeneratorSelection`, `handleGeneratorDone`,
+  seletores de esporte/modalidade/continente/país + quantidade): cada geração
+  persiste (atletas via `applyRosterPeople`, que reconstrói o ranking da modalidade
+  a partir de todos os seus atletas — então gerações sucessivas se acumulam; clubes
+  via `saveClubs`), refaz a interface por baixo do diálogo e mantém a janela aberta.
+
+### Verificação
+
+- **test/generator.test.js**: `generateModalityBatch` gera o total e o distribui
+  pelos países por rodízio, manda tudo para um único país quando só um é escolhido,
+  usa `batchId` para evitar colisão de ids e não gera nada com total 0 ou sem
+  países; `generateSelectionEntities` gera o total por modalidade do esporte.
+- **test/ui-contract.test.js**: o diálogo expõe os seletores de esporte, modalidade,
+  continente, país, quantidade e o botão Concluir.
+- **Smoke de navegador (ponta a ponta)**: gerar 3 clubes no Brasil (Futebol) e
+  depois 5 atletas na Europa (Tênis, espalhados por 5 países) — a janela ficou
+  aberta entre as duas gerações, o registro listou ambas e o IndexedDB recebeu as
+  entidades certas. Sem erros no console.
+
+Total após esta etapa: **240 testes** (todos verdes).

@@ -634,22 +634,52 @@
         </div>
 
         <p class="modal-intro">
-          Escolha os esportes. Para cada modalidade, o gerador cria 20 entidades
-          por nacionalidade — atletas, clubes ou ambos, conforme a modalidade.
+          Escolha o esporte, a modalidade e a abrangência (um continente ou um
+          país) e quantas entidades gerar. A janela fica aberta: gere uma seleção,
+          espere a mensagem de conclusão e gere outra (outros países ou
+          modalidades) antes de fechar.
         </p>
 
-        <div class="generator-actions-top">
-          <button type="button" id="generator-select-all" class="button">Selecionar todos</button>
-          <button type="button" id="generator-clear" class="button">Limpar</button>
+        <div class="field-row">
+          <label class="field">
+            <span>Esporte</span>
+            <select id="generator-sport"></select>
+          </label>
+          <label class="field">
+            <span>Modalidade</span>
+            <select id="generator-modality"></select>
+          </label>
         </div>
 
-        <div id="generator-sports" class="generator-sports"></div>
+        <div class="field-row">
+          <label class="field">
+            <span>Continente</span>
+            <select id="generator-continent"></select>
+          </label>
+          <label class="field">
+            <span>País</span>
+            <select id="generator-country"></select>
+          </label>
+          <label class="field">
+            <span>Quantidade</span>
+            <input id="generator-count" type="number" min="1" max="2000" step="1" value="10" />
+          </label>
+        </div>
+
+        <p id="generator-help" class="field-help"></p>
 
         <p id="generator-status" class="field-help"></p>
         <p id="generator-error" class="form-error" role="alert"></p>
 
+        <section class="generator-log-wrap">
+          <h3 class="generator-log-title">Gerações desta sessão</h3>
+          <ul id="generator-log" class="generator-log"></ul>
+          <p id="generator-log-empty" class="field-help">Nenhuma geração ainda nesta sessão.</p>
+        </section>
+
         <div class="modal-actions">
-          <button class="button button-primary wide" type="submit" id="generator-run">Gerar</button>
+          <button class="button button-secondary" type="button" id="generator-done">Concluir</button>
+          <button class="button button-primary" type="submit" id="generator-run">Gerar seleção</button>
         </div>
       </form>
     </dialog>
