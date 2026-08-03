@@ -78,7 +78,7 @@ import {
   simulateCompetition,
   matchesEventType,
 } from "./simulation.js";
-import { simulateLeagueRound } from "./league.js";
+import { buildFixtures, simulateLeagueRound } from "./league.js";
 import { clampMomentum, momentumDeltasForResult } from "./momentum.js";
 import { mergeRollingRanking } from "./athletics.js";
 import {
@@ -323,6 +323,9 @@ const elements = {
   teamRatingHelp: document.querySelector("#team-rating-help"),
   seasonModelPanel: document.querySelector("#season-model-panel"),
   competitionSeasonName: document.querySelector("#competition-season-name"),
+  competitionSeasonRounds: document.querySelector("#competition-season-rounds"),
+  competitionSeasonRoundSpacing: document.querySelector("#competition-season-round-spacing"),
+  competitionSeasonMeetings: document.querySelector("#competition-season-meetings"),
   competitionType: document.querySelector("#competition-type"),
   competitionQualification: document.querySelector("#competition-qualification"),
   qualificationHelp: document.querySelector("#qualification-help"),
@@ -3335,6 +3338,9 @@ function resetCompetitionForm(defaultDate) {
   elements.competitionScoringSystem.value = "generic-proportional";
   elements.competitionModel.value = "standalone";
   elements.competitionSeasonName.value = "";
+  elements.competitionSeasonRounds.value = 10;
+  elements.competitionSeasonRoundSpacing.value = 7;
+  elements.competitionSeasonMeetings.value = 2;
   elements.competitionStartDate.value = defaultDate;
   elements.competitionEndDate.value = defaultDate;
   elements.competitionDialogTitle.textContent = "Nova competição";
@@ -3384,6 +3390,15 @@ function openCompetitionDialog(competitionId = null, defaultDate = state.selecte
     });
     elements.competitionModel.value = competition.competitionModel ?? "standalone";
     elements.competitionSeasonName.value = competition.seasonName ?? "";
+    if (competition.seasonRoundCount) {
+      elements.competitionSeasonRounds.value = competition.seasonRoundCount;
+    }
+    if (competition.seasonRoundSpacingDays) {
+      elements.competitionSeasonRoundSpacing.value = competition.seasonRoundSpacingDays;
+    }
+    if (competition.seasonMeetings) {
+      elements.competitionSeasonMeetings.value = competition.seasonMeetings;
+    }
     elements.competitionType.value = competition.type;
     elements.competitionQualification.value = competition.qualification;
     elements.competitionGeographicScope.value =
@@ -3721,12 +3736,126 @@ async function handleCompetitionSubmit(submitEvent) {
     return;
   }
 
+  // Etapa de temporada NOVA: expande a competição em N rodadas, cada uma com os
+  // confrontos entre os participantes (equipes ou atletas), como o preset do
+  // futebol. Editar uma etapa existente segue salvando só ela.
+  if (competitionModel === "season_stage" && !existing) {
+    const rounds = Number(elements.competitionSeasonRounds.value);
+    const spacingDays = Number(elements.competitionSeasonRoundSpacing.value);
+    const meetings = Number(elements.competitionSeasonMeetings.value);
+    const roundErrors = validateSeasonStageRoundInputs({ rounds, spacingDays, meetings });
+    if (roundErrors.length) {
+      elements.competitionFormError.textContent = roundErrors.join(" ");
+      return;
+    }
+    const built = buildSeasonStageRoundCompetitions(
+      competition,
+      { rounds, spacingDays, meetings },
+      now,
+    );
+    if (built.error) {
+      elements.competitionFormError.textContent = built.error;
+      return;
+    }
+    await saveCompetitionsWithEvents(built.items);
+    await reloadCompetitionsAndEvents();
+    closeCompetitionDialog();
+    render();
+    showToast(`Campeonato criado com ${built.items.length} rodada(s) no calendário.`);
+    return;
+  }
+
   await saveCompetitionWithEvent(competition, buildCalendarEvent(competition));
   await reloadCompetitionsAndEvents();
   closeCompetitionDialog();
   render();
   showToast(existing ? "Competição atualizada." : "Competição criada e adicionada ao calendário.");
   setTimeout(openDueInvitationIfAny, 0);
+}
+
+function validateSeasonStageRoundInputs({ rounds, spacingDays, meetings }) {
+  const errors = [];
+  if (!Number.isInteger(rounds) || rounds < 1 || rounds > 380) {
+    errors.push("A quantidade de rodadas deve ser um inteiro entre 1 e 380.");
+  }
+  if (!Number.isInteger(spacingDays) || spacingDays < 1 || spacingDays > 365) {
+    errors.push("O espaçamento entre rodadas deve ser um inteiro entre 1 e 365 dias.");
+  }
+  if (!Number.isInteger(meetings) || meetings < 1 || meetings > 10) {
+    errors.push("Os confrontos por adversário devem ser um inteiro entre 1 e 10.");
+  }
+  return errors;
+}
+
+// Participantes de um campeonato de temporada: os melhores do esporte/modalidade
+// dentro da abrangência — clubes quando o esporte aceita equipes, senão atletas —
+// limitados ao total de vagas. Devolve a lista de ids que entram nos confrontos.
+function seasonLeagueParticipantIds(competition) {
+  const allows = ENTITY_TYPES[entityTypeForSport(competition.sportId, state.sports)]
+    ?? ENTITY_TYPES.atleta;
+  const limit = Math.max(2, Number(competition.slots) || 2);
+  if (allows.allowsClubs) {
+    return clubInvitationCandidates(state.clubs, competition)
+      .slice(0, limit)
+      .map(({ personId }) => personId);
+  }
+  return buildScopedRanking(rankingForSport(state.ranking, competition), competition)
+    .slice(0, limit)
+    .map(({ personId }) => personId);
+}
+
+// Expande uma competição "Etapa de temporada" em N rodadas. Cada rodada é uma
+// competição própria (tipo "league") com os confrontos daquela rodada
+// (roundFixtures), nomeada "Nome do campeonato - Rodada N", espaçada pelos dias
+// escolhidos. Os confrontos vêm de um round-robin com `meetings` voltas por dupla;
+// se N passar do tamanho do round-robin, os confrontos se repetem em ciclo.
+function buildSeasonStageRoundCompetitions(base, { rounds, spacingDays, meetings }, timestamp) {
+  const participantIds = seasonLeagueParticipantIds(base);
+  if (participantIds.length < 2) {
+    return {
+      error:
+        "Não há participantes suficientes (mínimo 2) para gerar os confrontos. "
+        + "Gere atletas/clubes deste esporte e modalidade antes de criar o campeonato.",
+    };
+  }
+  const fixtureRounds = buildFixtures(participantIds, meetings);
+  if (!fixtureRounds.length) {
+    return { error: "Não foi possível montar os confrontos deste campeonato." };
+  }
+  const seasonBaseName = (base.seasonName ?? base.name).trim();
+  const items = [];
+  for (let round = 1; round <= rounds; round += 1) {
+    const roundFixtures = fixtureRounds[(round - 1) % fixtureRounds.length];
+    const startDate = addDays(base.startDate, (round - 1) * spacingDays);
+    const suffix = String(round).padStart(2, "0");
+    const competition = {
+      ...base,
+      id: `${base.id}_r${suffix}`,
+      calendarEventId: `${base.calendarEventId}_r${suffix}`,
+      name: `${seasonBaseName} - Rodada ${round}`,
+      type: "league",
+      qualification: "ranking",
+      mixedCombination: null,
+      mixedSlots: null,
+      qualifierTargetCompetitionId: null,
+      qualifierSlots: null,
+      startDate,
+      endDate: startDate,
+      recurrence: "yearly",
+      slots: participantIds.length,
+      participantIds,
+      roundFixtures,
+      seasonRound: round,
+      seasonRoundCount: rounds,
+      seasonFinalRound: round === rounds,
+      seasonRoundSpacingDays: spacingDays,
+      seasonMeetings: meetings,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    items.push({ competition, calendarEvent: buildCalendarEvent(competition) });
+  }
+  return { items };
 }
 
 async function handleDeleteCompetition() {
@@ -4239,9 +4368,15 @@ function teamRatingByPersonIdFor({ sportId, modalityId }) {
 // Resolve os clubes participantes de uma liga e simula UMA rodada, acumulando as
 // rodadas anteriores da mesma temporada para montar a classificação corrente.
 function simulateLeagueForCompetition(competition) {
-  const clubsById = new Map(state.clubs.map((club) => [club.id, club]));
+  // Os "clubes" da liga podem ser equipes ou atletas: o simulador só precisa de
+  // id, nome, país e rating, que ambos têm. Resolvemos os participantes tanto de
+  // clubes quanto de atletas para cobrir ligas de equipe e de atletas.
+  const entityById = new Map([
+    ...state.clubs.map((club) => [club.id, club]),
+    ...state.people.map((person) => [person.id, person]),
+  ]);
   let clubs = (competition.participantIds ?? [])
-    .map((id) => clubsById.get(id))
+    .map((id) => entityById.get(id))
     .filter(Boolean);
   if (!clubs.length) {
     clubs = state.clubs.filter((club) =>
@@ -4319,9 +4454,11 @@ async function processSimulationDate(isoDate) {
     const resultId = `result_${occurrence.id}_${occurrence.occurrenceStart}`;
     if (state.results.some((result) => result.id === resultId)) continue;
 
-    // Esportes só de equipes (futebol) usam o simulador de liga: a temporada
-    // inteira (turno e returno) é resolvida de uma vez, com tabela e campeão.
-    if (entityTypeForSport(occurrence.sportId, state.sports) === "equipe") {
+    // Rodadas de liga (têm confrontos definidos) e esportes só de equipes usam o
+    // simulador de liga: cada rodada resolve seus confrontos, com placares e tabela
+    // acumulada. Vale para equipes e para atletas (confrontos como no futebol).
+    if (Array.isArray(occurrence.roundFixtures)
+      || entityTypeForSport(occurrence.sportId, state.sports) === "equipe") {
       const simulated = simulateLeagueForCompetition(occurrence);
       if (simulated) {
         await saveCompetitionResult(simulated, []);

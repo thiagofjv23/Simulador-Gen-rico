@@ -56,7 +56,12 @@ function poisson(lambda, random) {
 
 // Tabela de confrontos de turno e returno pelo método do círculo. Devolve uma
 // lista de rodadas; cada rodada é uma lista de pares [mandante, visitante].
-export function buildFixtures(teamIds = []) {
+// Round-robin (algoritmo do círculo). `meetings` é quantas vezes cada dupla se
+// enfrenta: 1 = turno único, 2 = turno e returno (padrão, mando invertido no
+// returno), e assim por diante — cada confronto extra inverte o mando em relação
+// ao anterior. Devolve um array de rodadas; cada rodada é uma lista de pares
+// [mandante, visitante].
+export function buildFixtures(teamIds = [], meetings = 2) {
   const teams = [...teamIds];
   if (teams.length % 2 !== 0) teams.push(null); // folga para número ímpar
   const teamCount = teams.length;
@@ -77,8 +82,16 @@ export function buildFixtures(teamIds = []) {
     rotation.splice(1, 0, rotation.pop()); // mantém o primeiro fixo e gira o resto
   }
 
-  const secondLeg = firstLeg.map((pairs) => pairs.map(([home, away]) => [away, home]));
-  return [...firstLeg, ...secondLeg];
+  const legs = [];
+  const totalLegs = Math.max(1, Math.floor(meetings) || 1);
+  for (let leg = 0; leg < totalLegs; leg += 1) {
+    // Legs pares mantêm o mando do turno; ímpares invertem (returno).
+    const rounds = leg % 2 === 0
+      ? firstLeg.map((pairs) => pairs.map(([home, away]) => [home, away]))
+      : firstLeg.map((pairs) => pairs.map(([home, away]) => [away, home]));
+    legs.push(...rounds);
+  }
+  return legs;
 }
 
 // Gols esperados de um confronto a partir dos ratings (com vantagem de casa).

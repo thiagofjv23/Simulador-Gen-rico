@@ -923,6 +923,51 @@
             Todas as etapas com o mesmo nome somam pontos na mesma temporada.
             A última etapa define o campeão; em 1º de janeiro a pontuação é zerada.
           </p>
+
+          <div class="field-row">
+            <label class="field">
+              <span>Quantidade de rodadas</span>
+              <input
+                id="competition-season-rounds"
+                name="seasonRounds"
+                type="number"
+                min="1"
+                max="380"
+                step="1"
+                value="10"
+              />
+            </label>
+            <label class="field">
+              <span>Espaçamento entre rodadas (dias)</span>
+              <input
+                id="competition-season-round-spacing"
+                name="seasonRoundSpacing"
+                type="number"
+                min="1"
+                max="365"
+                step="1"
+                value="7"
+              />
+            </label>
+            <label class="field">
+              <span>Confrontos por adversário</span>
+              <input
+                id="competition-season-meetings"
+                name="seasonMeetings"
+                type="number"
+                min="1"
+                max="10"
+                step="1"
+                value="2"
+              />
+            </label>
+          </div>
+          <p class="field-help">
+            Cada rodada vira uma etapa "Nome do campeonato - Rodada N" com os
+            confrontos entre os participantes (equipes ou atletas), gerando placares
+            e tabela como no futebol. Os participantes são os melhores do esporte,
+            modalidade e abrangência escolhidos (até o total de vagas).
+          </p>
         </section>
 
         <div class="field-row">

@@ -1487,3 +1487,54 @@ sem dados, e a do catálogo "Tênis", com os atletas gerados), confundindo.
   (8240 atletas + 8240 clubes). Em Tênis o seletor mostra só "Tênis" e o ranking
   lista os 4120 atletas; em Basquete mostra "Basquete 3x3/5x5" e a classificação
   de equipes lista os 4120 clubes — sem erros no console.
+
+## 44. Etapa de temporada: rodadas com confrontos, tabelas e resultados
+
+Ao escolher o modelo **Etapa de temporada** no criador de competições, logo abaixo
+do nome do campeonato anual há três campos novos:
+
+- **Quantidade de rodadas** — quantas etapas o campeonato terá;
+- **Espaçamento entre rodadas (dias)** — o intervalo de calendário entre uma
+  rodada e a seguinte;
+- **Confrontos por adversário** — quantas vezes cada dupla se enfrenta (1 = turno
+  único, 2 = turno e returno...).
+
+Ao salvar, a competição é **expandida em N rodadas**, cada uma uma competição
+própria do tipo `league`, nomeada **"Nome do campeonato - Rodada N"**, espaçada
+pelos dias escolhidos. Cada rodada carrega os confrontos daquela rodada
+(`roundFixtures`) e, ao ser simulada, gera os placares e a tabela acumulada — como
+no preset do futebol. Vale para **equipes** (esporte de equipe) e para **atletas**
+(esporte de atleta): o simulador de liga só precisa de id, nome, país e rating,
+que ambos têm, então os atletas se enfrentam em confrontos com a mesma tabela
+(J, V, E, D, GP, GC, SG, Pts).
+
+- **Confrontos configuráveis** (js/league.js `buildFixtures`): ganhou o parâmetro
+  `meetings` (padrão 2, retrocompatível). É um round-robin (algoritmo do círculo);
+  cada volta extra inverte o mando. Se N passar do tamanho do round-robin, os
+  confrontos se repetem em ciclo.
+- **Expansão em rodadas** (js/app.js `buildSeasonStageRoundCompetitions`,
+  `seasonLeagueParticipantIds`, `validateSeasonStageRoundInputs`): resolve os
+  participantes (os melhores clubes/atletas do esporte, modalidade e abrangência,
+  até o total de vagas), monta os confrontos e cria N competições + eventos de
+  calendário, salvos em lote.
+- **Simulação de liga para equipes e atletas** (js/app.js `processSimulationDate`,
+  `simulateLeagueForCompetition`): qualquer competição com `roundFixtures` passa
+  pelo simulador de liga, e os participantes são resolvidos tanto de clubes quanto
+  de atletas.
+
+As rodadas compartilham o mesmo `seasonId` (derivado do nome do campeonato), então
+a aba **Temporada** e a aba **Tabelas** as agrupam num único campeonato, com a
+classificação acumulada e o campeão na última rodada.
+
+### Verificação
+
+- **test/league.test.js**: `buildFixtures` aceita o número de confrontos por dupla
+  (turno único, 3 voltas, retrocompatível no padrão) e inverte o mando no returno.
+- **Smoke de navegador (ponta a ponta)**: criar uma "Liga Basquete" de 4 rodadas
+  (equipe) e um "Circuito Tênis" de 3 rodadas (atleta) gerou as etapas nomeadas
+  "… - Rodada N", espaçadas pelos dias escolhidos, cada uma com seus confrontos.
+  Avançando o calendário, cada rodada foi resolvida com placares e a aba Tabelas
+  exibiu a classificação acumulada dos dois campeonatos — inclusive a de atletas,
+  com J/V/E/D/GP/GC/SG/Pts — e o campeão saiu na última rodada. Sem erros no console.
+
+Total após esta etapa: **231 testes** (todos verdes).
