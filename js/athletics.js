@@ -210,17 +210,50 @@ export function mergeRollingRanking(rankingEntries = [], results = [], {
   );
 
   const rebuilt = rolling.flatMap((modality) => {
-    const rankingId = rankingIdFor(modality.sportId, modality.id);
-    return buildRollingRankingEntries(results, {
-      sportId: modality.sportId,
-      modalityId: modality.id,
-      rankingId,
-      referenceDate,
-      previousPositionByPersonId: previousByRankingId.get(rankingId) ?? new Map(),
-      updatedAt,
-      modalities,
-    });
+  const rankingId = rankingIdFor(modality.sportId, modality.id);
+
+  const rankedEntries = buildRollingRankingEntries(results, {
+    sportId: modality.sportId,
+    modalityId: modality.id,
+    rankingId,
+    referenceDate,
+    previousPositionByPersonId: previousByRankingId.get(rankingId) ?? new Map(),
+    updatedAt,
+    modalities,
   });
 
-  return [...preserved, ...rebuilt];
+  const rankedPersonIds = new Set(
+    rankedEntries.map((entry) => entry.personId),
+  );
+
+  const unrankedEntries = rankingEntries
+    .filter(
+      (entry) =>
+        entry.rankingId === rankingId
+        && !rankedPersonIds.has(entry.personId),
+    )
+    .sort(
+      (a, b) =>
+        a.position - b.position
+        || a.personId.localeCompare(b.personId),
+    )
+    .map((entry, index) => {
+      const position = rankedEntries.length + index + 1;
+
+      return {
+        ...entry,
+        points: 0,
+        eventsCount: 0,
+        validPerformances: 0,
+        ranked: false,
+        position,
+        previousPosition: entry.position ?? position,
+        sportId: modality.sportId,
+        modalityId: modality.id,
+        rankingModel: ROLLING_RANKING_MODEL,
+        updatedAt,
+      };
+    });
+
+  return [...rankedEntries, ...unrankedEntries];
 }
