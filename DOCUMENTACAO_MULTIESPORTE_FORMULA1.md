@@ -1408,3 +1408,48 @@ atletas gerados daquela prova — maratonistas e outras provas ficam de fora.
   atletas gerados e todos de `event_athletics_100m`** — nenhum de outra prova.
 
 Total após esta etapa: **226 testes** (todos verdes).
+
+## 42. Convite por equipes: o seletor mostra clubes em esportes de equipe
+
+Ao criar uma competição com o critério de classificação **Por convite**, o seletor
+que abre 10 dias antes só listava atletas do ranking. Em esportes de **equipe**
+(ou mistos) não havia ranking de atletas para a modalidade, então **nenhuma
+equipe aparecia** para escolher. Agora o seletor entende o tipo de entidade do
+esporte e mostra as equipes.
+
+- **Candidatos de equipe** (js/clubs.js `clubInvitationCandidates`): função pura
+  que filtra os clubes do esporte da competição — restringindo à modalidade quando
+  algum clube casa com ela, e caindo para o esporte inteiro quando a modalidade é
+  legada e não bate — respeita a abrangência geográfica
+  (`matchesGeographicScope`), ordena por rating e devolve **no mesmo formato dos
+  candidatos de atleta** (`{ personId, person, position, points }`). Assim o
+  seletor renderiza clube e atleta pelo mesmo caminho, sem ramificação na tela.
+- **Seleção por tipo de entidade** (js/app.js `invitationCandidates`): consulta o
+  `entityTypeForSport` da competição e monta o pool conforme o que o esporte
+  aceita — atletas (do ranking), equipes (dos clubes) ou ambos, no caso misto.
+- **Textos do diálogo** (js/app.js `invitationEntityNoun`): o estado vazio e a
+  validação de mínimo passam a falar em "equipe" (esporte de equipe),
+  "participante" (misto) ou "atleta" (esporte de atleta), conforme o caso.
+
+### Ajuste de dados relacionado
+
+Como os esportes foram padronizados para **atleta ou equipe** (o tipo misto fica
+para uma etapa posterior, exceto Automobilismo/Hipismo), a modalidade
+**Polo Aquático** — que estava como `equipe` sob os Esportes Aquáticos, agora
+`atleta` — passou a `atleta`, restaurando a integridade do catálogo (modalidade
+compatível com o esporte). Quando os Aquáticos voltarem a ser mistos, o Polo
+Aquático volta a ser de equipe.
+
+### Verificação
+
+- **test/clubs.test.js**: `clubInvitationCandidates` lista só as equipes do esporte
+  ordenadas por rating, respeita a abrangência nacional e cai para o esporte
+  quando a modalidade não tem clubes correspondentes.
+- **Testes de catálogo/esporte** atualizados para o novo modelo (Automobilismo
+  como esporte misto de referência; Polo Aquático como atleta).
+- **Smoke de navegador**: com a app carregada, os módulos ES rodam no navegador e
+  `clubInvitationCandidates` devolveu as duas equipes de futebol de exemplo,
+  ordenadas por rating (a de rating 85 antes da de 70) — o seletor de convite
+  agora enxerga equipes.
+
+Total após esta etapa: **229 testes** (todos verdes).

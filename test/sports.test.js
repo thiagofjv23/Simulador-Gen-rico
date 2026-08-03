@@ -28,11 +28,13 @@ test("o catálogo oficial tem 37 esportes com ids únicos", () => {
 
 test("cada esporte declara um entityType válido", () => {
   assert.ok(SPORTS.every(({ entityType }) => ["atleta", "equipe", "mista"].includes(entityType)));
-  // Tênis passou a ser misto; atletismo é de atleta; futebol e basquete de equipe.
-  assert.equal(SPORTS.find(({ id }) => id === "sport_tennis").entityType, "mista");
+  // Tênis e atletismo são de atleta; futebol e basquete de equipe; automobilismo
+  // permanece misto (mista fica para uma etapa posterior nos demais esportes).
+  assert.equal(SPORTS.find(({ id }) => id === "sport_tennis").entityType, "atleta");
   assert.equal(SPORTS.find(({ id }) => id === "sport_athletics").entityType, "atleta");
   assert.equal(SPORTS.find(({ id }) => id === "sport_football").entityType, "equipe");
   assert.equal(SPORTS.find(({ id }) => id === "sport_basketball").entityType, "equipe");
+  assert.equal(SPORTS.find(({ id }) => id === "sport_motorsport").entityType, "mista");
 });
 
 test("o futebol traz as duas ligas nacionais como modalidades", () => {

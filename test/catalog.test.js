@@ -65,7 +65,8 @@ test("toda modalidade tem entityType válido e compatível com o esporte", () =>
 
 test("entityTypeForModality classifica atleta/equipe/mista", () => {
   assert.equal(entityTypeForModality("modality_swimming"), "atleta");
-  assert.equal(entityTypeForModality("modality_water_polo"), "equipe");
+  // Polo Aquático acompanha o esporte Aquáticos (atleta) enquanto mista fica para depois.
+  assert.equal(entityTypeForModality("modality_water_polo"), "atleta");
   assert.equal(entityTypeForModality("modality_football"), "equipe");
   assert.equal(entityTypeForModality("modality_motorsport_open_wheel"), "mista");
   assert.equal(entityTypeForModality("inexistente"), "atleta"); // padrão seguro

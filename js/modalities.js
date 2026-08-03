@@ -14,7 +14,7 @@ export default [
   { id: "modality_swimming", sportId: "sport_aquatics", name: "Natação", entityType: "atleta" },
   { id: "modality_marathon_swimming", sportId: "sport_aquatics", name: "Maratona Aquática", entityType: "atleta" },
   { id: "modality_diving", sportId: "sport_aquatics", name: "Saltos Ornamentais", entityType: "atleta" },
-  { id: "modality_water_polo", sportId: "sport_aquatics", name: "Polo Aquático", entityType: "equipe" },
+  { id: "modality_water_polo", sportId: "sport_aquatics", name: "Polo Aquático", entityType: "atleta" },
   { id: "modality_artistic_swimming", sportId: "sport_aquatics", name: "Natação Artística", entityType: "atleta" },
 
   // Tiro com Arco (sport_archery)

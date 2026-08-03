@@ -111,10 +111,12 @@ import {
 import { createNameGenerator } from "./names.js";
 import { generateEntities, createRng } from "./generator.js";
 import {
+  ENTITY_TYPES,
   TEAM_RATING_MODELS,
   teamRatingModelInfo,
   normalizeTeamWeight,
   buildClubStandings,
+  clubInvitationCandidates,
   clubsForModality,
   multiModalityTeams,
   multiSportTeams,
@@ -3958,11 +3960,32 @@ function findPendingInvitation(referenceDate = state.world.currentDate) {
     )[0] ?? null;
 }
 
+// Candidatos ao convite conforme o tipo de entidade do esporte: atletas (vindos
+// do ranking do esporte), equipes (clubes do esporte/modalidade) ou ambos, no
+// caso misto. Todos saem no mesmo formato, então o seletor os exibe igual.
 function invitationCandidates(competition) {
-  return buildScopedRanking(
-    rankingForSport(state.ranking, competition),
-    competition,
-  );
+  const allows = ENTITY_TYPES[entityTypeForSport(competition.sportId, state.sports)]
+    ?? ENTITY_TYPES.atleta;
+  const candidates = [];
+  if (allows.allowsAthletes) {
+    candidates.push(...buildScopedRanking(
+      rankingForSport(state.ranking, competition),
+      competition,
+    ));
+  }
+  if (allows.allowsClubs) {
+    candidates.push(...clubInvitationCandidates(state.clubs, competition));
+  }
+  return candidates;
+}
+
+// Rótulo do participante do convite conforme o esporte: "equipe" para esportes só
+// de equipes, "participante" para mistos e "atleta" para os de atleta.
+function invitationEntityNoun(competition) {
+  const allows = ENTITY_TYPES[entityTypeForSport(competition?.sportId, state.sports)]
+    ?? ENTITY_TYPES.atleta;
+  if (allows.allowsAthletes && allows.allowsClubs) return "participante";
+  return allows.allowsClubs ? "equipe" : "atleta";
 }
 
 function updateInvitationCounter() {
@@ -3986,7 +4009,8 @@ function renderInvitationAthletes() {
   if (!candidates.length) {
     const empty = document.createElement("p");
     empty.className = "empty-state";
-    empty.textContent = "Nenhum atleta elegível encontrado.";
+    empty.textContent =
+      `Nenhuma ${invitationEntityNoun(active.competition)} elegível encontrada.`;
     elements.invitationAthletes.append(empty);
     updateInvitationCounter();
     return;
@@ -4084,8 +4108,9 @@ async function handleInvitationSubmit(submitEvent) {
     ? Math.min(2, active.capacity)
     : 1;
   if (active.selectedPersonIds.size < minimumSelection) {
+    const noun = invitationEntityNoun(active.competition);
     elements.invitationFormError.textContent =
-      `Escolha ao menos ${minimumSelection} atleta${minimumSelection === 1 ? "" : "s"} para concluir os convites.`;
+      `Escolha ao menos ${minimumSelection} ${noun}${minimumSelection === 1 ? "" : "s"} para concluir os convites.`;
     return;
   }
 
