@@ -250,10 +250,13 @@ export function mergeRollingRanking(rankingEntries = [], results = [], {
         previousPosition: entry.position ?? position,
         sportId: modality.sportId,
         modalityId: modality.id,
-        rankingModel: ROLLING_RANKING_MODEL,
+                rankingModel: ROLLING_RANKING_MODEL,
         updatedAt,
       };
     });
 
-  return [...rankedEntries, ...unrankedEntries];
+    return [...rankedEntries, ...unrankedEntries];
+  });
+
+  return [...preserved, ...rebuilt];
 }
