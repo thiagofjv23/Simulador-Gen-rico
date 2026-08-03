@@ -98,10 +98,12 @@ import {
   sportById,
   defaultScoringSystemForSport,
   entityTypeForSport,
+  sportAllowsAthletes,
   sportAllowsClubs,
   teamRatingConfigForModality,
 } from "./sports.js";
 import {
+  CATALOG_MODALITIES,
   eventTypesForModality,
   eventTypeLabel as catalogEventTypeLabel,
   resolveCompetitionTaxonomy,
@@ -540,10 +542,26 @@ function updateEventTypeSelect(preferredValue = "") {
   }
 }
 
+// Modalidades de um esporte que têm algo para ranquear — atletas, entradas de
+// ranking ou clubes. Evita listar modalidades vazias (ex.: a legada "Simples
+// masculino" quando os atletas gerados estão na modalidade "Tênis" do catálogo).
+// Sem nenhuma com dados (save recém-criado), devolve todas, para o seletor não
+// ficar vazio antes da primeira geração.
+function modalitiesWithDataForSport(sportId) {
+  const all = modalitiesForSport(sportId, state.modalities);
+  const withData = new Set([
+    ...state.rankingEntries.map((entry) => entry.modalityId),
+    ...state.people.map((person) => person.modalityId),
+    ...state.clubs.map((club) => club.modalityId),
+  ].filter(Boolean));
+  const filtered = all.filter((modality) => withData.has(modality.id));
+  return filtered.length ? filtered : all;
+}
+
 function updateRankingModalitySelect(preferredValue = "") {
   replaceSelectOptions(
     elements.rankingModality,
-    modalitiesForSport(elements.rankingSport.value, state.modalities),
+    modalitiesWithDataForSport(elements.rankingSport.value),
     elements.rankingSport.value
       ? "Escolha a modalidade"
       : "Escolha primeiro o esporte",
@@ -1281,7 +1299,14 @@ function renderRanking() {
 
   closeAthleteDetail();
   elements.rankingList.replaceChildren();
-  elements.rankingEmpty.classList.toggle("hidden", ranking.length > 0);
+  // Em esporte só de equipe não há atletas para ranquear: a classificação de
+  // equipes (abaixo) é a tela principal, então não mostramos "nenhuma pessoa".
+  const showsAthletes = !selectedSport
+    || sportAllowsAthletes(selectedSport.id, state.sports);
+  elements.rankingEmpty.classList.toggle(
+    "hidden",
+    ranking.length > 0 || !showsAthletes,
+  );
   elements.rankingEmpty.textContent = hasCompleteSelection
     ? "Nenhuma pessoa encontrada."
     : geographicScope === "national"
@@ -1375,13 +1400,16 @@ function renderRankingTeams(selectedSport, selectedModality, disciplineRanking) 
     ? state.clubs.filter((club) =>
       club.sportId === selectedSport.id && club.modalityId === selectedModality.id)
     : [];
-  const isMixed = selectedSport
-    ? entityTypeForSport(selectedSport.id, state.sports) === "mista"
+  // Mostra a classificação de equipes para qualquer esporte que aceite clubes
+  // (só de equipe ou misto), não apenas os mistos: um esporte de equipe tem o
+  // ranking de clubes como a sua classificação principal.
+  const allowsClubs = selectedSport
+    ? sportAllowsClubs(selectedSport.id, state.sports)
     : false;
 
   elements.rankingTeamsList.replaceChildren();
-  elements.rankingTeamsPanel.classList.toggle("hidden", !(isMixed && clubs.length));
-  if (!(isMixed && clubs.length)) return;
+  elements.rankingTeamsPanel.classList.toggle("hidden", !(allowsClubs && clubs.length));
+  if (!(allowsClubs && clubs.length)) return;
 
   elements.rankingTeamsTitle.textContent =
     `Classificação de equipes · ${selectedSport.name} · ${selectedModality.name}`;
@@ -3463,11 +3491,34 @@ async function reloadGeography() {
   setupGeographyOptions();
 }
 
+// Modalidades do catálogo (js/modalities.js) enriquecidas com o rankingModel do
+// seu esporte — elas não o declaram, então herdam o do esporte (js/sports.js).
+// São o que o gerador usa; sem elas nos seletores, esportes gerados (ex.: Basquete)
+// ficavam sem modalidade para escolher e o ranking não abria.
+function catalogModalitiesWithRankingModel(sports) {
+  return CATALOG_MODALITIES.map((modality) => ({
+    ...modality,
+    rankingModel: modality.rankingModel
+      ?? sportById(modality.sportId, sports)?.rankingModel
+      ?? "cumulative",
+  }));
+}
+
 async function reloadSports() {
-  [state.sports, state.modalities] = await Promise.all([
+  const [sports, legacyModalities] = await Promise.all([
     getAllSports(),
     getAllModalities(),
   ]);
+  state.sports = sports;
+  // Une as modalidades legadas (persistidas, usadas por presets e simulação) com
+  // as do catálogo (usadas pelo gerador), sem duplicar por id. Assim os seletores
+  // de modalidade — ranking, temporadas, etc. — enxergam tudo que tem dados.
+  const catalog = catalogModalitiesWithRankingModel(sports);
+  const seen = new Set(legacyModalities.map((modality) => modality.id));
+  state.modalities = [
+    ...legacyModalities,
+    ...catalog.filter((modality) => !seen.has(modality.id)),
+  ];
   setupSportOptions();
 }
 

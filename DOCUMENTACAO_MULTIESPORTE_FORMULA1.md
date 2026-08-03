@@ -1453,3 +1453,37 @@ Aquático volta a ser de equipe.
   agora enxerga equipes.
 
 Total após esta etapa: **229 testes** (todos verdes).
+
+## 43. Rankings e seletores de modalidade voltam a funcionar para dados gerados
+
+O gerador cria entidades nas modalidades do **catálogo** (js/modalities.js), mas os
+seletores de modalidade (ranking, temporadas) e o `state.modalities` só conheciam
+as modalidades **legadas** (js/sports.js). Resultado: ao gerar um esporte como
+Basquete e abrir os Rankings, o seletor de modalidade vinha **vazio** e o ranking
+não abria; em Tênis, apareciam duas modalidades (a legada "Simples masculino",
+sem dados, e a do catálogo "Tênis", com os atletas gerados), confundindo.
+
+- **state.modalities unifica catálogo + legado** (js/app.js `reloadSports`,
+  `catalogModalitiesWithRankingModel`): as modalidades do catálogo entram no
+  `state.modalities`, sem duplicar por id, enriquecidas com o `rankingModel` do
+  esporte (elas não o declaram). Assim os seletores e os lookups por id enxergam
+  todas as modalidades que têm dados.
+- **Seletor de ranking mostra só o que dá para ranquear** (js/app.js
+  `modalitiesWithDataForSport`): o seletor de modalidade do ranking passa a listar
+  apenas as modalidades do esporte com atletas, entradas de ranking ou clubes —
+  some a modalidade legada vazia quando os dados estão na do catálogo, e vice-versa.
+  Sem nenhuma com dados (save recém-criado), cai para todas, para não ficar vazio.
+- **Ranking de equipe para esporte só de equipe** (js/app.js `renderRankingTeams`,
+  `renderRanking`): a classificação de equipes deixa de ser exclusiva dos esportes
+  mistos e passa a aparecer para **qualquer esporte que aceite clubes** — num
+  esporte de equipe (Basquete, Futebol) o ranking de clubes é a classificação
+  principal. Nesses esportes o aviso "nenhuma pessoa encontrada" do ranking de
+  atletas fica oculto, já que a tela principal é a de equipes.
+
+### Verificação
+
+- **Testes**: 229 testes seguem verdes.
+- **Smoke de navegador (ponta a ponta)**: novo save gerando Basquete e Tênis
+  (8240 atletas + 8240 clubes). Em Tênis o seletor mostra só "Tênis" e o ranking
+  lista os 4120 atletas; em Basquete mostra "Basquete 3x3/5x5" e a classificação
+  de equipes lista os 4120 clubes — sem erros no console.
