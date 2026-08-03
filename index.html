@@ -1253,42 +1253,60 @@
       </form>
     </dialog>
 
-    <dialog id="team-rename-dialog" class="modal" aria-labelledby="team-rename-title">
-      <form id="team-rename-form" class="modal-content">
+    <dialog id="entity-editor-dialog" class="modal modal-wide" aria-labelledby="entity-editor-title">
+      <form id="entity-editor-form" class="modal-content" novalidate>
         <div class="modal-header">
           <div>
-            <p class="eyebrow">EDITOR DE EQUIPES</p>
-            <h2 id="team-rename-title">Renomear equipe</h2>
+            <p class="eyebrow">EDITOR DE CLUBES E ATLETAS</p>
+            <h2 id="entity-editor-title">Editar clubes e atletas</h2>
           </div>
           <button
             class="icon-button close-button"
-            id="close-team-rename-dialog"
+            id="close-entity-editor-dialog"
             type="button"
             aria-label="Fechar"
           >×</button>
         </div>
 
-        <p id="team-rename-description" class="modal-intro"></p>
+        <p class="modal-intro">
+          Escolha editar clubes ou atletas, filtre por modalidade, continente ou
+          país e ajuste o nome e o rating de vários de uma vez. Salve tudo junto.
+        </p>
 
-        <label class="field">
-          <span>Novo nome</span>
-          <input
-            id="team-rename-input"
-            name="teamName"
-            maxlength="60"
-            autocomplete="off"
-            required
-          />
-        </label>
-        <p class="field-help" id="team-rename-help"></p>
-        <p id="team-rename-error" class="form-error" role="alert"></p>
+        <div class="field-row">
+          <label class="field">
+            <span>Editar</span>
+            <select id="entity-editor-kind">
+              <option value="athletes">Atletas</option>
+              <option value="clubs">Clubes</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Modalidade</span>
+            <select id="entity-editor-modality"></select>
+          </label>
+          <label class="field">
+            <span>Continente</span>
+            <select id="entity-editor-continent"></select>
+          </label>
+          <label class="field">
+            <span>País</span>
+            <select id="entity-editor-country"></select>
+          </label>
+        </div>
+
+        <p id="entity-editor-count" class="field-help"></p>
+
+        <div id="entity-editor-list" class="entity-editor-list"></div>
+        <p id="entity-editor-empty" class="ranking-empty hidden"></p>
+        <p id="entity-editor-error" class="form-error" role="alert"></p>
 
         <div class="modal-actions">
-          <button class="button button-secondary" id="cancel-team-rename-button" type="button">
-            Cancelar
+          <button class="button button-secondary" id="entity-editor-close" type="button">
+            Fechar
           </button>
-          <button class="button button-primary" type="submit">
-            Salvar nome
+          <button class="button button-primary" type="submit" id="entity-editor-save">
+            Salvar alterações
           </button>
         </div>
       </form>

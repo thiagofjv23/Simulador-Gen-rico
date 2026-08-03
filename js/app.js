@@ -113,6 +113,11 @@ import {
 import { createNameGenerator } from "./names.js";
 import { generateSelectionEntities, createRng } from "./generator.js";
 import {
+  MIN_RATING,
+  MAX_RATING,
+  applyEntityEdits,
+} from "./entityeditor.js";
+import {
   ENTITY_TYPES,
   TEAM_RATING_MODELS,
   teamRatingModelInfo,
@@ -122,8 +127,6 @@ import {
   clubsForModality,
   multiModalityTeams,
   multiSportTeams,
-  renameTeam,
-  validateTeamName,
 } from "./clubs.js";
 import {
   CALENDAR_PRESETS,
@@ -252,14 +255,6 @@ const elements = {
   teamsModality: document.querySelector("#teams-modality"),
   teamsList: document.querySelector("#teams-list"),
   teamsEmpty: document.querySelector("#teams-empty"),
-  teamRenameDialog: document.querySelector("#team-rename-dialog"),
-  teamRenameForm: document.querySelector("#team-rename-form"),
-  teamRenameDescription: document.querySelector("#team-rename-description"),
-  teamRenameInput: document.querySelector("#team-rename-input"),
-  teamRenameHelp: document.querySelector("#team-rename-help"),
-  teamRenameError: document.querySelector("#team-rename-error"),
-  closeTeamRenameDialog: document.querySelector("#close-team-rename-dialog"),
-  cancelTeamRenameButton: document.querySelector("#cancel-team-rename-button"),
   seasonTop: document.querySelector("#season-top"),
   seasonSport: document.querySelector("#season-sport"),
   seasonUnit: document.querySelector("#season-unit"),
@@ -393,6 +388,20 @@ const elements = {
   editorHint: document.querySelector("#editor-hint"),
   editorSaveSave: document.querySelector("#editor-save-save"),
   editorSaveDb: document.querySelector("#editor-save-db"),
+  // Editor de clubes e atletas (lote)
+  entityEditorDialog: document.querySelector("#entity-editor-dialog"),
+  entityEditorForm: document.querySelector("#entity-editor-form"),
+  closeEntityEditorDialog: document.querySelector("#close-entity-editor-dialog"),
+  entityEditorKind: document.querySelector("#entity-editor-kind"),
+  entityEditorModality: document.querySelector("#entity-editor-modality"),
+  entityEditorContinent: document.querySelector("#entity-editor-continent"),
+  entityEditorCountry: document.querySelector("#entity-editor-country"),
+  entityEditorCount: document.querySelector("#entity-editor-count"),
+  entityEditorList: document.querySelector("#entity-editor-list"),
+  entityEditorEmpty: document.querySelector("#entity-editor-empty"),
+  entityEditorError: document.querySelector("#entity-editor-error"),
+  entityEditorSave: document.querySelector("#entity-editor-save"),
+  entityEditorClose: document.querySelector("#entity-editor-close"),
   // Gerador de atletas/clubes
   setupUseGenerator: document.querySelector("#setup-use-generator"),
   generatorDialog: document.querySelector("#generator-dialog"),
@@ -439,8 +448,8 @@ const state = {
   results: [],
   competitionEntries: [],
   activeInvitation: null,
-  activeTeamRename: null,
   generatorLog: [],
+  entityEditor: null,
   viewDate: new Date(2026, 0, 1, 12),
   selectedDate: "2026-01-01",
   activeView: "calendar",
@@ -1647,82 +1656,8 @@ function teamNameCell(club) {
   name.textContent = club.name;
   const identifier = document.createElement("span");
   identifier.textContent = club.id;
-  cell.append(name, identifier, buildTeamRenameButton({
-    fromName: club.name,
-    sportId: club.sportId,
-  }));
+  cell.append(name, identifier);
   return cell;
-}
-
-// Botão de renomear a equipe/clube. Fica ao lado do nome, dentro das listas de
-// equipes. Impede a propagação do clique para não abrir/fechar o detalhe da linha.
-function buildTeamRenameButton({ fromName, sportId }) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "team-rename-button";
-  button.title = "Renomear equipe";
-  button.setAttribute("aria-label", `Renomear ${fromName}`);
-  button.textContent = "✎";
-  const stop = (event) => event.stopPropagation();
-  button.addEventListener("keydown", stop);
-  button.addEventListener("click", (event) => {
-    event.stopPropagation();
-    openTeamRenameDialog({ fromName, sportId });
-  });
-  return button;
-}
-
-function openTeamRenameDialog({ fromName, sportId = null }) {
-  state.activeTeamRename = { fromName, sportId };
-  const scope = sportId ? sportById(sportId, state.sports)?.name ?? "" : "";
-  const affected = state.clubs.filter(
-    (club) => club.name === fromName && (!sportId || club.sportId === sportId),
-  ).length;
-  elements.teamRenameDescription.textContent =
-    `Novo nome para “${fromName}”${scope ? ` (${scope})` : ""}.`;
-  elements.teamRenameHelp.textContent = affected > 1
-    ? `O novo nome vale para as ${affected} entradas desta equipe (todas as suas modalidades).`
-    : "O novo nome fica salvo no save.";
-  elements.teamRenameInput.value = fromName;
-  elements.teamRenameError.textContent = "";
-  if (!elements.teamRenameDialog.open) elements.teamRenameDialog.showModal();
-  elements.teamRenameInput.focus();
-  elements.teamRenameInput.select();
-}
-
-function closeTeamRenameDialog() {
-  if (elements.teamRenameDialog.open) elements.teamRenameDialog.close();
-  state.activeTeamRename = null;
-}
-
-async function handleTeamRenameSubmit(submitEvent) {
-  submitEvent.preventDefault();
-  const active = state.activeTeamRename;
-  if (!active) return;
-  const newName = elements.teamRenameInput.value;
-  const errors = validateTeamName(newName);
-  if (errors.length) {
-    elements.teamRenameError.textContent = errors.join(" ");
-    return;
-  }
-  const timestamp = new Date().toISOString();
-  const updated = renameTeam(state.clubs, {
-    fromName: active.fromName,
-    sportId: active.sportId,
-    toName: newName,
-    timestamp,
-  });
-  if (updated.length) {
-    await saveClubs(updated);
-    await reloadClubs();
-  }
-  closeTeamRenameDialog();
-  render();
-  showToast(
-    updated.length
-      ? `Equipe renomeada para “${newName.trim()}”.`
-      : "O nome não mudou.",
-  );
 }
 
 // Atletas de um clube (numa modalidade), a partir do elenco em memória.
@@ -1907,12 +1842,7 @@ function renderTeamGroups(groups, { crossSport }) {
       : group.modalityIds.map((id) => modalityById(id, state.modalities)?.name ?? id);
     const identifier = document.createElement("span");
     identifier.textContent = scopeNames.join(" · ");
-    // Grupo dentro de um esporte: renomeia por (nome, esporte). Grupo entre
-    // esportes (mesma equipe em vários esportes): renomeia por nome em todos.
-    team.append(name, identifier, buildTeamRenameButton({
-      fromName: group.name,
-      sportId: crossSport ? null : elements.teamsSport.value || null,
-    }));
+    team.append(name, identifier);
 
     const scopeCount = document.createElement("td");
     scopeCount.textContent = crossSport ? group.sportIds.length : group.modalityIds.length;
@@ -5043,6 +4973,216 @@ function handleGeneratorDone() {
 }
 
 // ---------------------------------------------------------------------------
+// Editor in-game de clubes e atletas: filtra por modalidade/continente/país e
+// edita nome e rating de vários de uma vez. Aberto pelo menu de ferramentas.
+// ---------------------------------------------------------------------------
+
+const ENTITY_EDITOR_MAX_ROWS = 300;
+
+function entityEditorSource() {
+  return elements.entityEditorKind.value === "clubs" ? state.clubs : state.people;
+}
+
+function entityEditorFilters() {
+  return {
+    modalityId: elements.entityEditorModality.value,
+    continentId: elements.entityEditorContinent.value,
+    countryId: elements.entityEditorCountry.value,
+  };
+}
+
+function entityEditorMatches() {
+  const filters = entityEditorFilters();
+  return entityEditorSource().filter((entity) => matchesEntityFilters(entity, filters));
+}
+
+// Preenche os seletores de modalidade/continente/país a partir das entidades do
+// tipo escolhido (só aparecem opções com entidades). Preserva a seleção quando
+// possível.
+function updateEntityEditorFilterOptions() {
+  const source = entityEditorSource();
+  const modalityKeep = elements.entityEditorModality.value;
+  replaceSelectOptions(
+    elements.entityEditorModality,
+    distinctEntityOptions(source, (e) => e.modalityId, (e) => modalityDisplayName(e.modalityId)),
+    "Todas as modalidades",
+  );
+  if ([...elements.entityEditorModality.options].some((o) => o.value === modalityKeep)) {
+    elements.entityEditorModality.value = modalityKeep;
+  }
+
+  const continentKeep = elements.entityEditorContinent.value;
+  replaceSelectOptions(
+    elements.entityEditorContinent,
+    distinctEntityOptions(
+      source,
+      (e) => e.continentId,
+      (e) => state.continents.find((c) => c.id === e.continentId)?.name ?? e.continentId,
+    ),
+    "Todos os continentes",
+  );
+  if ([...elements.entityEditorContinent.options].some((o) => o.value === continentKeep)) {
+    elements.entityEditorContinent.value = continentKeep;
+  }
+
+  const continentId = elements.entityEditorContinent.value;
+  const byContinent = continentId
+    ? source.filter((e) => e.continentId === continentId)
+    : source;
+  const countryKeep = elements.entityEditorCountry.value;
+  replaceSelectOptions(
+    elements.entityEditorCountry,
+    distinctEntityOptions(byContinent, (e) => e.countryId, (e) => e.countryName ?? e.countryId),
+    "Todos os países",
+  );
+  if ([...elements.entityEditorCountry.options].some((o) => o.value === countryKeep)) {
+    elements.entityEditorCountry.value = countryKeep;
+  }
+}
+
+function renderEntityEditorList() {
+  const matches = entityEditorMatches()
+    .slice()
+    .sort((a, b) => (b.baseRating ?? 0) - (a.baseRating ?? 0)
+      || a.name.localeCompare(b.name, "pt-BR"));
+  const kindLabel = elements.entityEditorKind.value === "clubs" ? "clube(s)" : "atleta(s)";
+  const shown = matches.slice(0, ENTITY_EDITOR_MAX_ROWS);
+
+  elements.entityEditorList.replaceChildren();
+  elements.entityEditorError.textContent = "";
+  elements.entityEditorEmpty.classList.toggle("hidden", matches.length > 0);
+  if (!matches.length) {
+    elements.entityEditorEmpty.textContent =
+      "Nenhuma entidade para esta seleção. Ajuste os filtros ou gere entidades.";
+    elements.entityEditorCount.textContent = "";
+    return;
+  }
+  elements.entityEditorCount.textContent = matches.length > shown.length
+    ? `${matches.length} ${kindLabel} — editando os ${shown.length} de maior rating. Filtre para ver os demais.`
+    : `${matches.length} ${kindLabel} nesta seleção.`;
+
+  const head = document.createElement("div");
+  head.className = "entity-editor-row entity-editor-head";
+  head.append(
+    Object.assign(document.createElement("span"), { textContent: "Nome" }),
+    Object.assign(document.createElement("span"), { textContent: "Local · Modalidade" }),
+    Object.assign(document.createElement("span"), { textContent: "Rating" }),
+  );
+  elements.entityEditorList.append(head);
+
+  for (const entity of shown) {
+    const row = document.createElement("div");
+    row.className = "entity-editor-row";
+    row.dataset.entityId = entity.id;
+
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.maxLength = 60;
+    nameInput.value = entity.name;
+    nameInput.dataset.field = "name";
+
+    const meta = document.createElement("span");
+    meta.className = "entity-editor-meta";
+    meta.textContent = [
+      entity.countryName ?? entity.countryCode,
+      modalityDisplayName(entity.modalityId),
+    ].filter(Boolean).join(" · ");
+
+    const ratingInput = document.createElement("input");
+    ratingInput.type = "number";
+    ratingInput.min = String(MIN_RATING);
+    ratingInput.max = String(MAX_RATING);
+    ratingInput.step = "1";
+    ratingInput.value = entity.baseRating ?? "";
+    ratingInput.dataset.field = "rating";
+
+    row.append(nameInput, meta, ratingInput);
+    elements.entityEditorList.append(row);
+  }
+}
+
+function refreshEntityEditor() {
+  updateEntityEditorFilterOptions();
+  renderEntityEditorList();
+}
+
+function openEntityEditorDialog() {
+  elements.entityEditorKind.value = "athletes";
+  elements.entityEditorModality.value = "";
+  elements.entityEditorContinent.value = "";
+  elements.entityEditorCountry.value = "";
+  elements.entityEditorError.textContent = "";
+  refreshEntityEditor();
+  if (!elements.entityEditorDialog.open) elements.entityEditorDialog.showModal();
+}
+
+function closeEntityEditorDialog() {
+  if (elements.entityEditorDialog.open) elements.entityEditorDialog.close();
+}
+
+function collectEntityEditorEdits() {
+  return [...elements.entityEditorList.querySelectorAll(".entity-editor-row[data-entity-id]")]
+    .map((row) => ({
+      id: row.dataset.entityId,
+      name: row.querySelector('input[data-field="name"]').value,
+      rating: row.querySelector('input[data-field="rating"]').value,
+    }));
+}
+
+async function handleEntityEditorSave(submitEvent) {
+  submitEvent.preventDefault();
+  elements.entityEditorError.textContent = "";
+  const isClubs = elements.entityEditorKind.value === "clubs";
+  const source = isClubs ? state.clubs : state.people;
+  const { updated, errors } = applyEntityEdits(source, collectEntityEditorEdits(), {
+    timestamp: new Date().toISOString(),
+  });
+  elements.entityEditorList
+    .querySelectorAll(".entity-editor-row.invalid")
+    .forEach((row) => row.classList.remove("invalid"));
+  if (errors.length) {
+    const invalidIds = new Set(errors.map((e) => e.id));
+    let firstInvalid = null;
+    elements.entityEditorList
+      .querySelectorAll(".entity-editor-row[data-entity-id]")
+      .forEach((row) => {
+        if (invalidIds.has(row.dataset.entityId)) {
+          row.classList.add("invalid");
+          firstInvalid = firstInvalid ?? row;
+        }
+      });
+    elements.entityEditorError.textContent =
+      `Corrija ${errors.length} campo(s): ${errors[0].message}`;
+    firstInvalid?.scrollIntoView({ block: "center" });
+    return;
+  }
+  if (!updated.length) {
+    showToast("Nenhuma alteração para salvar.");
+    return;
+  }
+
+  elements.entityEditorSave.disabled = true;
+  try {
+    if (isClubs) {
+      await saveClubs(updated);
+      await reloadClubs();
+    } else {
+      await savePeople(updated);
+      await reloadRanking();
+    }
+    render();
+    renderEntitiesView();
+    refreshEntityEditor();
+    showToast(`${updated.length} alteração(ões) salva(s).`);
+  } catch (error) {
+    console.error(error);
+    elements.entityEditorError.textContent = error?.message ?? "Falha ao salvar as alterações.";
+  } finally {
+    elements.entityEditorSave.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Página Clubes/Atletas: top 3 por rating + filtros que só mostram opções com
 // entidades ativas (e se atualizam quando novas entidades são geradas).
 // ---------------------------------------------------------------------------
@@ -5307,6 +5447,22 @@ function showEditorChooser() {
     openGeneratorDialog();
   });
   elements.editorsChooser.append(generatorCard);
+
+  // Editor de clubes e atletas: diálogo próprio de edição em lote (nome e rating).
+  const entityEditorCard = document.createElement("button");
+  entityEditorCard.type = "button";
+  entityEditorCard.className = "editor-choice";
+  const entityEditorTitle = document.createElement("strong");
+  entityEditorTitle.textContent = "Editor de clubes e atletas";
+  const entityEditorDesc = document.createElement("span");
+  entityEditorDesc.textContent =
+    "Edita nome e rating de clubes ou atletas em lote, filtrando por modalidade, continente ou país.";
+  entityEditorCard.append(entityEditorTitle, entityEditorDesc);
+  entityEditorCard.addEventListener("click", () => {
+    closeEditorsDialog();
+    openEntityEditorDialog();
+  });
+  elements.editorsChooser.append(entityEditorCard);
 }
 
 function editorHintText(typeId) {
@@ -5633,9 +5789,6 @@ function attachEventListeners() {
   elements.invitationFilter.addEventListener("input", renderInvitationAthletes);
   elements.closeInvitationDialog.addEventListener("click", closeInvitationSelection);
   elements.cancelInvitationButton.addEventListener("click", closeInvitationSelection);
-  elements.teamRenameForm.addEventListener("submit", handleTeamRenameSubmit);
-  elements.closeTeamRenameDialog.addEventListener("click", closeTeamRenameDialog);
-  elements.cancelTeamRenameButton.addEventListener("click", closeTeamRenameDialog);
   elements.advanceNextEvent.addEventListener("click", advanceToNextEvent);
   document.querySelectorAll("[data-advance-days]").forEach((button) => {
     button.addEventListener("click", () => advanceTime(Number(button.dataset.advanceDays)));
@@ -5689,6 +5842,26 @@ function attachEventListeners() {
   });
   elements.generatorCountry.addEventListener("change", updateGeneratorHelp);
   elements.generatorCount.addEventListener("input", updateGeneratorHelp);
+
+  // Editor de clubes e atletas
+  elements.entityEditorForm.addEventListener("submit", handleEntityEditorSave);
+  elements.closeEntityEditorDialog.addEventListener("click", closeEntityEditorDialog);
+  elements.entityEditorClose.addEventListener("click", closeEntityEditorDialog);
+  elements.entityEditorDialog.addEventListener("click", (event) => {
+    if (event.target === elements.entityEditorDialog) closeEntityEditorDialog();
+  });
+  elements.entityEditorKind.addEventListener("change", () => {
+    elements.entityEditorModality.value = "";
+    elements.entityEditorContinent.value = "";
+    elements.entityEditorCountry.value = "";
+    refreshEntityEditor();
+  });
+  elements.entityEditorModality.addEventListener("change", renderEntityEditorList);
+  elements.entityEditorContinent.addEventListener("change", () => {
+    elements.entityEditorCountry.value = "";
+    refreshEntityEditor();
+  });
+  elements.entityEditorCountry.addEventListener("change", renderEntityEditorList);
 
   // Filtros da página Clubes/Atletas
   [

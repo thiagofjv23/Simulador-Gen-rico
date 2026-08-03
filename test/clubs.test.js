@@ -21,8 +21,6 @@ import {
   isEntityType,
   isTeamRatingModel,
   normalizeTeamWeight,
-  renameTeam,
-  validateTeamName,
   sumMemberPoints,
   teamRatingModelInfo,
   teamRatingModelLabel,
@@ -293,43 +291,3 @@ test("clubInvitationCandidates cai para o esporte quando a modalidade não casa"
   assert.deepEqual(candidates.map((c) => c.personId), ["club_football_a"]);
 });
 
-test("validateTeamName exige um nome não vazio e curto", () => {
-  assert.deepEqual(validateTeamName("Novo FC"), []);
-  assert.match(validateTeamName("   ").join(" "), /informe/i);
-  assert.match(validateTeamName("x".repeat(61)).join(" "), /60/);
-});
-
-test("renameTeam renomeia todas as entradas da equipe no esporte", () => {
-  const clubs = [
-    createClub({ id: "c1", name: "Prema", sportId: "sport_motorsport", modalityId: "mod_f1", baseRating: 90 }),
-    createClub({ id: "c2", name: "Prema", sportId: "sport_motorsport", modalityId: "mod_f2", baseRating: 84 }),
-    createClub({ id: "c3", name: "Solo", sportId: "sport_motorsport", modalityId: "mod_f1", baseRating: 88 }),
-    createClub({ id: "c4", name: "Prema", sportId: "sport_football", modalityId: "modality_football", baseRating: 70 }),
-  ];
-  const updated = renameTeam(clubs, {
-    fromName: "Prema",
-    sportId: "sport_motorsport",
-    toName: "  Prema Racing  ",
-    timestamp: "2026-08-03T00:00:00.000Z",
-  });
-  // Só as duas entradas de automobilismo mudam (a de futebol e a "Solo" ficam).
-  assert.deepEqual(updated.map((c) => c.id).sort(), ["c1", "c2"]);
-  assert.ok(updated.every((c) => c.name === "Prema Racing")); // aparado
-  assert.equal(updated[0].updatedAt, "2026-08-03T00:00:00.000Z");
-});
-
-test("renameTeam sem sportId renomeia a equipe em todos os esportes", () => {
-  const clubs = [
-    createClub({ id: "c1", name: "Prema", sportId: "sport_motorsport", modalityId: "mod_f1" }),
-    createClub({ id: "c4", name: "Prema", sportId: "sport_football", modalityId: "modality_football" }),
-  ];
-  const updated = renameTeam(clubs, { fromName: "Prema", toName: "Prema Global" });
-  assert.deepEqual(updated.map((c) => c.id).sort(), ["c1", "c4"]);
-});
-
-test("renameTeam ignora quando o nome não muda ou é vazio", () => {
-  const clubs = [createClub({ id: "c1", name: "Prema", sportId: "sport_football" })];
-  assert.deepEqual(renameTeam(clubs, { fromName: "Prema", toName: "Prema" }), []);
-  assert.deepEqual(renameTeam(clubs, { fromName: "Prema", toName: "   " }), []);
-  assert.deepEqual(renameTeam(clubs, { fromName: "", toName: "X" }), []);
-});

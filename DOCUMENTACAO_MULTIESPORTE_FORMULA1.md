@@ -1619,3 +1619,45 @@ no diálogo. O botão **Concluir** fecha a janela.
   entidades certas. Sem erros no console.
 
 Total após esta etapa: **240 testes** (todos verdes).
+
+## 47. Editor de clubes e atletas no menu de ferramentas (edição em lote)
+
+O editor de nomes que ficava na aba **Equipes** saiu de lá e virou um editor
+próprio, aberto pelo **menu de ferramentas** (🛠 → "Editor de clubes e atletas"),
+agora com mais poder:
+
+- **Seletor de tipo**: editar **Atletas** ou **Clubes**.
+- **Filtros**: por **modalidade**, **continente** ou **país** (só aparecem opções
+  com entidades do tipo escolhido).
+- **Edição em lote**: a seleção vira uma lista com **nome** e **rating** editáveis
+  por linha; dá para alterar vários de uma vez e **salvar tudo junto**.
+- **Validação**: nome não vazio (até 60 caracteres) e rating inteiro de 1 a 99; os
+  campos inválidos são destacados e a lista rola até o primeiro erro.
+
+Para manter a lista prática mesmo com milhares de entidades, ela mostra até 300 por
+seleção (as de maior rating), com um aviso para filtrar e alcançar as demais.
+
+- **Núcleo puro** (js/entityeditor.js `applyEntityEdits`, `validateEntityName`,
+  `validateEntityRating`): recebe as edições `{ id, name, rating }`, valida e
+  devolve `{ updated, errors }` — só as entidades que realmente mudaram (nome
+  aparado, `baseRating` inteiro, `updatedAt` novo) e a lista de erros por id.
+- **UI e persistência** (index.html `#entity-editor-dialog`; js/app.js
+  `openEntityEditorDialog`, `renderEntityEditorList`, `handleEntityEditorSave` e os
+  seletores/filtros): atletas são salvos com `savePeople` (+ recomposição do
+  ranking) e clubes com `saveClubs`; a interface é refeita após salvar. O editor é
+  lançado por um card no seletor de ferramentas.
+- **Remoção do editor antigo**: os botões de renomear da aba Equipes, o diálogo de
+  renomear e as funções `renameTeam`/`validateTeamName` foram removidos — a edição
+  de nomes passa a ser feita (com rating junto) neste editor.
+
+### Verificação
+
+- **test/entityeditor.test.js**: `validateEntityName` e `validateEntityRating`
+  cobrem vazio/tamanho e o intervalo 1–99; `applyEntityEdits` altera nome e rating
+  em lote, ignora o que não mudou e ids inexistentes, e reporta erros por id.
+- **Smoke de navegador (ponta a ponta)**: gerar atletas (Tênis) e clubes (Futebol),
+  abrir 🛠 → "Editor de clubes e atletas", editar nome e rating de dois atletas e de
+  um clube e salvar persistiu tudo no IndexedDB; um rating fora de 1–99 mostrou o
+  erro e destacou a linha, sem salvar. Sem erros no console.
+
+Total após esta etapa: **240 testes** (todos verdes).

@@ -292,29 +292,6 @@ export function multiSportTeams(clubs = []) {
       b.averageRating - a.averageRating || a.name.localeCompare(b.name, "pt-BR"));
 }
 
-// Valida um novo nome de equipe/clube. Devolve a lista de erros (vazia = ok).
-export function validateTeamName(name) {
-  const errors = [];
-  const trimmed = String(name ?? "").trim();
-  if (!trimmed) errors.push("Informe o novo nome da equipe.");
-  if (trimmed.length > 60) errors.push("O nome da equipe deve ter até 60 caracteres.");
-  return errors;
-}
-
-// Renomeia uma equipe dentro do save: todos os clubes que compartilham o mesmo
-// nome atual (`fromName`) — e, quando `sportId` é informado, o mesmo esporte —
-// recebem o novo nome. Isso mantém a equipe consistente em todas as suas
-// modalidades (ex.: uma equipe que corre em várias categorias). Devolve apenas os
-// clubes alterados (para persistir), sem tocar nos demais.
-export function renameTeam(clubs = [], { fromName, sportId = null, toName, timestamp = new Date().toISOString() } = {}) {
-  const nextName = String(toName ?? "").trim();
-  if (!nextName || !fromName) return [];
-  return clubs
-    .filter((club) => club.name === fromName && (!sportId || club.sportId === sportId))
-    .filter((club) => club.name !== nextName)
-    .map((club) => ({ ...club, name: nextName, updatedAt: timestamp }));
-}
-
 export function validateClub(club) {
   const errors = [];
   if (!club?.id) errors.push("Informe o identificador do clube.");

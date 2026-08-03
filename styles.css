@@ -584,24 +584,58 @@ h2 {
   font-size: 0.58rem;
 }
 
-.team-rename-button {
-  display: inline-block;
-  margin-top: 4px;
-  padding: 2px 8px;
-  border: 1px solid #c7d2e6;
-  border-radius: 999px;
-  background: #f3f6fc;
-  color: #3a4a6b;
-  font-size: 0.62rem;
-  line-height: 1.4;
-  cursor: pointer;
+.entity-editor-list {
+  max-height: 46vh;
+  overflow-y: auto;
+  border: 1px solid rgb(148 163 184 / 20%);
+  border-radius: 10px;
 }
 
-.team-rename-button:hover,
-.team-rename-button:focus-visible {
-  border-color: #6b82b8;
-  background: #e6edfa;
-  color: #1f2c47;
+.entity-editor-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) 88px;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 10px;
+  border-bottom: 1px solid rgb(148 163 184 / 14%);
+}
+
+.entity-editor-row:last-child {
+  border-bottom: none;
+}
+
+.entity-editor-row.invalid {
+  background: rgb(220 38 38 / 10%);
+}
+
+.entity-editor-row.invalid input {
+  border-color: #dc2626;
+}
+
+.entity-editor-row input {
+  width: 100%;
+}
+
+.entity-editor-row .entity-editor-meta {
+  font-size: 0.68rem;
+  color: #647397;
+}
+
+.entity-editor-head {
+  position: sticky;
+  top: 0;
+  background: var(--surface, #fff);
+  font-size: 0.66rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #647397;
+  z-index: 1;
+}
+
+@media (prefers-color-scheme: dark) {
+  .entity-editor-head {
+    background: #1b2233;
+  }
 }
 
 .ranking-country {
