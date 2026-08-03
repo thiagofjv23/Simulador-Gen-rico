@@ -76,6 +76,7 @@ import {
 import {
   qualifierParticipantIdsFor,
   simulateCompetition,
+  matchesEventType,
 } from "./simulation.js";
 import { simulateLeagueRound } from "./league.js";
 import { clampMomentum, momentumDeltasForResult } from "./momentum.js";
@@ -4168,7 +4169,9 @@ function simulateLeagueForCompetition(competition) {
     .filter(Boolean);
   if (!clubs.length) {
     clubs = state.clubs.filter((club) =>
-      club.sportId === competition.sportId && club.modalityId === competition.modalityId);
+      club.sportId === competition.sportId
+      && club.modalityId === competition.modalityId
+      && matchesEventType(club, competition));
   }
   if (clubs.length < 2) return null;
 
@@ -4549,10 +4552,16 @@ async function runEntityGenerator(sportIds, { seed = Date.now() } = {}) {
     rng: createRng(seed),
     timestamp,
   });
-  if (people.length) await savePeople(people);
-  if (clubs.length) await saveClubs(clubs);
-  await reloadRanking();
-  await reloadClubs();
+  // Atletas: além de salvar, criam entradas de ranking por esporte+modalidade
+  // (como o editor de elenco), para entrarem no pool das competições. A seleção
+  // por competição depois filtra pelo tipo de evento (matchesEventType).
+  if (people.length) await applyRosterPeople(people, timestamp);
+  // Clubes: as competições de equipe já os buscam em state.clubs por
+  // esporte+modalidade (+ tipo de evento); basta persistir e recarregar.
+  if (clubs.length) {
+    await saveClubs(clubs);
+    await reloadClubs();
+  }
   return { people: people.length, clubs: clubs.length };
 }
 

@@ -1376,3 +1376,35 @@ a um **tipo de evento** (esporte → modalidade → tipo de evento).
   Rasos", o top 3 mostrou só atletas dessa prova.
 
 Total após esta etapa: **224 testes** (todos verdes).
+
+## 41. Ligação: entidades geradas alimentam as competições por tipo de evento
+
+As entidades geradas passam a **participar das competições**, casadas pelo tipo
+de evento (esporte → modalidade → tipo de evento).
+
+- **Atletas entram no pool** (js/app.js `runEntityGenerator`): além de salvar, os
+  atletas gerados ganham **entradas de ranking** por esporte+modalidade (reuso de
+  `applyRosterPeople`), do mesmo jeito que o editor de elenco — sem isso não
+  apareciam na seleção de participantes. Clubes já são lidos de `state.clubs` pela
+  simulação de equipe, então basta persistir.
+- **Filtro por tipo de evento** (js/simulation.js `matchesEventType`): uma
+  competição atrelada a um `eventTypeId` só admite entidades do mesmo evento. É
+  **tolerante**: entidades sem `eventTypeId` (atletas legados e de preset)
+  continuam elegíveis, então as simulações existentes não mudam. O filtro entra em
+  `selectParticipants` (provas individuais) e na seleção de clubes de
+  `simulateLeagueForCompetition` (equipes). A modalidade continua restrita pelo
+  `rankingId`; o tipo de evento é a camada fina por cima.
+
+Assim, criar uma competição de "100 m Rasos" da modalidade Atletismo puxa só os
+atletas gerados daquela prova — maratonistas e outras provas ficam de fora.
+
+### Verificação
+
+- **test/simulation.test.js**: `matchesEventType` casa por evento e tolera quem
+  não tem; `selectParticipants` de uma competição de 100 m seleciona só atletas de
+  100 m (e os legados sem evento), deixando os de outra prova de fora.
+- **Smoke de navegador (ponta a ponta)**: gerar Atletismo, criar uma competição de
+  100 m e avançar o calendário produziu um resultado com **16 participantes, todos
+  atletas gerados e todos de `event_athletics_100m`** — nenhum de outra prova.
+
+Total após esta etapa: **226 testes** (todos verdes).

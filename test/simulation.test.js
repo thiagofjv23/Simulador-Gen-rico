@@ -8,6 +8,7 @@ import {
 } from "../js/ranking.js";
 import {
   qualifierParticipantIdsFor,
+  matchesEventType,
   rankingPointsForPosition,
   selectParticipants,
   simulateCompetition,
@@ -35,6 +36,45 @@ test("por ranking usa o número de vagas como corte", () => {
     participants.map(({ position }) => position),
     Array.from({ length: 16 }, (_, index) => index + 1),
   );
+});
+
+test("matchesEventType casa por tipo de evento e é tolerante com quem não tem", () => {
+  assert.equal(matchesEventType({ eventTypeId: "event_a" }, { eventTypeId: "event_a" }), true);
+  assert.equal(matchesEventType({ eventTypeId: "event_b" }, { eventTypeId: "event_a" }), false);
+  // Entidade sem eventTypeId (legada/preset) sempre passa.
+  assert.equal(matchesEventType({}, { eventTypeId: "event_a" }), true);
+  // Competição sem eventTypeId não filtra.
+  assert.equal(matchesEventType({ eventTypeId: "event_b" }, {}), true);
+});
+
+test("a competição atrelada a um evento só seleciona entidades daquele evento", () => {
+  const make = (id, eventTypeId, baseRating, countryCode) => ({
+    id, name: id, age: 25, momentum: 0, baseRating, countryCode,
+    sportId: "sport_athletics", modalityId: "modality_athletics", eventTypeId,
+  });
+  const evPeople = [
+    make("p_100_1", "event_athletics_100m", 90, "BRA"),
+    make("p_100_2", "event_athletics_100m", 88, "USA"),
+    make("p_mar_1", "event_athletics_marathon", 95, "KEN"),
+    // Atleta legado sem eventTypeId permanece elegível.
+    make("p_legacy", undefined, 80, "JAM"),
+  ];
+  const evEntries = buildInitialRanking(evPeople, timestamp, {
+    rankingId: "ranking_sport_athletics_modality_athletics",
+    sportId: "sport_athletics",
+    modalityId: "modality_athletics",
+  }).map((e) => ({ ...e, sportId: "sport_athletics", modalityId: "modality_athletics" }));
+  const evRanking = combineRanking(evPeople, evEntries);
+
+  const selected = selectParticipants(evRanking, {
+    id: "c1", sportId: "sport_athletics", modalityId: "modality_athletics",
+    eventTypeId: "event_athletics_100m", slots: 10, qualification: "ranking",
+    geographicScope: "world",
+  });
+  const ids = selected.map((s) => s.personId);
+  assert.ok(ids.includes("p_100_1") && ids.includes("p_100_2"));
+  assert.ok(ids.includes("p_legacy")); // sem eventTypeId, ainda elegível
+  assert.ok(!ids.includes("p_mar_1")); // maratonista fica de fora do 100 m
 });
 
 test("a abrangência continental impede atletas de outros continentes", () => {
