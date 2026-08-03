@@ -16,14 +16,14 @@ export const SPORTS = [
     name: "Esportes Aquáticos",
     defaultScoringSystemId: "generic-proportional",
     rankingModel: "rolling",
-    entityType: "mista",
+    entityType: "atleta",
   },
   {
     id: "sport_archery",
     name: "Tiro com Arco",
     defaultScoringSystemId: "set-points-proportional",
     rankingModel: "rolling",
-    entityType: "mista",
+    entityType: "atleta",
   },
   {
     id: "sport_athletics",
@@ -37,7 +37,7 @@ export const SPORTS = [
     name: "Badminton",
     defaultScoringSystemId: "sets-proportional",
     rankingModel: "cumulative",
-    entityType: "mista",
+    entityType: "atleta",
   },
   {
     id: "sport_baseball_softball",
@@ -65,7 +65,7 @@ export const SPORTS = [
     name: "Canoagem",
     defaultScoringSystemId: "time-proportional",
     rankingModel: "rolling",
-    entityType: "mista",
+    entityType: "atleta",
   },
   {
     id: "sport_cricket",
@@ -79,7 +79,7 @@ export const SPORTS = [
     name: "Ciclismo",
     defaultScoringSystemId: "time-proportional",
     rankingModel: "rolling",
-    entityType: "mista",
+    entityType: "atleta",
   },
   {
     id: "sport_equestrian",
@@ -93,7 +93,7 @@ export const SPORTS = [
     name: "Esgrima",
     defaultScoringSystemId: "touches-proportional",
     rankingModel: "rolling",
-    entityType: "mista",
+    entityType: "atleta",
   },
   {
     id: "sport_field_hockey",
@@ -128,7 +128,7 @@ export const SPORTS = [
     name: "Ginástica",
     defaultScoringSystemId: "judged-scores",
     rankingModel: "rolling",
-    entityType: "mista",
+    entityType: "atleta",
   },
   {
     id: "sport_handball",
@@ -142,7 +142,7 @@ export const SPORTS = [
     name: "Judô",
     defaultScoringSystemId: "ippon-wazaari-proportional",
     rankingModel: "rolling",
-    entityType: "mista",
+    entityType: "atleta",
   },
   {
     id: "sport_lacrosse",
@@ -170,7 +170,7 @@ export const SPORTS = [
     name: "Remo",
     defaultScoringSystemId: "time-proportional",
     rankingModel: "rolling",
-    entityType: "mista",
+    entityType: "atleta",
   },
   {
     id: "sport_rugby",
@@ -184,14 +184,14 @@ export const SPORTS = [
     name: "Vela",
     defaultScoringSystemId: "low-point-system",
     rankingModel: "rolling",
-    entityType: "mista",
+    entityType: "atleta",
   },
   {
     id: "sport_shooting",
     name: "Tiro Esportivo",
     defaultScoringSystemId: "points-proportional",
     rankingModel: "rolling",
-    entityType: "mista",
+    entityType: "atleta",
   },
   {
     id: "sport_skateboarding",
@@ -226,7 +226,7 @@ export const SPORTS = [
     name: "Tênis de Mesa",
     defaultScoringSystemId: "sets-proportional",
     rankingModel: "cumulative",
-    entityType: "mista",
+    entityType: "atleta",
   },
   {
     id: "sport_taekwondo",
@@ -240,21 +240,21 @@ export const SPORTS = [
     name: "Tênis",
     defaultScoringSystemId: "tennis-round-proportional",
     rankingModel: "cumulative",
-    entityType: "mista",
+    entityType: "atleta",
   },
   {
     id: "sport_triathlon",
     name: "Triatlo",
     defaultScoringSystemId: "time-proportional",
     rankingModel: "rolling",
-    entityType: "mista",
+    entityType: "atleta",
   },
   {
     id: "sport_volleyball",
     name: "Vôlei",
     defaultScoringSystemId: "sets-proportional",
     rankingModel: "seasonal",
-    entityType: "mista",
+    entityType: "equipe",
   },
   {
     id: "sport_weightlifting",
