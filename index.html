@@ -1223,6 +1223,47 @@
       </form>
     </dialog>
 
+    <dialog id="team-rename-dialog" class="modal" aria-labelledby="team-rename-title">
+      <form id="team-rename-form" class="modal-content">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">EDITOR DE EQUIPES</p>
+            <h2 id="team-rename-title">Renomear equipe</h2>
+          </div>
+          <button
+            class="icon-button close-button"
+            id="close-team-rename-dialog"
+            type="button"
+            aria-label="Fechar"
+          >×</button>
+        </div>
+
+        <p id="team-rename-description" class="modal-intro"></p>
+
+        <label class="field">
+          <span>Novo nome</span>
+          <input
+            id="team-rename-input"
+            name="teamName"
+            maxlength="60"
+            autocomplete="off"
+            required
+          />
+        </label>
+        <p class="field-help" id="team-rename-help"></p>
+        <p id="team-rename-error" class="form-error" role="alert"></p>
+
+        <div class="modal-actions">
+          <button class="button button-secondary" id="cancel-team-rename-button" type="button">
+            Cancelar
+          </button>
+          <button class="button button-primary" type="submit">
+            Salvar nome
+          </button>
+        </div>
+      </form>
+    </dialog>
+
     <dialog id="editors-dialog" class="modal modal-wide" aria-labelledby="editors-title">
       <div class="modal-content">
         <div class="modal-header">

@@ -122,6 +122,8 @@ import {
   clubsForModality,
   multiModalityTeams,
   multiSportTeams,
+  renameTeam,
+  validateTeamName,
 } from "./clubs.js";
 import {
   CALENDAR_PRESETS,
@@ -250,6 +252,14 @@ const elements = {
   teamsModality: document.querySelector("#teams-modality"),
   teamsList: document.querySelector("#teams-list"),
   teamsEmpty: document.querySelector("#teams-empty"),
+  teamRenameDialog: document.querySelector("#team-rename-dialog"),
+  teamRenameForm: document.querySelector("#team-rename-form"),
+  teamRenameDescription: document.querySelector("#team-rename-description"),
+  teamRenameInput: document.querySelector("#team-rename-input"),
+  teamRenameHelp: document.querySelector("#team-rename-help"),
+  teamRenameError: document.querySelector("#team-rename-error"),
+  closeTeamRenameDialog: document.querySelector("#close-team-rename-dialog"),
+  cancelTeamRenameButton: document.querySelector("#cancel-team-rename-button"),
   seasonTop: document.querySelector("#season-top"),
   seasonSport: document.querySelector("#season-sport"),
   seasonUnit: document.querySelector("#season-unit"),
@@ -423,6 +433,7 @@ const state = {
   results: [],
   competitionEntries: [],
   activeInvitation: null,
+  activeTeamRename: null,
   viewDate: new Date(2026, 0, 1, 12),
   selectedDate: "2026-01-01",
   activeView: "calendar",
@@ -1629,8 +1640,82 @@ function teamNameCell(club) {
   name.textContent = club.name;
   const identifier = document.createElement("span");
   identifier.textContent = club.id;
-  cell.append(name, identifier);
+  cell.append(name, identifier, buildTeamRenameButton({
+    fromName: club.name,
+    sportId: club.sportId,
+  }));
   return cell;
+}
+
+// Botão de renomear a equipe/clube. Fica ao lado do nome, dentro das listas de
+// equipes. Impede a propagação do clique para não abrir/fechar o detalhe da linha.
+function buildTeamRenameButton({ fromName, sportId }) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "team-rename-button";
+  button.title = "Renomear equipe";
+  button.setAttribute("aria-label", `Renomear ${fromName}`);
+  button.textContent = "✎";
+  const stop = (event) => event.stopPropagation();
+  button.addEventListener("keydown", stop);
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openTeamRenameDialog({ fromName, sportId });
+  });
+  return button;
+}
+
+function openTeamRenameDialog({ fromName, sportId = null }) {
+  state.activeTeamRename = { fromName, sportId };
+  const scope = sportId ? sportById(sportId, state.sports)?.name ?? "" : "";
+  const affected = state.clubs.filter(
+    (club) => club.name === fromName && (!sportId || club.sportId === sportId),
+  ).length;
+  elements.teamRenameDescription.textContent =
+    `Novo nome para “${fromName}”${scope ? ` (${scope})` : ""}.`;
+  elements.teamRenameHelp.textContent = affected > 1
+    ? `O novo nome vale para as ${affected} entradas desta equipe (todas as suas modalidades).`
+    : "O novo nome fica salvo no save.";
+  elements.teamRenameInput.value = fromName;
+  elements.teamRenameError.textContent = "";
+  if (!elements.teamRenameDialog.open) elements.teamRenameDialog.showModal();
+  elements.teamRenameInput.focus();
+  elements.teamRenameInput.select();
+}
+
+function closeTeamRenameDialog() {
+  if (elements.teamRenameDialog.open) elements.teamRenameDialog.close();
+  state.activeTeamRename = null;
+}
+
+async function handleTeamRenameSubmit(submitEvent) {
+  submitEvent.preventDefault();
+  const active = state.activeTeamRename;
+  if (!active) return;
+  const newName = elements.teamRenameInput.value;
+  const errors = validateTeamName(newName);
+  if (errors.length) {
+    elements.teamRenameError.textContent = errors.join(" ");
+    return;
+  }
+  const timestamp = new Date().toISOString();
+  const updated = renameTeam(state.clubs, {
+    fromName: active.fromName,
+    sportId: active.sportId,
+    toName: newName,
+    timestamp,
+  });
+  if (updated.length) {
+    await saveClubs(updated);
+    await reloadClubs();
+  }
+  closeTeamRenameDialog();
+  render();
+  showToast(
+    updated.length
+      ? `Equipe renomeada para “${newName.trim()}”.`
+      : "O nome não mudou.",
+  );
 }
 
 // Atletas de um clube (numa modalidade), a partir do elenco em memória.
@@ -1815,7 +1900,12 @@ function renderTeamGroups(groups, { crossSport }) {
       : group.modalityIds.map((id) => modalityById(id, state.modalities)?.name ?? id);
     const identifier = document.createElement("span");
     identifier.textContent = scopeNames.join(" · ");
-    team.append(name, identifier);
+    // Grupo dentro de um esporte: renomeia por (nome, esporte). Grupo entre
+    // esportes (mesma equipe em vários esportes): renomeia por nome em todos.
+    team.append(name, identifier, buildTeamRenameButton({
+      fromName: group.name,
+      sportId: crossSport ? null : elements.teamsSport.value || null,
+    }));
 
     const scopeCount = document.createElement("td");
     scopeCount.textContent = crossSport ? group.sportIds.length : group.modalityIds.length;
@@ -4834,6 +4924,10 @@ async function handleGeneratorSubmit(submitEvent) {
   try {
     const { people, clubs } = await runEntityGenerator(sportIds);
     elements.generatorStatus.textContent = `Gerados ${people} atleta(s) e ${clubs} clube(s).`;
+    // Recompõe toda a interface: sem isso, seletores como o de Equipes (que só
+    // listam esportes com clubes) e o de modalidades do ranking não enxergavam as
+    // entidades recém-geradas até um próximo render.
+    render();
     renderEntitiesView();
     showToast(`Gerador: ${people} atleta(s) e ${clubs} clube(s) criados.`);
   } catch (error) {
@@ -5435,6 +5529,9 @@ function attachEventListeners() {
   elements.invitationFilter.addEventListener("input", renderInvitationAthletes);
   elements.closeInvitationDialog.addEventListener("click", closeInvitationSelection);
   elements.cancelInvitationButton.addEventListener("click", closeInvitationSelection);
+  elements.teamRenameForm.addEventListener("submit", handleTeamRenameSubmit);
+  elements.closeTeamRenameDialog.addEventListener("click", closeTeamRenameDialog);
+  elements.cancelTeamRenameButton.addEventListener("click", closeTeamRenameDialog);
   elements.advanceNextEvent.addEventListener("click", advanceToNextEvent);
   document.querySelectorAll("[data-advance-days]").forEach((button) => {
     button.addEventListener("click", () => advanceTime(Number(button.dataset.advanceDays)));

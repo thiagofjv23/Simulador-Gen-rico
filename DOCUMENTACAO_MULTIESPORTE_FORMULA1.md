@@ -1538,3 +1538,37 @@ classificação acumulada e o campeão na última rodada.
   com J/V/E/D/GP/GC/SG/Pts — e o campeão saiu na última rodada. Sem erros no console.
 
 Total após esta etapa: **231 testes** (todos verdes).
+
+## 45. Editor in-game: renomear clubes e equipes no save
+
+A aba **Equipes** (Central dos Esportes) ganhou um editor de nomes. Ao lado do nome
+de cada equipe/clube há um botão **✎ (Renomear equipe)** que abre um diálogo com o
+nome atual preenchido; ao salvar, o novo nome fica gravado no save.
+
+- **Renomeação pura** (js/clubs.js `renameTeam`, `validateTeamName`): `renameTeam`
+  troca o nome de todos os clubes que compartilham o nome atual — restringindo ao
+  esporte quando informado — para manter a equipe consistente em todas as suas
+  modalidades (ex.: uma equipe que compete em várias categorias). Devolve só os
+  clubes alterados, para persistir. `validateTeamName` exige um nome não vazio de
+  até 60 caracteres.
+- **Diálogo e botões** (index.html `#team-rename-dialog`; js/app.js
+  `buildTeamRenameButton`, `openTeamRenameDialog`, `handleTeamRenameSubmit`): o
+  botão aparece nas listas de equipes por modalidade e nas de equipes que cruzam
+  modalidades/esportes. Nas listas por modalidade ou por esporte, a renomeação vale
+  para o esporte da equipe; na lista de equipes entre esportes, vale em todos os
+  esportes. Salva com `saveClubs`, recarrega e re-renderiza.
+- **Atualização após gerar** (js/app.js `handleGeneratorSubmit`): o gerador passa a
+  refazer toda a interface (`render()`), para que os clubes recém-gerados apareçam
+  imediatamente na aba Equipes (e nos seletores de modalidade do ranking) — sem
+  isso, o editor não teria equipes para renomear até um próximo render.
+
+### Verificação
+
+- **test/clubs.test.js**: `validateTeamName` valida vazio e tamanho; `renameTeam`
+  renomeia todas as entradas da equipe no esporte (e em todos, sem esporte), apara
+  espaços e ignora quando o nome não muda ou é vazio.
+- **Smoke de navegador (ponta a ponta)**: gerar Futebol, abrir Central → Equipes,
+  clicar no botão de renomear de um clube, trocar o nome e salvar renomeou a equipe
+  no save (persistida no IndexedDB) e atualizou a lista na hora. Sem erros no console.
+
+Total após esta etapa: **235 testes** (todos verdes).

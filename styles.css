@@ -584,6 +584,26 @@ h2 {
   font-size: 0.58rem;
 }
 
+.team-rename-button {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border: 1px solid #c7d2e6;
+  border-radius: 999px;
+  background: #f3f6fc;
+  color: #3a4a6b;
+  font-size: 0.62rem;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.team-rename-button:hover,
+.team-rename-button:focus-visible {
+  border-color: #6b82b8;
+  background: #e6edfa;
+  color: #1f2c47;
+}
+
 .ranking-country {
   min-width: 160px;
 }
