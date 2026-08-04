@@ -287,35 +287,88 @@ export function simulateCompetition({
     ? applyResultMetric(ordered, { metric: resultMetric, markType })
     : ordered;
 
-  const standings = decorated.map((standing) => ({
-    ...standing,
-    pointsAwarded: rankingPointsForPosition(
-      winnerPoints,
-      standing.position,
-      scoringSystemId,
-    ),
-  }));
+  const usesBoxingElo =
+  competition.sportId === BOXING_SPORT_ID;
 
-  const pointsByPerson = new Map(
-    standings.map(({ personId, pointsAwarded }) => [personId, pointsAwarded]),
+if (usesBoxingElo && decorated.length !== 2) {
+  throw new Error(
+    "Nesta primeira versão do Elo, uma competição de Boxe deve ter exatamente dois participantes.",
   );
-  const updatedAt = `${occurrenceEnd}T23:59:59.000Z`;
-  const rankingEntries = activeRanking
+}
+
+let standings = decorated.map((standing) => ({
+  ...standing,
+  pointsAwarded: usesBoxingElo
+    ? 0
+    : rankingPointsForPosition(
+        winnerPoints,
+        standing.position,
+        scoringSystemId,
+      ),
+}));
+
+const updatedAt = `${occurrenceEnd}T23:59:59.000Z`;
+
+let rankingEntries;
+let eloChangesByPersonId = new Map();
+
+if (usesBoxingElo) {
+  const eloUpdate = updateBoxingElo(
+    activeRanking,
+    standings,
+    { updatedAt },
+  );
+
+  rankingEntries = eloUpdate.rankingEntries;
+  eloChangesByPersonId = eloUpdate.changesByPersonId;
+
+  standings = standings.map((standing) => {
+    const eloChange = eloChangesByPersonId.get(
+      standing.personId,
+    );
+
+    return eloChange
+      ? {
+          ...standing,
+          ...eloChange,
+        }
+      : standing;
+  });
+} else {
+  const pointsByPerson = new Map(
+    standings.map(({ personId, pointsAwarded }) => [
+      personId,
+      pointsAwarded,
+    ]),
+  );
+
+  rankingEntries = activeRanking
     .map((entry) => ({
       ...entry,
       position: entry.position,
       previousPosition: entry.position,
-      points: entry.points + (pointsByPerson.get(entry.personId) ?? 0),
-      eventsCount: entry.eventsCount + (pointsByPerson.has(entry.personId) ? 1 : 0),
-      seasonYear: competition.seasonalRanking ? seasonYear : entry.seasonYear,
+      points:
+        entry.points
+        + (pointsByPerson.get(entry.personId) ?? 0),
+      eventsCount:
+        entry.eventsCount
+        + (pointsByPerson.has(entry.personId) ? 1 : 0),
+      seasonYear: competition.seasonalRanking
+        ? seasonYear
+        : entry.seasonYear,
       updatedAt,
     }))
-    .sort((a, b) =>
-      b.points - a.points
-      || a.previousPosition - b.previousPosition
-      || a.personId.localeCompare(b.personId),
+    .sort(
+      (a, b) =>
+        b.points - a.points
+        || a.previousPosition - b.previousPosition
+        || a.personId.localeCompare(b.personId),
     )
-    .map((entry, index) => ({ ...entry, position: index + 1 }));
+    .map((entry, index) => ({
+      ...entry,
+      position: index + 1,
+    }));
+      }
 
   const newPositions = new Map(
     rankingEntries.map(({ personId, position }) => [personId, position]),
