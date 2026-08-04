@@ -5343,7 +5343,11 @@ async function applyRosterPeople(people, timestamp) {
   for (const [rankingId, { sportId, modalityId }] of affected) {
     const modalityPeople = state.people.filter((person) =>
       person.sportId === sportId && person.modalityId === modalityId);
-    const rankingModel = modalityById(modalityId, state.modalities)?.rankingModel ?? "cumulative";
+    const rankingModel = sportId === "sport_boxing"
+  ? "elo"
+  : modalityById(modalityId, state.modalities)?.rankingModel
+    ?? sportById(sportId, state.sports)?.rankingModel
+    ?? "cumulative";
     entries.push(...buildInitialRanking(modalityPeople, timestamp, {
       rankingId,
       sportId,
