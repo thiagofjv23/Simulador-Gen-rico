@@ -179,21 +179,41 @@ export function buildInitialRanking(
   } = {},
 ) {
   const eligiblePeople = sportId && modalityId
-    ? people.filter((person) =>
-      person.sportId === sportId && person.modalityId === modalityId)
+    ? people.filter(
+        (person) =>
+          person.sportId === sportId
+          && person.modalityId === modalityId,
+      )
     : people;
+
   const ordered = [...eligiblePeople].sort((a, b) => {
-    const scoreA = a.baseRating * 10 + a.momentum * 7 + ((a.age * 17) % 9 - 4) * 4;
-    const scoreB = b.baseRating * 10 + b.momentum * 7 + ((b.age * 17) % 9 - 4) * 4;
-    return scoreB - scoreA || a.name.localeCompare(b.name, "pt-BR");
+    const scoreA =
+      a.baseRating * 10
+      + a.momentum * 7
+      + ((a.age * 17) % 9 - 4) * 4;
+
+    const scoreB =
+      b.baseRating * 10
+      + b.momentum * 7
+      + ((b.age * 17) % 9 - 4) * 4;
+
+    return (
+      scoreB - scoreA
+      || a.name.localeCompare(b.name, "pt-BR")
+    );
   });
 
   return ordered.map((person, index) => {
     const position = index + 1;
+
     const points = Math.max(
       0,
-      person.baseRating * 10 + person.momentum * 7 + ((person.age * 17) % 9 - 4) * 4,
+      person.baseRating * 10
+        + person.momentum * 7
+        + ((person.age * 17) % 9 - 4) * 4,
     );
+
+    const isElo = rankingModel === "elo";
 
     return {
       id: `${rankingId}_${person.id}`,
@@ -201,13 +221,19 @@ export function buildInitialRanking(
       personId: person.id,
       position,
       previousPosition: position,
-     points: startAtZero || rankingModel === "rolling" ? 0 : points,
-eventsCount: 0,
-ranked: rankingModel !== "rolling",
-sportId,
-modalityId,
-rankingModel,
-      seasonYear: rankingModel === "seasonal" ? seasonYear : null,
+      points: isElo
+        ? 1500
+        : startAtZero || rankingModel === "rolling"
+          ? 0
+          : points,
+      eventsCount: 0,
+      ...(isElo ? { fightsCount: 0 } : {}),
+      ranked: !isElo && rankingModel !== "rolling",
+      sportId,
+      modalityId,
+      rankingModel,
+      seasonYear:
+        rankingModel === "seasonal" ? seasonYear : null,
       updatedAt,
     };
   });
