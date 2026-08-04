@@ -5348,14 +5348,43 @@ async function applyRosterPeople(people, timestamp) {
   : modalityById(modalityId, state.modalities)?.rankingModel
     ?? sportById(sportId, state.sports)?.rankingModel
     ?? "cumulative";
-    entries.push(...buildInitialRanking(modalityPeople, timestamp, {
-      rankingId,
+const existingByPersonId = new Map(
+  state.rankingEntries
+    .filter((entry) => entry.rankingId === rankingId)
+    .map((entry) => [entry.personId, entry]),
+);
+
+const initialEntries = buildInitialRanking(
+  modalityPeople,
+  timestamp,
+  {
+    rankingId,
+    sportId,
+    modalityId,
+    rankingModel,
+    seasonYear,
+    startAtZero: rankingModel === "seasonal",
+  },
+);
+
+entries.push(
+  ...initialEntries.map((entry) => {
+    const existing = existingByPersonId.get(entry.personId);
+
+    if (
+      rankingModel === "elo"
+      && existing?.rankingModel === "elo"
+    ) {
+      return existing;
+    }
+
+    return {
+      ...entry,
       sportId,
       modalityId,
-      rankingModel,
-      seasonYear,
-      startAtZero: rankingModel === "seasonal",
-    }).map((entry) => ({ ...entry, sportId, modalityId })));
+    };
+  }),
+);
   }
   if (entries.length) {
     await saveRankingEntries(entries);
