@@ -811,3 +811,853 @@ salvo no save aparece na geografia; um atleta salvo entra no ranking; um preset
 salvo na database aparece no seletor e **reaparece após iniciar um novo jogo** —
 sem erros de console. Total após esta etapa: **170 testes** (o único vermelho
 segue sendo a asserção desatualizada do preset de 100 m, alheia a este passo).
+
+## 29. Novo catálogo oficial de esportes (36 esportes)
+
+A lista de esportes do jogo passou a ser o **catálogo oficial de 36 esportes**
+(programa olímpico), definido em `js/sports.js` (`SPORTS`). A partir daqui, tudo
+que tem relação com esporte (modalidades, presets, equipes, atletas) referencia
+um **id específico desse catálogo**.
+
+Mudanças em relação ao catálogo anterior:
+
+- **Automobilismo saiu do catálogo.** Como o esporte `sport_motorsport` não
+  existe mais, o **Ecossistema FIA** (preset, modalidades F1–Regionais, pilotos,
+  clubes derivados) foi removido de `js/presets.js`, junto dos testes específicos
+  (`formula1-season.test.js`, `team-influence.test.js` e os testes de FIA em
+  `presets.test.js`). O sistema de **rating de equipe com peso** (mista
+  "weighted") continua no código para uso futuro; apenas nenhum preset o usa
+  agora.
+- **Tênis passou a ser `mista`** (antes `atleta`). O preset da ATP continua com
+  atletas apenas — como não há equipe no nome, nenhum clube é derivado —, então
+  funciona igual, agora dentro de um esporte misto.
+- **Atletismo** (`atleta`) e **Futebol** (`equipe`) seguem iguais, com seus
+  presets intactos.
+- Os **34 esportes novos** entram sem modalidades ainda (conteúdo futuro): eles
+  aparecem nos seletores, mas só recebem competições quando modalidades/presets
+  forem criados (inclusive pelos editores in-game).
+
+Cada esporte declara `defaultScoringSystemId`, `rankingModel`
+(`cumulative`/`seasonal`/`rolling`) e `entityType` (`atleta`/`equipe`/`mista`).
+Alguns `defaultScoringSystemId` novos ainda não têm implementação em
+`js/scoring.js`; até terem, a criação de competição para esses esportes cai no
+sistema padrão. As modalidades atuais (`MODALITIES`) cobrem tênis (1), atletismo
+(24) e futebol (2).
+
+**Ajustes nos editores**: o editor de Atletas/Clubes passou a **rejeitar
+`sportId`/`modalityId` inexistentes** no catálogo (o alvo precisa existir), para
+não criar dados órfãos. Os demais editores seguem iguais (o editor de Presets
+pode, inclusive, registrar esportes/modalidades novos).
+
+Verificação: `sports.test.js` e `clubs.test.js` atualizados para o novo catálogo;
+`presets.test.js` reduzido aos presets remanescentes. Smoke de navegador: um jogo
+novo sobe com os 36 esportes no seletor de rankings (tênis presente, automobilismo
+ausente, basquete presente), o seletor de presets traz ATP/Atletismo/Futebol, e o
+preset de futebol ainda cria 76 competições — sem erros de console. Total após
+esta etapa: **156 testes** (o único vermelho segue sendo a asserção desatualizada
+do preset de 100 m, alheia a este passo).
+
+## 30. Catálogo mundial de países e retorno do automobilismo
+
+**Países (geografia completa)**: o catálogo de países foi completado — **206
+países** distribuídos pelos 6 continentes (todos com `id` derivado do `code`,
+`code`, `name` e `continentId` válidos, sem duplicatas). Verificação e correções
+mínimas: um `];` solto antes do `.map` foi removido (erro de sintaxe) e
+`test/geography.test.js` passou a checar o catálogo completo (contagem ≥ 200 e
+cobertura por continente) em vez das 20 entradas antigas. Os códigos usados pelo
+elenco genérico e pelos presets (USA, CAN, JAM, BRA...) estão todos presentes.
+
+**Automobilismo de volta ao catálogo**: o esporte e o preset do automobilismo,
+retirados na etapa anterior, foram **reinseridos nos lugares corretos** e com a
+mesma formatação:
+
+- `js/sports.js`: `sport_motorsport` (Automobilismo, `mista`, `seasonal`) entra
+  em `SPORTS` na posição alfabética por id (entre `sport_modern_pentathlon` e
+  `sport_rowing`). As cinco categorias voltam como o const `MOTORSPORT_MODALITIES`
+  (F1 = `weighted`/60; F2, F3 e Regionais = `independent`/0), no mesmo estilo de
+  `FOOTBALL_MODALITIES`, e são espalhadas em `MODALITIES`.
+- `js/presets.js`: os dados do automobilismo (grids e calendários de F1–Regionais)
+  voltam à sua seção original, e o **Ecossistema FIA** volta a `CALENDAR_PRESETS`.
+
+Agora o catálogo tem **37 esportes** e **4 presets** (ATP, Ecossistema FIA,
+Atletismo, Futebol); a FIA gera 60 competições, 115 pilotos e 53 equipes. Testes
+específicos restaurados (`formula1-season.test.js`, `team-influence.test.js` e os
+testes de FIA em `presets.test.js`); `sports.test.js` voltou a cobrir as
+modalidades e o peso de equipe do automobilismo. Smoke de navegador: importar a
+FIA cria 53 equipes e o painel de equipes de F1 mostra as 11 equipes (McLaren no
+topo) — sem erros de console. Total após esta etapa: **171 testes** (o único
+vermelho segue sendo a asserção desatualizada do preset de 100 m, alheia a este
+passo).
+
+## 31. Diamond League e a aba "Tabelas"
+
+**Diamond League no preset de atletismo**: as etapas genéricas anteriores (5
+encontros inventados, modelo `standalone`) foram substituídas pela **Wanda
+Diamond League 2026** com o **calendário oficial** (Xiamen → Zurique, 15 etapas).
+A competição foi montada **usando apenas as opções já existentes do criador de
+competições** — nenhuma função ou ferramenta nova:
+
+- Cada prova (100 m, 800 m, 1500 m, salto em distância, salto em altura,
+  arremesso) vira um **campeonato de temporada** (`competitionModel:
+  "season_stage"`), com `seasonId` próprio (`diamond-league-100m` etc.), que
+  **acumula pontos etapa a etapa** e coroa o campeão na **final de Zurique**.
+- O **critério de classificação é "Por convite"** (`qualification: "invitation"`):
+  o jogador escolhe os participantes de cada etapa, sem elenco fixo.
+- As provas se dividem em dois grupos que se **alternam pelo calendário** (7
+  etapas cada) e todas se reencontram na final — 6 provas × 8 etapas = **48
+  competições**. Datas oficiais de 2026.
+- A resolução de etapa por prova é preservada (baterias + tempo nas corridas;
+  ranqueamento individual + distância nos saltos e arremesso), assim como os
+  elencos de atletas.
+
+Para isso, o construtor de presets passou a **repassar** duas opções já
+existentes do criador de competições — `qualification` e `slots` — da série para
+as competições (antes ficavam fixas em "por ranking"). Nenhuma mecânica nova: são
+as mesmas opções do diálogo de competição. Por convite, as competições não têm
+elenco fixo (`participantIds: null`), então a seleção do jogador vale.
+
+**Nova aba "Tabelas"** (ao lado de Resultados): reúne as **tabelas de
+classificação de todas as competições que geram pontuação** — ligas e campeonatos
+de temporada (futebol, automobilismo) e a Diamond League do atletismo. Um seletor
+por **preset** mostra as tabelas dos campeonatos daquele preset; elas são
+**geradas automaticamente** e **atualizam a cada simulação** (derivam dos
+resultados). A aba **reaproveita** a classificação já usada na aba Temporada:
+a **tabela de futebol** (com saldo de gols) para as ligas, e a **soma de pontos**
+para o automobilismo e para a Diamond League — este é o modelo que contempla como
+a Diamond League funciona (pontos acumulados por etapa, campeão na final).
+
+Verificação: `test/presets.test.js` (48 competições, `season_stage`, convite, sem
+elenco fixo, calendário Xiamen→Zurique, formato por prova). Smoke de navegador:
+importar a Diamond League cria 48 competições; a aba Tabelas lista os presets e
+mostra as 6 tabelas por prova; ao avançar o calendário (escolhendo os convidados),
+a tabela do 100 m se popula e a do Brasileirão também — sem erros de console.
+Total após esta etapa: **171 testes** (todos verdes; a antiga asserção do 100 m
+foi atualizada ao remodelar o preset de atletismo).
+
+## 32. Atributo "Rivais" e momentum dinâmico
+
+Esta etapa cobre dois pedidos: (A) um novo atributo **Rivais** para atletas e
+clubes e (B) transformar o **momentum** em um valor **dinâmico**, que reage aos
+resultados das competições. Nenhuma outra feature foi alterada além do
+estritamente necessário para estes dois pontos.
+
+### A. Atributo "Rivais"
+
+Cada atleta e cada clube passa a ter um atributo `rivals`: uma **lista de ids** de
+outras entidades do mesmo tipo (atletas são rivais de atletas, clubes de clubes).
+Por ora o atributo **não tem função** — só é armazenado e mantido — e **não há UI**
+para editá-lo ainda. O objetivo desta etapa é garantir que **todo atleta e clube
+gerado** já nasça com o campo.
+
+Para isso o atributo foi acrescentado nos **quatro pontos onde entidades são
+criadas**, sempre como lista vazia por padrão:
+
+- `createInitialPeople` (js/ranking.js) — os 100 atletas genéricos iniciais.
+- `createClub` (js/clubs.js) — todo clube; aceita uma lista opcional e **remove
+  duplicatas** (`[...new Set(rivals)]`).
+- `buildPresetPeople` (js/presets.js) — atletas importados de presets preservam
+  `rivals` se o preset trouxer, senão `[]`.
+- `normalizeRoster` (js/editors.js) — atletas criados pelo editor in-game.
+
+Além disso, uma **migração de carregamento** (`ensureRivalsAttribute` em
+js/app.js) faz o *backfill* de saves antigos: ao abrir um jogo existente,
+qualquer pessoa ou clube sem `rivals` (ou com um valor que não é array) recebe
+`[]` e é regravado. É chamada em `loadCurrentGame` e em `handleSetup`, de modo que
+partidas salvas antes desta feature também passam a ter o atributo.
+
+### B. Momentum dinâmico
+
+Antes o `momentum` (−5 a +5, com as mesmas cores na UI) era **estático**: fixado
+na geração e nunca mudava. Agora ele **varia conforme os resultados**. A regra
+geral: quando uma entidade de **ratingbase maior fica atrás de** (perde para) uma
+de rating menor, o momentum dela **cai** — e a que superou a expectativa **sobe**.
+O intervalo (−5..+5) e as cores da UI são preservados.
+
+Toda a lógica ficou isolada em um **módulo puro novo**, js/momentum.js, sem tocar
+no motor de simulação:
+
+- **Regra do vencedor**: **vencer sempre eleva a moral**. O vencedor de qualquer
+  etapa **nunca** fica com delta negativo nem zero — ganha momentum mesmo quando
+  já era o favorito. O tamanho desse ganho (`winnerMomentumGain`, 1 a 3) soma ao
+  piso `+1` dois componentes: o **prestígio** da competição (competição mais
+  prestigiada rende mais) e a **diferença de ratingbase** para o rival mais forte
+  que venceu. Um favorito muito acima do rival recebe só o piso; uma **zebra**
+  (venceu alguém de rating muito maior) recebe bem mais.
+- **Partidas 1v1** (ligas de futebol e etapas de 2 participantes): o vencedor
+  recebe o bônus de vitória acima. O perdedor só perde momentum numa **zebra** (o
+  de rating maior perdeu para o de rating menor), proporcional à diferença
+  (`matchMomentumMagnitude`: 1 a 3). Se o favorito vence, o perdedor não muda.
+- **Etapas com vários participantes**: usa o sistema **"Expectativa de posição"**
+  (`expectedPositions`). A expectativa vem do ratingbase — o de maior rating é
+  esperado em 1º, o segundo em 2º, e assim por diante. A mudança de momentum vem
+  da **distância entre a posição final e a esperada** (`positionMomentumDelta`):
+  quanto maior a distância, maior o ganho (terminou muito acima do previsto) ou a
+  perda (muito abaixo), limitada a ±3 por etapa. O **vencedor** (1º lugar) ganha
+  ao menos o bônus de vitória — se a zebra por posição for ainda maior, prevalece.
+
+O `momentum` continua alimentando o `performanceIndex` da simulação, então a
+variação vira uma **mecânica de forma** determinística para os próximos eventos.
+
+**Ligação com o app**: `applyMomentumFromResult` (js/app.js) roda **depois de cada
+resultado** (tanto no caminho de liga/equipe quanto no de atleta em
+`processSimulationDate`). Ela monta um mapa de ratings das entidades, chama
+`momentumDeltasForResult`, soma cada delta ao momentum atual com `clampMomentum`
+(mantendo −5..+5), grava via `savePeople`/`saveClubs`, atualiza o estado em
+memória e recombina o ranking. Os resultados já carregam o que é preciso: as
+etapas trazem `standings` com `baseRating`, e as ligas trazem `matches` com os ids
+e gols de mandante/visitante.
+
+### Verificação
+
+- **test/momentum.test.js**: intervalo do `clampMomentum`, `expectedPositions`,
+  `positionMomentumDelta` (distância → magnitude), `matchMomentumMagnitude` (só
+  muda em zebra, cresce com o gap), `winnerMomentumGain` (piso do vencedor,
+  prestígio e fator zebra elevam, favorito folgado fica no piso) e
+  `momentumDeltasForResult` nos três casos (liga por partida, 2 participantes,
+  vários por expectativa de posição), garantindo que o vencedor sempre ganha
+  momentum mesmo quando já era o favorito.
+- Testes de geração atualizados para exigir `rivals` presente: **clubs**,
+  **ranking**, **presets** e **editors**.
+- Smoke de navegador: após simular 26 resultados, **74 atletas** e **27 clubes**
+  tiveram o momentum alterado, todos dentro de −5..+5; `rivals` presente em 100%
+  de atletas e clubes; sem erros de console.
+
+Total após esta etapa: **180 testes** (todos verdes).
+
+## 33. Catálogo esporte → modalidade → tipo de evento
+
+Objetivo: estruturar a hierarquia para que **todo esporte tenha suas modalidades
+e toda modalidade tenha seus tipos de evento**, e garantir que **nenhuma
+competição exista sem estar atrelada a esporte + modalidade + tipo de evento**.
+
+### Dados canônicos (dois arquivos novos)
+
+- **js/modalities.js** (`export default`): 54 modalidades, cada uma com `id`,
+  `sportId` e `name`. É o nível intermediário (ex.: `modality_swimming`,
+  `modality_athletics`, `modality_tennis`).
+- **js/eventtypes.js** (`export default`): 185 tipos de evento, cada um com `id`,
+  `modalityId`, `sportId` e `name`. É o nível mais fino (ex.: `event_athletics_100m`,
+  `event_tennis_singles`, `event_football_tournament`).
+
+Automobilismo **ainda não entra** neste catálogo — é adicionado num passo
+posterior (esporte Automobilismo com as modalidades Open Wheel, GT, Endurance e
+Rally).
+
+### Módulo de domínio (js/catalog.js)
+
+Junta `SPORTS` + modalidades + tipos de evento num único ponto de consulta e
+validação:
+
+- **`validateCatalogIntegrity()`**: ids únicos e referências coerentes entre os
+  três níveis (toda modalidade aponta para um esporte existente; todo tipo de
+  evento pertence à sua modalidade e repete o mesmo esporte). Pura, usada nos
+  testes.
+- **Lookups**: `catalogModalityById`, `eventTypeById`, `catalogModalitiesForSport`,
+  `eventTypesForModality`, `eventTypesForSport`, `eventTypeLabel`,
+  `sportHasEventTypes`.
+- **`resolveCompetitionTaxonomy(competition)`**: devolve o par
+  (modalidade, tipo de evento) canônico de uma competição, aceitando tanto um
+  `eventTypeId` explícito (competições novas) quanto uma **modalidade legada
+  mapeável** (competições e presets já existentes).
+- **`validateCompetitionTaxonomy(competition)`**: garante o vínculo com os três
+  níveis. Esportes ainda fora do catálogo (sem tipos de evento, ex.: automobilismo)
+  ficam **isentos** até serem adicionados.
+
+### Integração aditiva (parallel) e mapa de compatibilidade
+
+A taxonomia legada de **js/sports.js** (modalidades finas como
+`modality_athletics_100m`, `modality_tennis_mens_singles`,
+`modality_football_brasileirao`) **continua alimentando os motores de
+simulação/ranking** — nada foi reescrito. O `LEGACY_MODALITY_ALIASES` traduz cada
+modalidade legada para o par (modalidade, tipo de evento) do catálogo:
+
+- tênis: `modality_tennis_mens_singles` → `modality_tennis` / `event_tennis_singles`;
+- futebol: as duas ligas caem em `modality_football` / `event_football_tournament`;
+- atletismo: `modality_athletics_<x>` → `modality_athletics` / `event_athletics_<x>`
+  (gerado a partir dos próprios tipos de evento).
+
+Assim, o **ranking permanente e o campeão de temporada continuam por tipo de
+evento** (mesma granularidade de hoje: cada prova de atletismo tem seu ranking;
+Brasileirão e J-League seguem separados). Todas as **319 competições dos presets**
+resolvem os três níveis (as 60 de automobilismo ficam isentas por ora).
+
+### Enforcement e formulário
+
+- **`validateCompetition`** (js/competition.js) passa a chamar
+  `validateCompetitionTaxonomy`: competições de esportes já no catálogo precisam
+  resolver modalidade + tipo de evento (via `eventTypeId` ou modalidade legada
+  mapeável).
+- **Formulário de competição**: novo seletor **“Tipo de evento”**
+  (`#competition-event-type`, `name="eventTypeId"`), preenchido a partir da
+  modalidade escolhida (`updateEventTypeSelect`), com um padrão sensato
+  pré-selecionado. O card da competição passa a exibir também o tipo de evento.
+
+### Verificação
+
+- **test/catalog.test.js** (novo): integridade do catálogo, lookups, mapa de
+  compatibilidade, `resolveCompetitionTaxonomy` e `validateCompetitionTaxonomy`
+  (aceita legado mapeável, isenta automobilismo, exige tipo de evento no catálogo,
+  rejeita tipo de evento de outra modalidade).
+- **test/competition.test.js**: aceita `eventTypeId` explícito, exige o vínculo
+  em esporte do catálogo e isenta automobilismo.
+- **test/ui-contract.test.js**: o formulário expõe o seletor de tipo de evento e o
+  app o preenche pela modalidade.
+
+Total após esta etapa: **202 testes** (todos verdes).
+
+## 34. Automobilismo no catálogo e estrutura de tiers
+
+Duas features encadeadas: (A) trazer o **Automobilismo** para o catálogo
+esporte → modalidade → tipo de evento e adequar todos os presets a ele; (B)
+introduzir a **tier** (1 a 4) em toda competição. Nenhum motor precisou de
+exceção só para preset — tudo coube nos parâmetros genéricos já existentes.
+
+### A. Automobilismo (Open Wheel, GT, Endurance, Rally)
+
+- **js/modalities.js**: 4 modalidades novas de `sport_motorsport` — Open Wheel,
+  GT, Endurance e Rally.
+- **js/eventtypes.js**: os tipos de evento de **Open Wheel preservam a estrutura
+  já existente** (Fórmula 1, Fórmula 2, Fórmula 3, Fórmula Regional Europeia e
+  Oriente Médio); GT, Endurance e Rally recebem tipos de evento representativos
+  (GT World Challenge/GT3, WEC/24h, WRC/Rally Raid).
+- **js/catalog.js**: o `LEGACY_MODALITY_ALIASES` passa a mapear as modalidades
+  legadas de monoposto (`modality_motorsport_formula1`…`_regional_middle_east`)
+  para a modalidade **Open Wheel** e o tipo de evento correspondente. Assim o
+  motor de temporada continua lendo a modalidade legada, enquanto a competição
+  fica atrelada aos três níveis do catálogo. Com o esporte agora no catálogo, ele
+  **deixa de ser isento** — todas as 60 etapas de automobilismo dos presets
+  resolvem esporte + modalidade + tipo de evento.
+
+### B. Tier (1 a 4) em toda competição
+
+- **js/competition.js**: `COMPETITION_TIERS` (1 = elite … 4 = regional),
+  `tierForPrestige(prestige)` (sugestão a partir do prestígio: ≥85→1, ≥65→2,
+  ≥45→3, senão 4) e `tierLabel`. `validateCompetition` passa a **exigir uma tier
+  inteira de 1 a 4** em toda competição.
+- **Formulário**: novo seletor **“Tier”** (`#competition-tier`, `name="tier"`,
+  obrigatório), com padrão sugerido pelo prestígio e sobrescrevível; o card da
+  competição ganha um selo de tier.
+- **Presets**: cada competição de preset recebe `tier` — a pirâmide FIA usa a
+  tier explícita (F1=1, F2=2, F3=3, Regionais=4) e as demais derivam do prestígio
+  (Grand Slams, Diamond League e primeiras divisões nacionais caem no Tier 1).
+  Distribuição resultante nos presets: 162 no Tier 1, 106 no Tier 2, 39 no Tier 3
+  e 12 no Tier 4.
+
+### Adequação dos presets ao catálogo
+
+Os construtores `buildPresetCompetitions` e `buildLeaguePresetCompetitions`
+passam a gravar **`eventTypeId`** (resolvido pelo catálogo) e **`tier`** em cada
+competição. As **319 competições** dos presets carregam os três níveis e uma tier,
+e todas passam por `validateCompetition` sem erros.
+
+### Motores universais
+
+Nenhuma exceção específica de preset foi criada. Toda a estrutura dos presets
+(pontuação, métrica, formato de prova, modelo de competição) já era coberta pelos
+parâmetros genéricos do criador de competições, então nenhum motor precisou de
+adição nesta etapa.
+
+### Verificação
+
+- **test/catalog.test.js**: automobilismo presente com Open Wheel/GT/Endurance/
+  Rally e resolução das categorias legadas via Open Wheel.
+- **test/competition.test.js**: exige tier 1–4; `tierForPrestige`/`tierLabel`;
+  automobilismo resolve o tipo de evento pela modalidade legada.
+- **test/presets.test.js**: toda competição de preset tem `eventTypeId` e `tier`;
+  a pirâmide FIA usa as tiers 1..4 via Open Wheel.
+- **test/ui-contract.test.js**: o formulário exige uma tier.
+- **Smoke de navegador** (Chromium headless): app inicia sem erros de console; ao
+  escolher Atletismo o seletor de tipo de evento lista as 27 provas; ao escolher a
+  modalidade legada “Fórmula 1” em Automobilismo o tipo de evento resolve para
+  Open Wheel / Fórmula 1; o seletor de tier é preenchido com 1..4.
+
+Total após esta etapa: **207 testes** (todos verdes).
+
+## 35. Categorização das modalidades por tipo de entidade (pré-requisito do gerador)
+
+Para o gerador de atletas/clubes saber **que tipo de entidade criar** em cada
+modalidade, toda modalidade do catálogo passou a declarar um **`entityType`**:
+
+- `"atleta"` — atletas individuais (ex.: natação, atletismo, tênis);
+- `"equipe"` — clubes/equipes (ex.: futebol, polo aquático, vôlei);
+- `"mista"` — atletas e equipes no mesmo campeonato (ex.: automobilismo).
+
+- **js/modalities.js**: cada uma das 58 modalidades ganhou `entityType`. A
+  distribuição: 40 de atleta, 14 de equipe e 4 mistas (as de automobilismo).
+- **js/catalog.js**: novo `entityTypeForModality(modalityId)` (com padrão seguro
+  "atleta"), e a integridade do catálogo passa a exigir que o `entityType` da
+  modalidade seja **compatível com o do esporte** (js/sports.js): esporte só de
+  atleta não aceita modalidade de equipe e vice-versa; esporte misto aceita
+  qualquer uma. Um mesmo esporte misto pode ter modalidades de tipos diferentes
+  (ex.: Esportes Aquáticos reúne natação (atleta) e polo aquático (equipe)).
+
+### Verificação
+
+- **test/catalog.test.js**: toda modalidade tem `entityType` válido e compatível
+  com o esporte; `entityTypeForModality` classifica atleta/equipe/mista; a
+  integridade acusa `entityType` inválido ou incompatível.
+
+Total após esta etapa: **212 testes** (todos verdes).
+
+## 36. Geração de nomes por nacionalidade (faker + passo de build)
+
+Base do gerador de atletas/clubes: nomes realistas conforme a nacionalidade,
+usando a biblioteca **@faker-js/faker**. Como o app roda no navegador sem
+bundler, foi adicionado um **passo de build** que empacota o faker num artefato
+versionado; o app continua abrindo estaticamente (offline) e o build só é
+necessário para (re)gerar o bundle.
+
+### Passo de build (novo)
+
+- **package.json**: `@faker-js/faker` e `esbuild` como `devDependencies` e o
+  script `npm run build:names`.
+- **build/faker-entry.js**: cria uma instância `Faker` por grupo de idioma (com
+  fallback para inglês) e a exporta.
+- **js/vendor/faker-names.js**: bundle ESM gerado pelo esbuild (~1,4 MB,
+  versionado). Exporta `fakerByGroup`. É carregado por **import dinâmico**, só
+  quando o gerador roda — a inicialização normal do app não paga esse custo.
+- **.gitignore**: passa a ignorar `node_modules/`.
+- Reproduzir o bundle: `npm install && npm run build:names`.
+
+### Agrupamento por idioma (js/names.js, puro/testável)
+
+- `languageGroupForCountry(countryCode)`: mapeia cada país a um grupo de idioma
+  (português, inglês, espanhol, francês, alemão, italiano, russo, árabe,
+  japonês, chinês, coreano, neerlandês, polonês, turco, nórdico, persa). Países
+  cujo idioma **não é coberto** pela biblioteca caem em **inglês**, conforme
+  especificado.
+- `createNameGenerator(fakerByGroup, { seed })`: recebe o provedor faker (do
+  bundle no navegador; injetável nos testes) e devolve `personName(countryCode)`
+  e `clubName(countryCode)`. O nome de clube combina a **cidade/estado do país**
+  (locale do faker) com uma **denominação esportiva** (AC, SC, FC, United…). O
+  módulo **não importa o faker**, então a lógica é testada com um provedor de
+  mentira, sem exigir a biblioteca.
+
+### Verificação
+
+- **test/names.test.js**: agrupamento por idioma (com fallback inglês), uso do
+  faker do grupo correto e composição do nome de clube — tudo com provedor
+  stub, mantendo o `node --test` sem dependências.
+- Integração real conferida à parte: o bundle gera nomes coerentes por idioma
+  (português, russo em cirílico, japonês, árabe, chinês) e cai em inglês para
+  países não cobertos (ex.: Grécia).
+
+Total após esta etapa: **216 testes** (todos verdes).
+
+## 37. Núcleo do gerador de atletas e clubes (js/generator.js)
+
+Lógica pura e determinística (dado um seed) que cria as entidades. Não importa o
+faker: recebe o gerador de nomes (js/names.js) injetado, então é testável sem a
+biblioteca.
+
+- **Quantidade**: para cada esporte escolhido, percorre suas modalidades e gera
+  **20 entidades por nacionalidade** (todas as da database) por modalidade. O
+  `entityType` da modalidade decide o que criar: `atleta` → atletas; `equipe` →
+  clubes; `mista` → **ambos**.
+- **Idade**: 16 a 40 anos (aleatória).
+- **Curva de rating** (`generateModalityRatings`): a maioria em **nível olímpico
+  não-elite** (média ~76, quase tudo abaixo de 90), uma **cauda fina chegando a
+  ~95** ("alguns nomes") e, por modalidade, **1–2 atletas forçados a 98–99** ("um
+  ou outro nome"). Os ratings são gerados em lote e consumidos em sequência, sem
+  distinção por país — todos os países têm a mesma chance de receber os melhores.
+- **Clubes**: mesma regra de quantidade e de rating; o nome vem de
+  `nameGen.clubName` (cidade/estado do país + denominação esportiva).
+- **Entidades**: no mesmo formato do resto do jogo (`hydratePersonGeography` e
+  `createClub`), com `rosterType: "generated"` para distingui-las. `createRng`
+  (mulberry32) dá reprodutibilidade.
+
+### Verificação
+
+- **test/generator.test.js**: a curva segue o esperado (média olímpica, cauda a
+  95, 1–2 a 98–99, maioria não-elite); modalidade de atleta/equipe/mista gera as
+  entidades certas na quantidade certa (20 por nacionalidade); ids únicos;
+  determinismo por seed.
+
+Total após esta etapa: **222 testes** (todos verdes).
+
+## 38. Gerador na interface e página Clubes/Atletas
+
+Interface do gerador (novo save e saves em andamento) e a tela de visualização.
+
+### Diálogo do gerador (js/app.js + index.html)
+
+- **`runEntityGenerator(sportIds)`**: carrega o bundle do faker por **import
+  dinâmico** (só aqui), monta o gerador de nomes, chama `generateEntities`
+  (js/generator.js) para as modalidades do catálogo dos esportes escolhidos, grava
+  com `savePeople`/`saveClubs` e recarrega o estado.
+- **Diálogo `#generator-dialog`**: lista os esportes (com a contagem de
+  modalidades), com "Selecionar todos"/"Limpar", e um botão Gerar que mostra o
+  progresso e o total criado.
+- **Novo save**: a tela de criação do mundo tem a opção *"Usar o gerador…"*; ao
+  marcar, o diálogo abre logo após criar o mundo, para escolher em quais esportes
+  gerar.
+- **Saves em andamento**: o menu de ferramentas (🛠) ganhou o cartão *"Gerador de
+  atletas/clubes"*, que abre o mesmo diálogo.
+
+### Página "Clubes/Atletas" (nova aba)
+
+- Mostra os **3 melhores atletas** e os **3 melhores clubes** por rating (colunas
+  separadas), segundo os filtros.
+- **Filtros em cascata** de esporte, modalidade, continente e país que **só
+  exibem opções com entidades ativas** (construídos a partir das próprias
+  entidades). Ao gerar novas entidades, os filtros e os top 3 são recompostos
+  automaticamente (`renderEntitiesView`).
+
+### Verificação
+
+- **test/ui-contract.test.js**: a opção no novo save, o diálogo do gerador e a
+  página Clubes/Atletas (quatro seletores + dois top 3) existem, e o app expõe o
+  `runEntityGenerator`/`renderEntitiesView`/`openGeneratorDialog`.
+- **Smoke de navegador**: novo jogo → 🛠 → Gerador → gerar um esporte (Squash)
+  criou **4120 atletas** (206 países × 20), sem clubes (modalidade de atleta); a
+  página Clubes/Atletas listou o top 3 (99/98/97, conforme a curva), com 207
+  opções de país e 7 de continente, sem erros de console.
+
+Total após esta etapa: **223 testes** (todos verdes).
+
+## 39. Correção: modalidades e tipos de evento no formulário de competição
+
+O seletor de modalidade do formulário de nova competição era preenchido pelas
+modalidades **legadas** (`state.modalities`), que só existem para os esportes com
+preset — os demais ficavam com a lista vazia e a criação falhava com "Selecione
+um item da lista".
+
+- **js/app.js (`updateModalitySelect`)**: passa a listar as modalidades do
+  **catálogo** do esporte (`catalogModalitiesForSport`), então todos os esportes
+  carregam suas modalidades ao serem escolhidos. A primeira modalidade é
+  pré-selecionada e, em cascata, os **tipos de evento** daquela modalidade
+  aparecem já preenchidos (o primeiro pré-selecionado). Ao **editar** uma
+  competição de preset (modalidade legada), ela é resolvida para a modalidade do
+  catálogo equivalente antes de selecionar.
+- Nada além do formulário de competição foi alterado (a tela de ranking mantém o
+  seletor legado).
+- Conferido em navegador: Basquete, Esportes Aquáticos e Boxe carregam
+  modalidades e tipos de evento corretos, com os campos válidos ao enviar.
+
+### Complemento: aceitar as modalidades do catálogo ao salvar
+
+Com o formulário passando a usar as modalidades do catálogo, dois pontos ainda
+rejeitavam a criação com "Escolha uma modalidade válida":
+
+- **js/competition.js**: `validateCompetition` valida a modalidade contra a união
+  das modalidades **legadas + do catálogo** (`[...MODALITIES, ...CATALOG_MODALITIES]`),
+  aceitando as do catálogo (formulário) e as legadas (presets/edição).
+- **js/app.js**: o construtor do formulário resolve a modalidade escolhida pelo
+  **catálogo** (`catalogModalityById`, com fallback para as legadas), de modo que o
+  `modalityId` gravado seja o do catálogo em vez de `null`.
+
+Conferido em navegador: criar uma competição de Basquete (esporte sem preset)
+conclui sem erro, com modalidade e tipo de evento do catálogo.
+
+## 40. Entidades geradas atreladas a tipo de evento
+
+Além do esporte e da modalidade, cada atleta/clube gerado passa a ficar atrelado
+a um **tipo de evento** (esporte → modalidade → tipo de evento).
+
+- **js/generator.js**: mantém as **20 por nacionalidade por modalidade** e
+  distribui cada entidade, em rodízio, pelos tipos de evento da modalidade
+  (`eventTypesForModality`), gravando o `eventTypeId`. Modalidade com um único
+  evento manda todas para ele (ex.: futebol → torneio); modalidade com vários
+  espalha (ex.: atletismo entre as 27 provas — ~150 atletas por prova no mundo,
+  um tamanho de grid realista, em vez de milhares). Modalidade sem evento no
+  catálogo fica com `eventTypeId` nulo.
+- **Página Clubes/Atletas**: novo seletor **"Tipo de evento"** (em cascata, entre
+  modalidade e continente), que só mostra eventos com entidades ativas; o top 3
+  passa a exibir também a prova/evento de cada entidade.
+
+### Verificação
+
+- **test/generator.test.js**: toda entidade recebe `eventTypeId`; em modalidade de
+  muitos eventos as entidades se espalham; em modalidade de evento único todas
+  caem nele.
+- **test/ui-contract.test.js**: a página expõe o seletor de tipo de evento.
+- **Smoke de navegador**: gerar Atletismo criou 4120 atletas espalhados pelas 27
+  provas; na página, o seletor de evento listou as 27 e, ao filtrar por "100m
+  Rasos", o top 3 mostrou só atletas dessa prova.
+
+Total após esta etapa: **224 testes** (todos verdes).
+
+## 41. Ligação: entidades geradas alimentam as competições por tipo de evento
+
+As entidades geradas passam a **participar das competições**, casadas pelo tipo
+de evento (esporte → modalidade → tipo de evento).
+
+- **Atletas entram no pool** (js/app.js `runEntityGenerator`): além de salvar, os
+  atletas gerados ganham **entradas de ranking** por esporte+modalidade (reuso de
+  `applyRosterPeople`), do mesmo jeito que o editor de elenco — sem isso não
+  apareciam na seleção de participantes. Clubes já são lidos de `state.clubs` pela
+  simulação de equipe, então basta persistir.
+- **Filtro por tipo de evento** (js/simulation.js `matchesEventType`): uma
+  competição atrelada a um `eventTypeId` só admite entidades do mesmo evento. É
+  **tolerante**: entidades sem `eventTypeId` (atletas legados e de preset)
+  continuam elegíveis, então as simulações existentes não mudam. O filtro entra em
+  `selectParticipants` (provas individuais) e na seleção de clubes de
+  `simulateLeagueForCompetition` (equipes). A modalidade continua restrita pelo
+  `rankingId`; o tipo de evento é a camada fina por cima.
+
+Assim, criar uma competição de "100 m Rasos" da modalidade Atletismo puxa só os
+atletas gerados daquela prova — maratonistas e outras provas ficam de fora.
+
+### Verificação
+
+- **test/simulation.test.js**: `matchesEventType` casa por evento e tolera quem
+  não tem; `selectParticipants` de uma competição de 100 m seleciona só atletas de
+  100 m (e os legados sem evento), deixando os de outra prova de fora.
+- **Smoke de navegador (ponta a ponta)**: gerar Atletismo, criar uma competição de
+  100 m e avançar o calendário produziu um resultado com **16 participantes, todos
+  atletas gerados e todos de `event_athletics_100m`** — nenhum de outra prova.
+
+Total após esta etapa: **226 testes** (todos verdes).
+
+## 42. Convite por equipes: o seletor mostra clubes em esportes de equipe
+
+Ao criar uma competição com o critério de classificação **Por convite**, o seletor
+que abre 10 dias antes só listava atletas do ranking. Em esportes de **equipe**
+(ou mistos) não havia ranking de atletas para a modalidade, então **nenhuma
+equipe aparecia** para escolher. Agora o seletor entende o tipo de entidade do
+esporte e mostra as equipes.
+
+- **Candidatos de equipe** (js/clubs.js `clubInvitationCandidates`): função pura
+  que filtra os clubes do esporte da competição — restringindo à modalidade quando
+  algum clube casa com ela, e caindo para o esporte inteiro quando a modalidade é
+  legada e não bate — respeita a abrangência geográfica
+  (`matchesGeographicScope`), ordena por rating e devolve **no mesmo formato dos
+  candidatos de atleta** (`{ personId, person, position, points }`). Assim o
+  seletor renderiza clube e atleta pelo mesmo caminho, sem ramificação na tela.
+- **Seleção por tipo de entidade** (js/app.js `invitationCandidates`): consulta o
+  `entityTypeForSport` da competição e monta o pool conforme o que o esporte
+  aceita — atletas (do ranking), equipes (dos clubes) ou ambos, no caso misto.
+- **Textos do diálogo** (js/app.js `invitationEntityNoun`): o estado vazio e a
+  validação de mínimo passam a falar em "equipe" (esporte de equipe),
+  "participante" (misto) ou "atleta" (esporte de atleta), conforme o caso.
+
+### Ajuste de dados relacionado
+
+Como os esportes foram padronizados para **atleta ou equipe** (o tipo misto fica
+para uma etapa posterior, exceto Automobilismo/Hipismo), a modalidade
+**Polo Aquático** — que estava como `equipe` sob os Esportes Aquáticos, agora
+`atleta` — passou a `atleta`, restaurando a integridade do catálogo (modalidade
+compatível com o esporte). Quando os Aquáticos voltarem a ser mistos, o Polo
+Aquático volta a ser de equipe.
+
+### Verificação
+
+- **test/clubs.test.js**: `clubInvitationCandidates` lista só as equipes do esporte
+  ordenadas por rating, respeita a abrangência nacional e cai para o esporte
+  quando a modalidade não tem clubes correspondentes.
+- **Testes de catálogo/esporte** atualizados para o novo modelo (Automobilismo
+  como esporte misto de referência; Polo Aquático como atleta).
+- **Smoke de navegador**: com a app carregada, os módulos ES rodam no navegador e
+  `clubInvitationCandidates` devolveu as duas equipes de futebol de exemplo,
+  ordenadas por rating (a de rating 85 antes da de 70) — o seletor de convite
+  agora enxerga equipes.
+
+Total após esta etapa: **229 testes** (todos verdes).
+
+## 43. Rankings e seletores de modalidade voltam a funcionar para dados gerados
+
+O gerador cria entidades nas modalidades do **catálogo** (js/modalities.js), mas os
+seletores de modalidade (ranking, temporadas) e o `state.modalities` só conheciam
+as modalidades **legadas** (js/sports.js). Resultado: ao gerar um esporte como
+Basquete e abrir os Rankings, o seletor de modalidade vinha **vazio** e o ranking
+não abria; em Tênis, apareciam duas modalidades (a legada "Simples masculino",
+sem dados, e a do catálogo "Tênis", com os atletas gerados), confundindo.
+
+- **state.modalities unifica catálogo + legado** (js/app.js `reloadSports`,
+  `catalogModalitiesWithRankingModel`): as modalidades do catálogo entram no
+  `state.modalities`, sem duplicar por id, enriquecidas com o `rankingModel` do
+  esporte (elas não o declaram). Assim os seletores e os lookups por id enxergam
+  todas as modalidades que têm dados.
+- **Seletor de ranking mostra só o que dá para ranquear** (js/app.js
+  `modalitiesWithDataForSport`): o seletor de modalidade do ranking passa a listar
+  apenas as modalidades do esporte com atletas, entradas de ranking ou clubes —
+  some a modalidade legada vazia quando os dados estão na do catálogo, e vice-versa.
+  Sem nenhuma com dados (save recém-criado), cai para todas, para não ficar vazio.
+- **Ranking de equipe para esporte só de equipe** (js/app.js `renderRankingTeams`,
+  `renderRanking`): a classificação de equipes deixa de ser exclusiva dos esportes
+  mistos e passa a aparecer para **qualquer esporte que aceite clubes** — num
+  esporte de equipe (Basquete, Futebol) o ranking de clubes é a classificação
+  principal. Nesses esportes o aviso "nenhuma pessoa encontrada" do ranking de
+  atletas fica oculto, já que a tela principal é a de equipes.
+
+### Verificação
+
+- **Testes**: 229 testes seguem verdes.
+- **Smoke de navegador (ponta a ponta)**: novo save gerando Basquete e Tênis
+  (8240 atletas + 8240 clubes). Em Tênis o seletor mostra só "Tênis" e o ranking
+  lista os 4120 atletas; em Basquete mostra "Basquete 3x3/5x5" e a classificação
+  de equipes lista os 4120 clubes — sem erros no console.
+
+## 44. Etapa de temporada: rodadas com confrontos, tabelas e resultados
+
+Ao escolher o modelo **Etapa de temporada** no criador de competições, logo abaixo
+do nome do campeonato anual há três campos novos:
+
+- **Quantidade de rodadas** — quantas etapas o campeonato terá;
+- **Espaçamento entre rodadas (dias)** — o intervalo de calendário entre uma
+  rodada e a seguinte;
+- **Confrontos por adversário** — quantas vezes cada dupla se enfrenta (1 = turno
+  único, 2 = turno e returno...).
+
+Ao salvar, a competição é **expandida em N rodadas**, cada uma uma competição
+própria do tipo `league`, nomeada **"Nome do campeonato - Rodada N"**, espaçada
+pelos dias escolhidos. Cada rodada carrega os confrontos daquela rodada
+(`roundFixtures`) e, ao ser simulada, gera os placares e a tabela acumulada — como
+no preset do futebol. Vale para **equipes** (esporte de equipe) e para **atletas**
+(esporte de atleta): o simulador de liga só precisa de id, nome, país e rating,
+que ambos têm, então os atletas se enfrentam em confrontos com a mesma tabela
+(J, V, E, D, GP, GC, SG, Pts).
+
+- **Confrontos configuráveis** (js/league.js `buildFixtures`): ganhou o parâmetro
+  `meetings` (padrão 2, retrocompatível). É um round-robin (algoritmo do círculo);
+  cada volta extra inverte o mando. Se N passar do tamanho do round-robin, os
+  confrontos se repetem em ciclo.
+- **Expansão em rodadas** (js/app.js `buildSeasonStageRoundCompetitions`,
+  `seasonLeagueParticipantIds`, `validateSeasonStageRoundInputs`): resolve os
+  participantes (os melhores clubes/atletas do esporte, modalidade e abrangência,
+  até o total de vagas), monta os confrontos e cria N competições + eventos de
+  calendário, salvos em lote.
+- **Simulação de liga para equipes e atletas** (js/app.js `processSimulationDate`,
+  `simulateLeagueForCompetition`): qualquer competição com `roundFixtures` passa
+  pelo simulador de liga, e os participantes são resolvidos tanto de clubes quanto
+  de atletas.
+
+As rodadas compartilham o mesmo `seasonId` (derivado do nome do campeonato), então
+a aba **Temporada** e a aba **Tabelas** as agrupam num único campeonato, com a
+classificação acumulada e o campeão na última rodada.
+
+### Verificação
+
+- **test/league.test.js**: `buildFixtures` aceita o número de confrontos por dupla
+  (turno único, 3 voltas, retrocompatível no padrão) e inverte o mando no returno.
+- **Smoke de navegador (ponta a ponta)**: criar uma "Liga Basquete" de 4 rodadas
+  (equipe) e um "Circuito Tênis" de 3 rodadas (atleta) gerou as etapas nomeadas
+  "… - Rodada N", espaçadas pelos dias escolhidos, cada uma com seus confrontos.
+  Avançando o calendário, cada rodada foi resolvida com placares e a aba Tabelas
+  exibiu a classificação acumulada dos dois campeonatos — inclusive a de atletas,
+  com J/V/E/D/GP/GC/SG/Pts — e o campeão saiu na última rodada. Sem erros no console.
+
+Total após esta etapa: **231 testes** (todos verdes).
+
+## 45. Editor in-game: renomear clubes e equipes no save
+
+A aba **Equipes** (Central dos Esportes) ganhou um editor de nomes. Ao lado do nome
+de cada equipe/clube há um botão **✎ (Renomear equipe)** que abre um diálogo com o
+nome atual preenchido; ao salvar, o novo nome fica gravado no save.
+
+- **Renomeação pura** (js/clubs.js `renameTeam`, `validateTeamName`): `renameTeam`
+  troca o nome de todos os clubes que compartilham o nome atual — restringindo ao
+  esporte quando informado — para manter a equipe consistente em todas as suas
+  modalidades (ex.: uma equipe que compete em várias categorias). Devolve só os
+  clubes alterados, para persistir. `validateTeamName` exige um nome não vazio de
+  até 60 caracteres.
+- **Diálogo e botões** (index.html `#team-rename-dialog`; js/app.js
+  `buildTeamRenameButton`, `openTeamRenameDialog`, `handleTeamRenameSubmit`): o
+  botão aparece nas listas de equipes por modalidade e nas de equipes que cruzam
+  modalidades/esportes. Nas listas por modalidade ou por esporte, a renomeação vale
+  para o esporte da equipe; na lista de equipes entre esportes, vale em todos os
+  esportes. Salva com `saveClubs`, recarrega e re-renderiza.
+- **Atualização após gerar** (js/app.js `handleGeneratorSubmit`): o gerador passa a
+  refazer toda a interface (`render()`), para que os clubes recém-gerados apareçam
+  imediatamente na aba Equipes (e nos seletores de modalidade do ranking) — sem
+  isso, o editor não teria equipes para renomear até um próximo render.
+
+### Verificação
+
+- **test/clubs.test.js**: `validateTeamName` valida vazio e tamanho; `renameTeam`
+  renomeia todas as entradas da equipe no esporte (e em todos, sem esporte), apara
+  espaços e ignora quando o nome não muda ou é vazio.
+- **Smoke de navegador (ponta a ponta)**: gerar Futebol, abrir Central → Equipes,
+  clicar no botão de renomear de um clube, trocar o nome e salvar renomeou a equipe
+  no save (persistida no IndexedDB) e atualizou a lista na hora. Sem erros no console.
+
+Total após esta etapa: **235 testes** (todos verdes).
+
+## 46. Gerador por seleção: escolha esporte, modalidade, abrangência e quantidade
+
+O gerador deixou de criar um número fixo de entidades por país. Agora, tanto no
+início do save quanto durante o jogo, o jogador monta cada geração escolhendo:
+
+- **Esporte** (só os que têm modalidades no catálogo);
+- **Modalidade** (uma específica ou "Todas as modalidades");
+- **Abrangência** — um **continente** ou um **país** (ou o mundo, sem filtro);
+- **Quantidade** de entidades a gerar.
+
+A quantidade é gerada **por modalidade** e distribuída pelos países da abrangência
+por rodízio: num continente, espalha entre seus países; num único país, todas nele
+(ex.: 10 atletas na Europa, 5 na Bolívia, 3 no Brasil). São atletas ou clubes
+conforme o `entityType` da modalidade.
+
+A janela **não fecha** após gerar: aparece a mensagem "Gerando…", depois a de
+conclusão, e o jogador pode escolher outra seleção (outros países, continentes ou
+modalidades) e gerar de novo. Cada geração entra num **registro da sessão** listado
+no diálogo. O botão **Concluir** fecha a janela.
+
+- **Núcleo puro** (js/generator.js `generateModalityBatch`, `generateSelectionEntities`):
+  `generateModalityBatch` gera um total distribuído entre os países por rodízio,
+  com um `batchId` no id de cada entidade para não colidir com gerações anteriores
+  do mesmo país/modalidade (o jogador pode gerar o mesmo país várias vezes).
+  `generateSelectionEntities` aplica isso às modalidades escolhidas.
+- **UI e fluxo** (index.html `#generator-dialog`; js/app.js `openGeneratorDialog`,
+  `handleGeneratorSubmit`, `runGeneratorSelection`, `handleGeneratorDone`,
+  seletores de esporte/modalidade/continente/país + quantidade): cada geração
+  persiste (atletas via `applyRosterPeople`, que reconstrói o ranking da modalidade
+  a partir de todos os seus atletas — então gerações sucessivas se acumulam; clubes
+  via `saveClubs`), refaz a interface por baixo do diálogo e mantém a janela aberta.
+
+### Verificação
+
+- **test/generator.test.js**: `generateModalityBatch` gera o total e o distribui
+  pelos países por rodízio, manda tudo para um único país quando só um é escolhido,
+  usa `batchId` para evitar colisão de ids e não gera nada com total 0 ou sem
+  países; `generateSelectionEntities` gera o total por modalidade do esporte.
+- **test/ui-contract.test.js**: o diálogo expõe os seletores de esporte, modalidade,
+  continente, país, quantidade e o botão Concluir.
+- **Smoke de navegador (ponta a ponta)**: gerar 3 clubes no Brasil (Futebol) e
+  depois 5 atletas na Europa (Tênis, espalhados por 5 países) — a janela ficou
+  aberta entre as duas gerações, o registro listou ambas e o IndexedDB recebeu as
+  entidades certas. Sem erros no console.
+
+Total após esta etapa: **240 testes** (todos verdes).
+
+## 47. Editor de clubes e atletas no menu de ferramentas (edição em lote)
+
+O editor de nomes que ficava na aba **Equipes** saiu de lá e virou um editor
+próprio, aberto pelo **menu de ferramentas** (🛠 → "Editor de clubes e atletas"),
+agora com mais poder:
+
+- **Seletor de tipo**: editar **Atletas** ou **Clubes**.
+- **Filtros**: por **modalidade**, **continente** ou **país** (só aparecem opções
+  com entidades do tipo escolhido).
+- **Edição em lote**: a seleção vira uma lista com **nome** e **rating** editáveis
+  por linha; dá para alterar vários de uma vez e **salvar tudo junto**.
+- **Validação**: nome não vazio (até 60 caracteres) e rating inteiro de 1 a 99; os
+  campos inválidos são destacados e a lista rola até o primeiro erro.
+
+Para manter a lista prática mesmo com milhares de entidades, ela mostra até 300 por
+seleção (as de maior rating), com um aviso para filtrar e alcançar as demais.
+
+- **Núcleo puro** (js/entityeditor.js `applyEntityEdits`, `validateEntityName`,
+  `validateEntityRating`): recebe as edições `{ id, name, rating }`, valida e
+  devolve `{ updated, errors }` — só as entidades que realmente mudaram (nome
+  aparado, `baseRating` inteiro, `updatedAt` novo) e a lista de erros por id.
+- **UI e persistência** (index.html `#entity-editor-dialog`; js/app.js
+  `openEntityEditorDialog`, `renderEntityEditorList`, `handleEntityEditorSave` e os
+  seletores/filtros): atletas são salvos com `savePeople` (+ recomposição do
+  ranking) e clubes com `saveClubs`; a interface é refeita após salvar. O editor é
+  lançado por um card no seletor de ferramentas.
+- **Remoção do editor antigo**: os botões de renomear da aba Equipes, o diálogo de
+  renomear e as funções `renameTeam`/`validateTeamName` foram removidos — a edição
+  de nomes passa a ser feita (com rating junto) neste editor.
+
+### Verificação
+
+- **test/entityeditor.test.js**: `validateEntityName` e `validateEntityRating`
+  cobrem vazio/tamanho e o intervalo 1–99; `applyEntityEdits` altera nome e rating
+  em lote, ignora o que não mudou e ids inexistentes, e reporta erros por id.
+- **Smoke de navegador (ponta a ponta)**: gerar atletas (Tênis) e clubes (Futebol),
+  abrir 🛠 → "Editor de clubes e atletas", editar nome e rating de dois atletas e de
+  um clube e salvar persistiu tudo no IndexedDB; um rating fora de 1–99 mostrou o
+  erro e destacou a linha, sem salvar. Sem erros no console.
+
+Total após esta etapa: **240 testes** (todos verdes).

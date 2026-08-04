@@ -14,6 +14,29 @@ test("o formulário de competição usa seletores de esporte e modalidade", asyn
   assert.match(html, /id="scoring-system-help"/);
 });
 
+test("o formulário de competição também vincula um tipo de evento", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("index.html", projectRoot), "utf8"),
+    readFile(new URL("js/app.js", projectRoot), "utf8"),
+  ]);
+  assert.match(html, /<select id="competition-event-type"[^>]*name="eventTypeId"/);
+  assert.match(html, /id="event-type-help"/);
+  // O seletor de tipo de evento é preenchido a partir da modalidade escolhida.
+  assert.match(app, /updateEventTypeSelect/);
+  assert.match(app, /eventTypesForModality/);
+});
+
+test("o formulário de competição exige uma tier", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("index.html", projectRoot), "utf8"),
+    readFile(new URL("js/app.js", projectRoot), "utf8"),
+  ]);
+  assert.match(html, /<select id="competition-tier"[^>]*name="tier"[^>]*required/);
+  assert.match(html, /id="competition-tier-help"/);
+  assert.match(app, /setupTierOptions/);
+  assert.match(app, /tierForPrestige/);
+});
+
 test("o cadastro de competição permite escolher formato de prova e métrica", async () => {
   const [html, app] = await Promise.all([
     readFile(new URL("index.html", projectRoot), "utf8"),
@@ -28,6 +51,36 @@ test("o cadastro de competição permite escolher formato de prova e métrica", 
   // A janelinha de contexto explica cada opção ao jogador.
   assert.match(app, /updateEventFormatFields/);
   assert.match(app, /eventFormatById\(format\)\?\.description/);
+});
+
+test("há o gerador de atletas/clubes e a página Clubes/Atletas", async () => {
+  const [html, app] = await Promise.all([
+    readFile(new URL("index.html", projectRoot), "utf8"),
+    readFile(new URL("js/app.js", projectRoot), "utf8"),
+  ]);
+  // Opção no novo save e diálogo do gerador por seleção (esporte, modalidade,
+  // abrangência e quantidade), que não fecha entre gerações.
+  assert.match(html, /id="setup-use-generator"/);
+  assert.match(html, /id="generator-dialog"/);
+  assert.match(html, /id="generator-sport"/);
+  assert.match(html, /id="generator-modality"/);
+  assert.match(html, /id="generator-continent"/);
+  assert.match(html, /id="generator-country"/);
+  assert.match(html, /id="generator-count"/);
+  assert.match(html, /id="generator-done"/);
+  // Página Clubes/Atletas com os quatro seletores e os dois top 3.
+  assert.match(html, /data-view="entities"/);
+  assert.match(html, /id="entities-sport"/);
+  assert.match(html, /id="entities-modality"/);
+  assert.match(html, /id="entities-event-type"/);
+  assert.match(html, /id="entities-continent"/);
+  assert.match(html, /id="entities-country"/);
+  assert.match(html, /id="entities-top-athletes"/);
+  assert.match(html, /id="entities-top-clubs"/);
+  // Wiring no app.
+  assert.match(app, /runGeneratorSelection/);
+  assert.match(app, /renderEntitiesView/);
+  assert.match(app, /openGeneratorDialog/);
 });
 
 test("a tela de ranking permite escolher esporte e modalidade", async () => {

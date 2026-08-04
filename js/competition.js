@@ -2,7 +2,8 @@ import {
   geographicScopeLabel,
   validateGeographicScope,
 } from "./geography.js";
-import { validateSportSelection } from "./sports.js";
+import { validateSportSelection, SPORTS, MODALITIES } from "./sports.js";
+import { validateCompetitionTaxonomy, CATALOG_MODALITIES } from "./catalog.js";
 import { scoringSystemById, scoringSystemLabel } from "./scoring.js";
 import { eventFormatById } from "./eventformat.js";
 import { markTypeById, resultMetricById } from "./metric.js";
@@ -23,6 +24,49 @@ export const COMPETITION_MODELS = {
 
 export function competitionModelLabel(model) {
   return COMPETITION_MODELS[model]?.label ?? COMPETITION_MODELS.standalone.label;
+}
+
+// Tier da competição: 1 (maior prestígio) a 4 (menor). Toda competição tem uma.
+// Genérico para qualquer esporte — é um nível de importância, não uma regra de
+// resolução.
+export const COMPETITION_TIERS = [
+  {
+    id: 1,
+    label: "Tier 1",
+    description:
+      "Elite / maior prestígio: Grand Slams, primeiras divisões nacionais, Mundiais, Diamond League, Fórmula 1.",
+  },
+  {
+    id: 2,
+    label: "Tier 2",
+    description: "Alto nível, logo abaixo da elite: ex.: ATP 500, Fórmula 2.",
+  },
+  {
+    id: 3,
+    label: "Tier 3",
+    description: "Nível intermediário: ex.: ATP 250, Fórmula 3.",
+  },
+  {
+    id: 4,
+    label: "Tier 4",
+    description: "Menor prestígio / regionais: ex.: Fórmulas Regionais, circuitos regionais.",
+  },
+];
+
+export const DEFAULT_TIER = 3;
+
+// Sugestão de tier a partir do prestígio (1 = maior). Serve de padrão no criador
+// de competições e para adequar os presets; pode ser sobrescrito por competição.
+export function tierForPrestige(prestige = 0) {
+  const value = Number(prestige) || 0;
+  if (value >= 85) return 1;
+  if (value >= 65) return 2;
+  if (value >= 45) return 3;
+  return 4;
+}
+
+export function tierLabel(tier) {
+  return COMPETITION_TIERS.find(({ id }) => id === tier)?.label ?? "Não informado";
 }
 
 export const QUALIFICATION_CRITERIA = {
@@ -195,7 +239,12 @@ export function validateCompetition(competition, { competitions = [] } = {}) {
   const errors = [];
 
   if (!competition.name?.trim()) errors.push("Informe o nome da competição.");
-  errors.push(...validateSportSelection(competition));
+  // A modalidade pode ser do catálogo (js/modalities.js, usada pelo formulário)
+  // ou uma legada (presets já existentes) — ambas são aceitas.
+  errors.push(...validateSportSelection(competition, SPORTS, [...MODALITIES, ...CATALOG_MODALITIES]));
+  // Toda competição precisa estar atrelada a esporte + modalidade + tipo de
+  // evento (ver js/catalog.js). Esportes ainda fora do catálogo ficam isentos.
+  errors.push(...validateCompetitionTaxonomy(competition));
   if (!competition.startDate) errors.push("Informe a data inicial.");
   if (!competition.endDate) errors.push("Informe a data final.");
   if (
@@ -207,6 +256,9 @@ export function validateCompetition(competition, { competitions = [] } = {}) {
   }
   if (!Number.isInteger(competition.prestige) || competition.prestige < 1 || competition.prestige > 100) {
     errors.push("O prestígio deve ser um número inteiro entre 1 e 100.");
+  }
+  if (!Number.isInteger(competition.tier) || competition.tier < 1 || competition.tier > 4) {
+    errors.push("A competição deve ter uma tier de 1 (maior) a 4 (menor).");
   }
   if (!Number.isInteger(competition.slots) || competition.slots < 2 || competition.slots > 9999) {
     errors.push("A quantidade de vagas deve ser um número inteiro entre 2 e 9999.");
@@ -287,8 +339,17 @@ export function validateCompetition(competition, { competitions = [] } = {}) {
     }
   }
 
-  errors.push(...validateGeographicScope(competition));
+    errors.push(...validateGeographicScope(competition));
   errors.push(...validateCompetitionRelations(competition, competitions));
+
+  if (
+    competition.sportId === "sport_boxing"
+    && competition.slots !== 2
+  ) {
+    errors.push(
+      "Nesta primeira versão do Elo, uma competição de Boxe deve possuir exatamente duas vagas.",
+    );
+  }
 
   return errors;
 }

@@ -11,12 +11,61 @@ import {
   normalizeRoster,
   validatePresetPackage,
 } from "../js/editors.js";
-import { buildPresetCompetitions } from "../js/presets.js";
+import { buildLeaguePresetCompetitions, buildPresetCompetitions } from "../js/presets.js";
 
 test("há quatro editores e cada um tem modelo .js", () => {
   assert.deepEqual(EDITOR_TYPES.map((t) => t.id), ["country", "preset", "league", "roster"]);
   for (const type of EDITOR_TYPES) {
     assert.match(templateFor(type.id), /export default/);
+  }
+});
+
+test("os modelos de competição expõem tipo de evento e tier", () => {
+  // Liga: a competição é de um esporte do catálogo, então o modelo traz o tipo
+  // de evento e uma tier.
+  const league = templateFor("league");
+  assert.match(league, /eventTypeId:\s*"event_football_tournament"/);
+  assert.match(league, /tier:\s*[1-4]/);
+  // Preset: tier presente; o tipo de evento é documentado (esportes novos ficam
+  // isentos até entrarem no catálogo).
+  const preset = templateFor("preset");
+  assert.match(preset, /tier:\s*[1-4]/);
+  assert.match(preset, /eventTypeId/);
+});
+
+test("o construtor de liga honra eventTypeId e tier do modelo", () => {
+  const preset = {
+    id: "user-league-x",
+    kind: "league",
+    name: "X",
+    sportId: "sport_football",
+    sportName: "Futebol",
+    leagues: [
+      {
+        slug: "myleague",
+        modalityId: "modality_football_myleague",
+        modalityName: "Minha Liga",
+        eventTypeId: "event_football_tournament",
+        tier: 2,
+        competitionName: "Minha Liga 2026",
+        seasonName: "Minha Liga",
+        seasonId: "user-myleague",
+        countryCode: "BRA",
+        countryName: "Brasil",
+        countryId: "country_bra",
+        continentId: "continent_south_america",
+        startDate: "2026-04-11",
+        endDate: "2026-12-06",
+        prestige: 70,
+        clubs: [["club-a", "Clube A", 78, 1], ["club-b", "Clube B", 75, 0]],
+      },
+    ],
+  };
+  const competitions = buildLeaguePresetCompetitions(preset);
+  assert.ok(competitions.length > 0);
+  for (const competition of competitions) {
+    assert.equal(competition.eventTypeId, "event_football_tournament");
+    assert.equal(competition.tier, 2);
   }
 });
 
@@ -48,6 +97,7 @@ test("validateRoster e normalizeRoster criam atletas e clubes", () => {
   assert.equal(people[0].sportId, "sport_tennis");
   assert.equal(people[0].countryId, "country_bra"); // geografia hidratada
   assert.equal(people[0].rosterType, "user");
+  assert.deepEqual(people[0].rivals, []); // atributo Rivais presente
 
   const clubData = {
     target: "club", sportId: "sport_football", modalityId: "modality_football_brasileirao",

@@ -36,6 +36,7 @@ export function buildSeasonUnits(competitions = [], year) {
           sportName: occurrence.sport,
           modalityId: occurrence.modalityId,
           modalityName: occurrence.discipline,
+          presetId: occurrence.presetId ?? null,
           title: `${occurrence.seasonName ?? occurrence.name} ${year}`,
           prestige: 0,
           rounds: [],

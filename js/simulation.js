@@ -9,6 +9,10 @@ import {
 import { pointsForPosition, scoringSystemLabel } from "./scoring.js";
 import { resolveStage } from "./eventformat.js";
 import { applyResultMetric } from "./metric.js";
+import {
+  BOXING_SPORT_ID,
+  updateBoxingElo,
+} from "./elo.js";
 
 function clamp(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value));
@@ -123,6 +127,15 @@ export function qualifierParticipantIdsFor({
   return personIds;
 }
 
+// Elegibilidade por tipo de evento: uma competição atrelada a um tipo de evento
+// só admite entidades do mesmo evento. Entidades sem eventTypeId (atletas legados
+// e de preset) continuam elegíveis, para não alterar as simulações existentes.
+export function matchesEventType(entity, competition) {
+  return !competition?.eventTypeId
+    || !entity?.eventTypeId
+    || entity.eventTypeId === competition.eventTypeId;
+}
+
 export function selectParticipants(
   ranking,
   competition,
@@ -131,11 +144,13 @@ export function selectParticipants(
   // A modalidade não é refiltrada aqui: o ranking recebido já vem restrito à
   // modalidade da competição (pelo rankingId), e um mesmo atleta pode disputar
   // outra categoria com modalidade principal diferente (ex.: Fórmula Regional
-  // Europeia e Oriente Médio). As barreiras de esporte e geográfica permanecem.
+  // Europeia e Oriente Médio). As barreiras de esporte, tipo de evento e
+  // geográfica permanecem.
   const scopedRanking = ranking
     .filter(({ person }) =>
       matchesGeographicScope(person, competition)
-      && (!competition.sportId || !person.sportId || person.sportId === competition.sportId),
+      && (!competition.sportId || !person.sportId || person.sportId === competition.sportId)
+      && matchesEventType(person, competition),
     )
     .map((entry, index) => ({ ...entry, scopePosition: index + 1 }));
   const scopedByPersonId = new Map(
@@ -272,35 +287,88 @@ export function simulateCompetition({
     ? applyResultMetric(ordered, { metric: resultMetric, markType })
     : ordered;
 
-  const standings = decorated.map((standing) => ({
-    ...standing,
-    pointsAwarded: rankingPointsForPosition(
-      winnerPoints,
-      standing.position,
-      scoringSystemId,
-    ),
-  }));
+  const usesBoxingElo =
+  competition.sportId === BOXING_SPORT_ID;
 
-  const pointsByPerson = new Map(
-    standings.map(({ personId, pointsAwarded }) => [personId, pointsAwarded]),
+if (usesBoxingElo && decorated.length !== 2) {
+  throw new Error(
+    "Nesta primeira versão do Elo, uma competição de Boxe deve ter exatamente dois participantes.",
   );
-  const updatedAt = `${occurrenceEnd}T23:59:59.000Z`;
-  const rankingEntries = activeRanking
+}
+
+let standings = decorated.map((standing) => ({
+  ...standing,
+  pointsAwarded: usesBoxingElo
+    ? 0
+    : rankingPointsForPosition(
+        winnerPoints,
+        standing.position,
+        scoringSystemId,
+      ),
+}));
+
+const updatedAt = `${occurrenceEnd}T23:59:59.000Z`;
+
+let rankingEntries;
+let eloChangesByPersonId = new Map();
+
+if (usesBoxingElo) {
+  const eloUpdate = updateBoxingElo(
+    activeRanking,
+    standings,
+    { updatedAt },
+  );
+
+  rankingEntries = eloUpdate.rankingEntries;
+  eloChangesByPersonId = eloUpdate.changesByPersonId;
+
+  standings = standings.map((standing) => {
+    const eloChange = eloChangesByPersonId.get(
+      standing.personId,
+    );
+
+    return eloChange
+      ? {
+          ...standing,
+          ...eloChange,
+        }
+      : standing;
+  });
+} else {
+  const pointsByPerson = new Map(
+    standings.map(({ personId, pointsAwarded }) => [
+      personId,
+      pointsAwarded,
+    ]),
+  );
+
+  rankingEntries = activeRanking
     .map((entry) => ({
       ...entry,
       position: entry.position,
       previousPosition: entry.position,
-      points: entry.points + (pointsByPerson.get(entry.personId) ?? 0),
-      eventsCount: entry.eventsCount + (pointsByPerson.has(entry.personId) ? 1 : 0),
-      seasonYear: competition.seasonalRanking ? seasonYear : entry.seasonYear,
+      points:
+        entry.points
+        + (pointsByPerson.get(entry.personId) ?? 0),
+      eventsCount:
+        entry.eventsCount
+        + (pointsByPerson.has(entry.personId) ? 1 : 0),
+      seasonYear: competition.seasonalRanking
+        ? seasonYear
+        : entry.seasonYear,
       updatedAt,
     }))
-    .sort((a, b) =>
-      b.points - a.points
-      || a.previousPosition - b.previousPosition
-      || a.personId.localeCompare(b.personId),
+    .sort(
+      (a, b) =>
+        b.points - a.points
+        || a.previousPosition - b.previousPosition
+        || a.personId.localeCompare(b.personId),
     )
-    .map((entry, index) => ({ ...entry, position: index + 1 }));
+    .map((entry, index) => ({
+      ...entry,
+      position: index + 1,
+    }));
+      }
 
   const newPositions = new Map(
     rankingEntries.map(({ personId, position }) => [personId, position]),

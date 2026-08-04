@@ -91,6 +91,10 @@ export default {
 // - Cria uma liga de pontos corridos (turno e returno) em um esporte já
 //   existente do tipo equipe (ex.: sport_football).
 // - modalities: registre a modalidade nova da liga (rankingModel "seasonal").
+// - eventTypeId: tipo de evento do catálogo ao qual a liga pertence
+//     (ex.: sport_football -> "event_football_tournament"). Toda competição fica
+//     atrelada a esporte + modalidade + tipo de evento.
+// - tier: 1 (maior prestígio) a 4 (menor). Se omitido, é derivado do prestígio.
 // - Em "leagues", clubs é uma lista [slug, nome, rating(1-99), momentum(-5..5)].
 // - countryId/continentId/countryCode devem existir na geografia.
 export default {
@@ -109,6 +113,8 @@ export default {
         slug: "myleague",
         modalityId: "modality_football_myleague",
         modalityName: "Minha Liga",
+        eventTypeId: "event_football_tournament",
+        tier: 2,
         competitionName: "Minha Liga 2026",
         seasonName: "Minha Liga",
         seasonId: "user-myleague",
@@ -136,6 +142,10 @@ export default {
 // - modalities: modalidades novas, cada uma com sportId de um esporte acima.
 // - preset: uma entrada de calendário. Este modelo usa o formato por RANKING
 //     (como o tênis): atletas no pool + torneios preenchidos por ranking.
+// - tier: 1 (maior prestígio) a 4 (menor). Se omitido, é derivado do prestígio.
+// - eventTypeId: tipo de evento do catálogo. Só é exigido para esportes JÁ no
+//     catálogo; esportes novos criados aqui ficam isentos até serem adicionados
+//     ao catálogo (js/modalities.js e js/eventtypes.js).
 // - Datas no formato AAAA-MM-DD. baseRating 1-99, momentum -5..5.
 export default {
   sports: [
@@ -152,6 +162,7 @@ export default {
     modalityId: "modality_mysport_main",
     sportName: "Meu Esporte",
     modalityName: "Principal",
+    tier: 3,
     scoringSystemId: "generic-proportional",
     competitionModel: "standalone",
     athletes: [
@@ -278,6 +289,7 @@ export function normalizeRoster(data, timestamp = new Date().toISOString()) {
         age: Number(entry.age) || 24,
         baseRating,
         momentum,
+        rivals: [],
         sportId: data.sportId,
         modalityId: data.modalityId,
         rosterType: "user",

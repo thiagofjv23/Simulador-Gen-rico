@@ -32,10 +32,12 @@
           <span id="competitions-tab-count" class="tab-count">0</span>
         </button>
         <button class="view-tab" type="button" data-view="sports">Central dos Esportes</button>
+        <button class="view-tab" type="button" data-view="entities">Clubes/Atletas</button>
         <button class="view-tab" type="button" data-view="results">
           Resultados
           <span id="results-tab-count" class="tab-count">0</span>
         </button>
+        <button class="view-tab" type="button" data-view="tables">Tabelas</button>
       </nav>
 
       <main id="calendar-view" class="workspace app-view">
@@ -472,6 +474,81 @@
           <div id="results-list" class="results-list"></div>
         </section>
       </main>
+
+      <main id="tables-view" class="results-view app-view hidden">
+        <section class="competitions-header">
+          <div>
+            <p class="eyebrow">TABELAS</p>
+            <h2>Tabelas de classificação</h2>
+            <p>
+              As classificações das competições que geram pontuação — ligas e
+              campeonatos de temporada (futebol, automobilismo) e a Diamond League
+              do atletismo. Escolha um preset para ver suas tabelas; elas são
+              geradas automaticamente e se atualizam a cada simulação.
+            </p>
+          </div>
+          <label class="compact-field">
+            <span>Preset</span>
+            <select id="tables-preset"></select>
+          </label>
+        </section>
+        <div id="tables-list" class="tables-list"></div>
+        <p id="tables-empty" class="ranking-empty hidden"></p>
+      </main>
+
+      <main id="entities-view" class="results-view app-view hidden">
+        <section class="competitions-header">
+          <div>
+            <p class="eyebrow">MUNDO</p>
+            <h2>Clubes e Atletas</h2>
+            <p>
+              As entidades que existem neste mundo, com os 3 melhores atletas e os
+              3 melhores clubes por rating na seleção. Os filtros só mostram
+              esportes, modalidades, continentes e países com entidades ativas.
+            </p>
+          </div>
+        </section>
+
+        <div class="entities-filters">
+          <label class="compact-field">
+            <span>Esporte</span>
+            <select id="entities-sport"></select>
+          </label>
+          <label class="compact-field">
+            <span>Modalidade</span>
+            <select id="entities-modality"></select>
+          </label>
+          <label class="compact-field">
+            <span>Tipo de evento</span>
+            <select id="entities-event-type"></select>
+          </label>
+          <label class="compact-field">
+            <span>Continente</span>
+            <select id="entities-continent"></select>
+          </label>
+          <label class="compact-field">
+            <span>País</span>
+            <select id="entities-country"></select>
+          </label>
+        </div>
+
+        <div class="entities-top">
+          <section class="entities-top-column">
+            <h3>Top 3 atletas</h3>
+            <ol id="entities-top-athletes" class="entities-top-list"></ol>
+            <p id="entities-athletes-empty" class="ranking-empty hidden">Sem atletas para esta seleção.</p>
+          </section>
+          <section class="entities-top-column">
+            <h3>Top 3 clubes</h3>
+            <ol id="entities-top-clubs" class="entities-top-list"></ol>
+            <p id="entities-clubs-empty" class="ranking-empty hidden">Sem clubes para esta seleção.</p>
+          </section>
+        </div>
+
+        <p id="entities-empty" class="ranking-empty hidden">
+          Nenhuma entidade neste mundo ainda. Use o gerador (ícone 🛠) para criar atletas e clubes.
+        </p>
+      </main>
     </div>
 
     <dialog id="start-dialog" class="modal start-modal" aria-labelledby="start-title">
@@ -531,8 +608,78 @@
           continentes e países, e o ranking inicial será criado com 100 pessoas.
         </p>
 
+        <label class="check-field">
+          <input id="setup-use-generator" name="useGenerator" type="checkbox" />
+          <span>Usar o gerador de atletas e clubes após criar o mundo</span>
+        </label>
+        <p class="field-help">
+          Ao marcar, depois de criar o mundo você escolhe em quais esportes gerar
+          atletas e clubes (20 por nacionalidade em cada modalidade).
+        </p>
+
         <div class="modal-actions">
           <button class="button button-primary wide" type="submit">Criar mundo</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="generator-dialog" class="modal" aria-labelledby="generator-title">
+      <form id="generator-form" class="modal-content">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">GERADOR</p>
+            <h2 id="generator-title">Gerar atletas e clubes</h2>
+          </div>
+          <button class="icon-button close-button" id="close-generator-dialog" type="button" aria-label="Fechar">×</button>
+        </div>
+
+        <p class="modal-intro">
+          Escolha o esporte, a modalidade e a abrangência (um continente ou um
+          país) e quantas entidades gerar. A janela fica aberta: gere uma seleção,
+          espere a mensagem de conclusão e gere outra (outros países ou
+          modalidades) antes de fechar.
+        </p>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Esporte</span>
+            <select id="generator-sport"></select>
+          </label>
+          <label class="field">
+            <span>Modalidade</span>
+            <select id="generator-modality"></select>
+          </label>
+        </div>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Continente</span>
+            <select id="generator-continent"></select>
+          </label>
+          <label class="field">
+            <span>País</span>
+            <select id="generator-country"></select>
+          </label>
+          <label class="field">
+            <span>Quantidade</span>
+            <input id="generator-count" type="number" min="1" max="2000" step="1" value="10" />
+          </label>
+        </div>
+
+        <p id="generator-help" class="field-help"></p>
+
+        <p id="generator-status" class="field-help"></p>
+        <p id="generator-error" class="form-error" role="alert"></p>
+
+        <section class="generator-log-wrap">
+          <h3 class="generator-log-title">Gerações desta sessão</h3>
+          <ul id="generator-log" class="generator-log"></ul>
+          <p id="generator-log-empty" class="field-help">Nenhuma geração ainda nesta sessão.</p>
+        </section>
+
+        <div class="modal-actions">
+          <button class="button button-secondary" type="button" id="generator-done">Concluir</button>
+          <button class="button button-primary" type="submit" id="generator-run">Gerar seleção</button>
         </div>
       </form>
     </dialog>
@@ -702,6 +849,17 @@
 
         <div class="field-row">
           <label class="field">
+            <span>Tipo de evento</span>
+            <select id="competition-event-type" name="eventTypeId"></select>
+          </label>
+        </div>
+
+        <p id="event-type-help" class="field-help">
+          Vincula a competição a um tipo de evento da modalidade (esporte → modalidade → tipo de evento).
+        </p>
+
+        <div class="field-row">
+          <label class="field">
             <span>Sistema de Pontuação</span>
             <select id="competition-scoring-system" name="scoringSystemId" required></select>
           </label>
@@ -794,6 +952,51 @@
           <p class="field-help">
             Todas as etapas com o mesmo nome somam pontos na mesma temporada.
             A última etapa define o campeão; em 1º de janeiro a pontuação é zerada.
+          </p>
+
+          <div class="field-row">
+            <label class="field">
+              <span>Quantidade de rodadas</span>
+              <input
+                id="competition-season-rounds"
+                name="seasonRounds"
+                type="number"
+                min="1"
+                max="380"
+                step="1"
+                value="10"
+              />
+            </label>
+            <label class="field">
+              <span>Espaçamento entre rodadas (dias)</span>
+              <input
+                id="competition-season-round-spacing"
+                name="seasonRoundSpacing"
+                type="number"
+                min="1"
+                max="365"
+                step="1"
+                value="7"
+              />
+            </label>
+            <label class="field">
+              <span>Confrontos por adversário</span>
+              <input
+                id="competition-season-meetings"
+                name="seasonMeetings"
+                type="number"
+                min="1"
+                max="10"
+                step="1"
+                value="2"
+              />
+            </label>
+          </div>
+          <p class="field-help">
+            Cada rodada vira uma etapa "Nome do campeonato - Rodada N" com os
+            confrontos entre os participantes (equipes ou atletas), gerando placares
+            e tabela como no futebol. Os participantes são os melhores do esporte,
+            modalidade e abrangência escolhidos (até o total de vagas).
           </p>
         </section>
 
@@ -954,6 +1157,17 @@
           </label>
         </div>
 
+        <div class="field-row">
+          <label class="field">
+            <span>Tier</span>
+            <select id="competition-tier" name="tier" required></select>
+          </label>
+        </div>
+
+        <p id="competition-tier-help" class="field-help">
+          Nível de prestígio da competição: Tier 1 (maior) a Tier 4 (menor).
+        </p>
+
         <label class="field">
           <span>Observações <small>(opcional)</small></span>
           <textarea
@@ -1016,8 +1230,9 @@
         </div>
 
         <p class="field-help">
-          Escolha atletas elegíveis no ranking deste esporte. A abrangência
-          mundial, continental ou nacional da competição continua sendo respeitada.
+          Escolha os participantes elegíveis deste esporte — atletas no ranking ou
+          equipes, conforme a modalidade. A abrangência mundial, continental ou
+          nacional da competição continua sendo respeitada.
         </p>
 
         <div id="invitation-athletes" class="invitation-athletes"></div>
@@ -1033,6 +1248,65 @@
           </button>
           <button class="button button-primary" type="submit">
             Confirmar participantes
+          </button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="entity-editor-dialog" class="modal modal-wide" aria-labelledby="entity-editor-title">
+      <form id="entity-editor-form" class="modal-content" novalidate>
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">EDITOR DE CLUBES E ATLETAS</p>
+            <h2 id="entity-editor-title">Editar clubes e atletas</h2>
+          </div>
+          <button
+            class="icon-button close-button"
+            id="close-entity-editor-dialog"
+            type="button"
+            aria-label="Fechar"
+          >×</button>
+        </div>
+
+        <p class="modal-intro">
+          Escolha editar clubes ou atletas, filtre por modalidade, continente ou
+          país e ajuste o nome e o rating de vários de uma vez. Salve tudo junto.
+        </p>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Editar</span>
+            <select id="entity-editor-kind">
+              <option value="athletes">Atletas</option>
+              <option value="clubs">Clubes</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Modalidade</span>
+            <select id="entity-editor-modality"></select>
+          </label>
+          <label class="field">
+            <span>Continente</span>
+            <select id="entity-editor-continent"></select>
+          </label>
+          <label class="field">
+            <span>País</span>
+            <select id="entity-editor-country"></select>
+          </label>
+        </div>
+
+        <p id="entity-editor-count" class="field-help"></p>
+
+        <div id="entity-editor-list" class="entity-editor-list"></div>
+        <p id="entity-editor-empty" class="ranking-empty hidden"></p>
+        <p id="entity-editor-error" class="form-error" role="alert"></p>
+
+        <div class="modal-actions">
+          <button class="button button-secondary" id="entity-editor-close" type="button">
+            Fechar
+          </button>
+          <button class="button button-primary" type="submit" id="entity-editor-save">
+            Salvar alterações
           </button>
         </div>
       </form>

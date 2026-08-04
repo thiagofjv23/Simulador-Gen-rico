@@ -35,6 +35,34 @@ test("buildFixtures gera turno e returno com todos jogando todos", () => {
   }
 });
 
+test("buildFixtures aceita o número de confrontos por dupla (meetings)", () => {
+  const teamIds = ["a", "b", "c", "d"];
+  // Turno único: cada dupla se enfrenta uma vez → 3 rodadas, 6 jogos.
+  const single = buildFixtures(teamIds, 1);
+  assert.equal(single.length, 3);
+  assert.equal(single.reduce((sum, r) => sum + r.length, 0), 6);
+  // Três voltas: 3 × (turno único) → 9 rodadas, 18 jogos.
+  const triple = buildFixtures(teamIds, 3);
+  assert.equal(triple.length, 9);
+  assert.equal(triple.reduce((sum, r) => sum + r.length, 0), 18);
+  // meetings inválido cai para ao menos uma volta.
+  assert.equal(buildFixtures(teamIds, 0).length, 3);
+  // O padrão continua sendo turno e returno (2 voltas).
+  assert.equal(buildFixtures(teamIds).length, 6);
+});
+
+test("no returno (2ª volta) o mando de campo se inverte", () => {
+  const teamIds = ["a", "b", "c", "d"];
+  const single = buildFixtures(teamIds, 1);
+  const double = buildFixtures(teamIds, 2);
+  // As 3 primeiras rodadas do dobro são iguais ao turno único.
+  assert.deepEqual(double.slice(0, 3), single);
+  // Um confronto do turno aparece invertido no returno.
+  const homeAway = new Set(single.flat().map(([h, a]) => `${h}>${a}`));
+  const secondLeg = double.slice(3).flat();
+  assert.ok(secondLeg.every(([h, a]) => homeAway.has(`${a}>${h}`)));
+});
+
 test("o preset gera uma competição por rodada, espaçadas semanalmente", () => {
   assert.equal(rounds.length, 38);
   assert.ok(rounds.every((c) => c.competitionModel === "season_stage"));

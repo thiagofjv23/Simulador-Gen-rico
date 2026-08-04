@@ -88,6 +88,11 @@ Estrutura:
 - `preset`: uma entrada de calendário no mesmo formato dos presets nativos. O
   modelo padrão usa o formato **por ranking** (como o tênis): um pool de atletas
   e torneios preenchidos por ranking.
+  - `tier`: **1 (maior prestígio) a 4 (menor)**. Se omitido, é derivado do
+    prestígio. Toda competição gerada recebe uma tier.
+  - `eventTypeId`: tipo de evento do catálogo (`js/eventtypes.js`). Só é exigido
+    para esportes **já no catálogo**; esportes novos criados aqui ficam **isentos**
+    até serem adicionados a `js/modalities.js` e `js/eventtypes.js`.
   - `competitions`: **lista de objetos** `{ id, name, startDate, endDate, city,
     category }` (datas `AAAA-MM-DD`).
   - `athletes`: lista de pessoas (id, name, countryCode, age, baseRating 1–99,
@@ -113,6 +118,10 @@ equipe já existente (ex.: `sport_football`). Estrutura:
   `leagues`. Cada liga tem:
   - `slug`, `modalityId`, `modalityName`, `competitionName`, `seasonName`,
     `seasonId`;
+  - `eventTypeId`: tipo de evento do catálogo ao qual a liga pertence
+    (ex.: `sport_football` → `"event_football_tournament"`). Vincula cada rodada a
+    esporte + modalidade + tipo de evento;
+  - `tier`: **1 (maior) a 4 (menor)**; se omitido, é derivado do `prestige`;
   - geografia: `countryCode`, `countryName`, `countryId`, `continentId`
     (devem **existir** na geografia — crie o país antes, se preciso, no editor 1);
   - `startDate`/`endDate` da temporada, `prestige`;

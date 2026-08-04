@@ -47,6 +47,10 @@ import {
   QUALIFICATION_CRITERIA,
   MIXED_QUALIFICATION_COMBINATIONS,
   COMPETITION_MODELS,
+  COMPETITION_TIERS,
+  DEFAULT_TIER,
+  tierForPrestige,
+  tierLabel,
   buildCalendarEvent,
   competitionStats,
   competitionModelLabel,
@@ -72,8 +76,10 @@ import {
 import {
   qualifierParticipantIdsFor,
   simulateCompetition,
+  matchesEventType,
 } from "./simulation.js";
-import { simulateLeagueRound } from "./league.js";
+import { buildFixtures, simulateLeagueRound } from "./league.js";
+import { clampMomentum, momentumDeltasForResult } from "./momentum.js";
 import { mergeRollingRanking } from "./athletics.js";
 import {
   CONTINENTS,
@@ -92,14 +98,32 @@ import {
   sportById,
   defaultScoringSystemForSport,
   entityTypeForSport,
+  sportAllowsAthletes,
   sportAllowsClubs,
   teamRatingConfigForModality,
 } from "./sports.js";
 import {
+  CATALOG_MODALITIES,
+  eventTypesForModality,
+  eventTypeLabel as catalogEventTypeLabel,
+  resolveCompetitionTaxonomy,
+  catalogModalitiesForSport,
+  catalogModalityById,
+} from "./catalog.js";
+import { createNameGenerator } from "./names.js";
+import { generateSelectionEntities, createRng } from "./generator.js";
+import {
+  MIN_RATING,
+  MAX_RATING,
+  applyEntityEdits,
+} from "./entityeditor.js";
+import {
+  ENTITY_TYPES,
   TEAM_RATING_MODELS,
   teamRatingModelInfo,
   normalizeTeamWeight,
   buildClubStandings,
+  clubInvitationCandidates,
   clubsForModality,
   multiModalityTeams,
   multiSportTeams,
@@ -109,7 +133,6 @@ import {
   buildPresetClubs,
   buildPresetCompetitions,
   buildPresetPeople,
-  presetById,
   resolvePresetRoster,
 } from "./presets.js";
 import {
@@ -241,6 +264,10 @@ const elements = {
   resultsTotal: document.querySelector("#results-total"),
   resultsLatest: document.querySelector("#results-latest"),
   resultsList: document.querySelector("#results-list"),
+  tablesView: document.querySelector("#tables-view"),
+  tablesPreset: document.querySelector("#tables-preset"),
+  tablesList: document.querySelector("#tables-list"),
+  tablesEmpty: document.querySelector("#tables-empty"),
   startDialog: document.querySelector("#start-dialog"),
   continueGameButton: document.querySelector("#continue-game-button"),
   newGameButton: document.querySelector("#new-game-button"),
@@ -279,6 +306,8 @@ const elements = {
   competitionName: document.querySelector("#competition-name"),
   competitionSport: document.querySelector("#competition-sport"),
   competitionDiscipline: document.querySelector("#competition-discipline"),
+  competitionEventType: document.querySelector("#competition-event-type"),
+  eventTypeHelp: document.querySelector("#event-type-help"),
   competitionScoringSystem: document.querySelector("#competition-scoring-system"),
   scoringSystemHelp: document.querySelector("#scoring-system-help"),
   winnerPointsHelp: document.querySelector("#winner-points-help"),
@@ -299,6 +328,9 @@ const elements = {
   teamRatingHelp: document.querySelector("#team-rating-help"),
   seasonModelPanel: document.querySelector("#season-model-panel"),
   competitionSeasonName: document.querySelector("#competition-season-name"),
+  competitionSeasonRounds: document.querySelector("#competition-season-rounds"),
+  competitionSeasonRoundSpacing: document.querySelector("#competition-season-round-spacing"),
+  competitionSeasonMeetings: document.querySelector("#competition-season-meetings"),
   competitionType: document.querySelector("#competition-type"),
   competitionQualification: document.querySelector("#competition-qualification"),
   qualificationHelp: document.querySelector("#qualification-help"),
@@ -319,6 +351,8 @@ const elements = {
   competitionEndDate: document.querySelector("#competition-end-date"),
   competitionYearly: document.querySelector("#competition-yearly"),
   competitionPrestige: document.querySelector("#competition-prestige"),
+  competitionTier: document.querySelector("#competition-tier"),
+  competitionTierHelp: document.querySelector("#competition-tier-help"),
   competitionRankingPoints: document.querySelector("#competition-ranking-points"),
   competitionSlots: document.querySelector("#competition-slots"),
   competitionNotes: document.querySelector("#competition-notes"),
@@ -354,6 +388,49 @@ const elements = {
   editorHint: document.querySelector("#editor-hint"),
   editorSaveSave: document.querySelector("#editor-save-save"),
   editorSaveDb: document.querySelector("#editor-save-db"),
+  // Editor de clubes e atletas (lote)
+  entityEditorDialog: document.querySelector("#entity-editor-dialog"),
+  entityEditorForm: document.querySelector("#entity-editor-form"),
+  closeEntityEditorDialog: document.querySelector("#close-entity-editor-dialog"),
+  entityEditorKind: document.querySelector("#entity-editor-kind"),
+  entityEditorModality: document.querySelector("#entity-editor-modality"),
+  entityEditorContinent: document.querySelector("#entity-editor-continent"),
+  entityEditorCountry: document.querySelector("#entity-editor-country"),
+  entityEditorCount: document.querySelector("#entity-editor-count"),
+  entityEditorList: document.querySelector("#entity-editor-list"),
+  entityEditorEmpty: document.querySelector("#entity-editor-empty"),
+  entityEditorError: document.querySelector("#entity-editor-error"),
+  entityEditorSave: document.querySelector("#entity-editor-save"),
+  entityEditorClose: document.querySelector("#entity-editor-close"),
+  // Gerador de atletas/clubes
+  setupUseGenerator: document.querySelector("#setup-use-generator"),
+  generatorDialog: document.querySelector("#generator-dialog"),
+  generatorForm: document.querySelector("#generator-form"),
+  closeGeneratorDialog: document.querySelector("#close-generator-dialog"),
+  generatorSport: document.querySelector("#generator-sport"),
+  generatorModality: document.querySelector("#generator-modality"),
+  generatorContinent: document.querySelector("#generator-continent"),
+  generatorCountry: document.querySelector("#generator-country"),
+  generatorCount: document.querySelector("#generator-count"),
+  generatorHelp: document.querySelector("#generator-help"),
+  generatorStatus: document.querySelector("#generator-status"),
+  generatorError: document.querySelector("#generator-error"),
+  generatorLog: document.querySelector("#generator-log"),
+  generatorLogEmpty: document.querySelector("#generator-log-empty"),
+  generatorRun: document.querySelector("#generator-run"),
+  generatorDone: document.querySelector("#generator-done"),
+  // Página Clubes/Atletas
+  entitiesView: document.querySelector("#entities-view"),
+  entitiesSport: document.querySelector("#entities-sport"),
+  entitiesModality: document.querySelector("#entities-modality"),
+  entitiesEventType: document.querySelector("#entities-event-type"),
+  entitiesContinent: document.querySelector("#entities-continent"),
+  entitiesCountry: document.querySelector("#entities-country"),
+  entitiesTopAthletes: document.querySelector("#entities-top-athletes"),
+  entitiesTopClubs: document.querySelector("#entities-top-clubs"),
+  entitiesAthletesEmpty: document.querySelector("#entities-athletes-empty"),
+  entitiesClubsEmpty: document.querySelector("#entities-clubs-empty"),
+  entitiesEmpty: document.querySelector("#entities-empty"),
 };
 
 const state = {
@@ -371,6 +448,8 @@ const state = {
   results: [],
   competitionEntries: [],
   activeInvitation: null,
+  generatorLog: [],
+  entityEditor: null,
   viewDate: new Date(2026, 0, 1, 12),
   selectedDate: "2026-01-01",
   activeView: "calendar",
@@ -438,26 +517,81 @@ function setupGeographyOptions() {
 }
 
 function updateModalitySelect(preferredValue = "") {
+  const sportId = elements.competitionSport.value;
+  // Modalidades do catálogo (todos os esportes têm as suas), para que a lista
+  // carregue ao escolher o esporte — não só para os que têm preset.
   replaceSelectOptions(
     elements.competitionDiscipline,
-    modalitiesForSport(elements.competitionSport.value, state.modalities),
-    elements.competitionSport.value
-      ? "Escolha a modalidade"
-      : "Escolha primeiro o esporte",
+    catalogModalitiesForSport(sportId),
+    sportId ? "Escolha a modalidade" : "Escolha primeiro o esporte",
   );
-  if (
-    preferredValue
-    && [...elements.competitionDiscipline.options].some(({ value }) => value === preferredValue)
-  ) {
-    elements.competitionDiscipline.value = preferredValue;
+  // Aceita a modalidade do catálogo diretamente ou resolve uma modalidade legada
+  // (ex.: competições de preset ao editar) para a equivalente do catálogo.
+  let preferred = preferredValue;
+  if (preferred && !catalogModalityById(preferred)) {
+    preferred = resolveCompetitionTaxonomy({ sportId, modalityId: preferred }).modalityId ?? "";
   }
-  elements.competitionDiscipline.disabled = !elements.competitionSport.value;
+  const options = [...elements.competitionDiscipline.options].filter(({ value }) => value);
+  if (preferred && options.some(({ value }) => value === preferred)) {
+    elements.competitionDiscipline.value = preferred;
+  } else if (!elements.competitionDiscipline.value && options.length) {
+    // Seleciona a primeira modalidade para que os tipos de evento apareçam já.
+    elements.competitionDiscipline.value = options[0].value;
+  }
+  elements.competitionDiscipline.disabled = !sportId;
+  updateEventTypeSelect();
+}
+
+// Preenche o seletor de tipo de evento a partir da modalidade escolhida
+// (esporte → modalidade → tipo de evento, ver js/catalog.js). As opções são os
+// tipos de evento da modalidade, com o primeiro pré-selecionado. Uma modalidade
+// legada (ex.: preset ao editar) é resolvida para a modalidade do catálogo antes.
+function updateEventTypeSelect(preferredValue = "") {
+  const resolved = resolveCompetitionTaxonomy({
+    sportId: elements.competitionSport.value,
+    modalityId: elements.competitionDiscipline.value,
+  });
+  const options = resolved.modalityId ? eventTypesForModality(resolved.modalityId) : [];
+  replaceSelectOptions(
+    elements.competitionEventType,
+    options,
+    options.length ? "Escolha o tipo de evento" : "Não se aplica a este esporte",
+  );
+  const preferred = preferredValue || resolved.eventTypeId || "";
+  if (preferred && options.some(({ id }) => id === preferred)) {
+    elements.competitionEventType.value = preferred;
+  } else if (!elements.competitionEventType.value && options.length) {
+    // Seleciona o primeiro tipo de evento para o campo já ficar válido.
+    elements.competitionEventType.value = options[0].id;
+  }
+  elements.competitionEventType.disabled = !options.length;
+  if (elements.eventTypeHelp) {
+    elements.eventTypeHelp.textContent = options.length
+      ? "Vincula a competição a um tipo de evento da modalidade (esporte → modalidade → tipo de evento)."
+      : "Este esporte ainda não possui tipos de evento no catálogo.";
+  }
+}
+
+// Modalidades de um esporte que têm algo para ranquear — atletas, entradas de
+// ranking ou clubes. Evita listar modalidades vazias (ex.: a legada "Simples
+// masculino" quando os atletas gerados estão na modalidade "Tênis" do catálogo).
+// Sem nenhuma com dados (save recém-criado), devolve todas, para o seletor não
+// ficar vazio antes da primeira geração.
+function modalitiesWithDataForSport(sportId) {
+  const all = modalitiesForSport(sportId, state.modalities);
+  const withData = new Set([
+    ...state.rankingEntries.map((entry) => entry.modalityId),
+    ...state.people.map((person) => person.modalityId),
+    ...state.clubs.map((club) => club.modalityId),
+  ].filter(Boolean));
+  const filtered = all.filter((modality) => withData.has(modality.id));
+  return filtered.length ? filtered : all;
 }
 
 function updateRankingModalitySelect(preferredValue = "") {
   replaceSelectOptions(
     elements.rankingModality,
-    modalitiesForSport(elements.rankingSport.value, state.modalities),
+    modalitiesWithDataForSport(elements.rankingSport.value),
     elements.rankingSport.value
       ? "Escolha a modalidade"
       : "Escolha primeiro o esporte",
@@ -501,6 +635,27 @@ function setupTeamRatingOptions() {
     elements.competitionTeamRatingModel,
     Object.values(TEAM_RATING_MODELS).map(({ id, label }) => ({ id, name: label })),
   );
+}
+
+function setupTierOptions() {
+  fillSelectOptions(
+    elements.competitionTier,
+    COMPETITION_TIERS.map((tier) => ({
+      id: String(tier.id),
+      name: `${tier.label} — ${tier.description.split(":")[0]}`,
+    })),
+  );
+}
+
+// Mostra a explicação do tier selecionado e, quando o campo ainda está no
+// padrão, acompanha o prestígio (Tier 1 = maior). O jogador pode sobrescrever.
+function updateTierHelp() {
+  const tier = Number(elements.competitionTier.value) || DEFAULT_TIER;
+  const info = COMPETITION_TIERS.find(({ id }) => id === tier);
+  if (elements.competitionTierHelp) {
+    elements.competitionTierHelp.textContent = info?.description
+      ?? "Nível de prestígio da competição: Tier 1 (maior) a Tier 4 (menor).";
+  }
 }
 
 // O painel de rating de equipe só aparece para esportes mistos (atletas +
@@ -994,11 +1149,16 @@ function renderCompetitionCard(competition) {
       : `até ${formatShortDate(competition.endDate)} · ${recurrenceLabel}`;
 
   card.querySelector("h3").textContent = competition.name;
+  const taxonomy = resolveCompetitionTaxonomy(competition);
+  const eventTypeSuffix = taxonomy.eventTypeId
+    ? ` · ${catalogEventTypeLabel(taxonomy.eventTypeId)}`
+    : "";
   card.querySelector(".competition-main > p").textContent =
-    `${competition.sport} · ${competition.discipline}`;
+    `${competition.sport} · ${competition.discipline}${eventTypeSuffix}`;
 
   const rules = card.querySelector(".competition-rules");
   rules.append(
+    createBadge(tierLabel(competition.tier ?? tierForPrestige(competition.prestige)), "tier"),
     createBadge(`${competition.slots} vagas`),
     createBadge(qualificationLabel(competition.qualification)),
     createBadge(geographicScopeLabel(competition), "geography"),
@@ -1169,7 +1329,14 @@ function renderRanking() {
 
   closeAthleteDetail();
   elements.rankingList.replaceChildren();
-  elements.rankingEmpty.classList.toggle("hidden", ranking.length > 0);
+  // Em esporte só de equipe não há atletas para ranquear: a classificação de
+  // equipes (abaixo) é a tela principal, então não mostramos "nenhuma pessoa".
+  const showsAthletes = !selectedSport
+    || sportAllowsAthletes(selectedSport.id, state.sports);
+  elements.rankingEmpty.classList.toggle(
+    "hidden",
+    ranking.length > 0 || !showsAthletes,
+  );
   elements.rankingEmpty.textContent = hasCompleteSelection
     ? "Nenhuma pessoa encontrada."
     : geographicScope === "national"
@@ -1263,13 +1430,16 @@ function renderRankingTeams(selectedSport, selectedModality, disciplineRanking) 
     ? state.clubs.filter((club) =>
       club.sportId === selectedSport.id && club.modalityId === selectedModality.id)
     : [];
-  const isMixed = selectedSport
-    ? entityTypeForSport(selectedSport.id, state.sports) === "mista"
+  // Mostra a classificação de equipes para qualquer esporte que aceite clubes
+  // (só de equipe ou misto), não apenas os mistos: um esporte de equipe tem o
+  // ranking de clubes como a sua classificação principal.
+  const allowsClubs = selectedSport
+    ? sportAllowsClubs(selectedSport.id, state.sports)
     : false;
 
   elements.rankingTeamsList.replaceChildren();
-  elements.rankingTeamsPanel.classList.toggle("hidden", !(isMixed && clubs.length));
-  if (!(isMixed && clubs.length)) return;
+  elements.rankingTeamsPanel.classList.toggle("hidden", !(allowsClubs && clubs.length));
+  if (!(allowsClubs && clubs.length)) return;
 
   elements.rankingTeamsTitle.textContent =
     `Classificação de equipes · ${selectedSport.name} · ${selectedModality.name}`;
@@ -2119,6 +2289,78 @@ function renderSeasonSection() {
   renderSeasonDetail(unit, year);
 }
 
+// ---------------------------------------------------------------------------
+// Aba "Tabelas": as tabelas de classificação de todas as competições que geram
+// pontuação (campeonatos de temporada), agrupadas por preset. Reaproveita a
+// classificação já usada na aba Temporada (tabela de futebol; soma de pontos no
+// automobilismo e na Diamond League).
+// ---------------------------------------------------------------------------
+
+const NO_PRESET_KEY = "__avulsas__";
+
+function presetTablesGroups(year) {
+  // Só campeonatos de temporada (que geram tabela de pontuação).
+  const units = buildSeasonUnits(state.competitions, year)
+    .filter((unit) => unit.kind === "league");
+  const groups = new Map();
+  for (const unit of units) {
+    const key = unit.presetId ?? NO_PRESET_KEY;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(unit);
+  }
+  return groups;
+}
+
+function setupTablesPresetSelect(groups) {
+  const options = [...groups.keys()].map((key) => ({
+    id: key,
+    name: key === NO_PRESET_KEY
+      ? "Competições avulsas"
+      : findPreset(key)?.name ?? key,
+  })).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  fillTeamsSelect(elements.tablesPreset, options, elements.tablesPreset.value);
+}
+
+function renderTablesSection() {
+  const year = seasonYearNow();
+  const groups = presetTablesGroups(year);
+  elements.tablesList.replaceChildren();
+  elements.tablesEmpty.classList.toggle("hidden", groups.size > 0);
+  if (!groups.size) {
+    elements.tablesPreset.replaceChildren();
+    elements.tablesEmpty.textContent =
+      "Nenhuma competição com tabela de classificação. Importe um preset de liga"
+      + " ou campeonato de temporada (futebol, automobilismo, Diamond League).";
+    return;
+  }
+
+  setupTablesPresetSelect(groups);
+  const key = groups.has(elements.tablesPreset.value)
+    ? elements.tablesPreset.value
+    : [...groups.keys()][0];
+  elements.tablesPreset.value = key;
+
+  // Uma tabela por campeonato do preset selecionado, ordenada por prestígio.
+  const units = [...groups.get(key)]
+    .sort((a, b) => b.prestige - a.prestige || a.title.localeCompare(b.title, "pt-BR"));
+  units.forEach((unit) => {
+    const classification = leagueClassification(unit, state.results, year);
+    const block = seasonBlock(
+      unit.title.toUpperCase()
+      + (classification.throughRound ? ` · APÓS A RODADA ${classification.throughRound}` : ""),
+    );
+    if (classification.rows.some((row) => (row.played ?? row.events ?? 0) > 0)) {
+      block.append(renderClassificationTable(classification));
+    } else {
+      const empty = document.createElement("p");
+      empty.className = "empty-state";
+      empty.textContent = "A competição ainda não começou.";
+      block.append(empty);
+    }
+    elements.tablesList.append(block);
+  });
+}
+
 function formatRankingChange(change) {
   if (change > 0) return `▲ ${change}`;
   if (change < 0) return `▼ ${Math.abs(change)}`;
@@ -2426,6 +2668,7 @@ function render() {
   renderChampions();
   renderSeasons();
   renderResults();
+  renderTablesSection();
 }
 
 function switchView(view) {
@@ -2434,7 +2677,9 @@ function switchView(view) {
     calendar: elements.calendarView,
     competitions: elements.competitionsView,
     sports: elements.sportsView,
+    entities: elements.entitiesView,
     results: elements.resultsView,
+    tables: elements.tablesView,
   };
   Object.entries(views).forEach(([viewName, viewElement]) => {
     viewElement.classList.toggle("hidden", viewName !== view);
@@ -2444,6 +2689,7 @@ function switchView(view) {
     tab.classList.toggle("active", isActive);
     tab.setAttribute("aria-current", isActive ? "page" : "false");
   });
+  if (view === "entities") renderEntitiesView();
 }
 
 function switchHub(hub) {
@@ -3119,6 +3365,9 @@ function resetCompetitionForm(defaultDate) {
   elements.competitionScoringSystem.value = "generic-proportional";
   elements.competitionModel.value = "standalone";
   elements.competitionSeasonName.value = "";
+  elements.competitionSeasonRounds.value = 10;
+  elements.competitionSeasonRoundSpacing.value = 7;
+  elements.competitionSeasonMeetings.value = 2;
   elements.competitionStartDate.value = defaultDate;
   elements.competitionEndDate.value = defaultDate;
   elements.competitionDialogTitle.textContent = "Nova competição";
@@ -3138,6 +3387,10 @@ function resetCompetitionForm(defaultDate) {
   elements.competitionTeamWeight.value = 0;
   elements.deleteCompetitionButton.classList.add("hidden");
   elements.competitionFormError.textContent = "";
+  elements.competitionTier.value = String(
+    tierForPrestige(Number(elements.competitionPrestige.value) || 50),
+  );
+  updateTierHelp();
   updateScoringSystem({ preferredValue: "generic-proportional" });
   updateCompetitionModelFields();
   updateEventFormatFields();
@@ -3158,11 +3411,21 @@ function openCompetitionDialog(competitionId = null, defaultDate = state.selecte
     elements.competitionName.value = competition.name;
     elements.competitionSport.value = competition.sportId ?? "";
     updateModalitySelect(competition.modalityId ?? "");
+    updateEventTypeSelect(competition.eventTypeId ?? "");
     updateScoringSystem({
       preferredValue: competition.scoringSystemId ?? "generic-proportional",
     });
     elements.competitionModel.value = competition.competitionModel ?? "standalone";
     elements.competitionSeasonName.value = competition.seasonName ?? "";
+    if (competition.seasonRoundCount) {
+      elements.competitionSeasonRounds.value = competition.seasonRoundCount;
+    }
+    if (competition.seasonRoundSpacingDays) {
+      elements.competitionSeasonRoundSpacing.value = competition.seasonRoundSpacingDays;
+    }
+    if (competition.seasonMeetings) {
+      elements.competitionSeasonMeetings.value = competition.seasonMeetings;
+    }
     elements.competitionType.value = competition.type;
     elements.competitionQualification.value = competition.qualification;
     elements.competitionGeographicScope.value =
@@ -3174,6 +3437,10 @@ function openCompetitionDialog(competitionId = null, defaultDate = state.selecte
     elements.competitionEndDate.value = competition.endDate;
     elements.competitionYearly.checked = competition.recurrence === "yearly";
     elements.competitionPrestige.value = competition.prestige;
+    elements.competitionTier.value = String(
+      competition.tier ?? tierForPrestige(competition.prestige),
+    );
+    updateTierHelp();
     elements.competitionRankingPoints.value = competition.rankingPoints ?? 100;
     updateScoringSystem({
       preferredValue: competition.scoringSystemId ?? "generic-proportional",
@@ -3266,11 +3533,34 @@ async function reloadGeography() {
   setupGeographyOptions();
 }
 
+// Modalidades do catálogo (js/modalities.js) enriquecidas com o rankingModel do
+// seu esporte — elas não o declaram, então herdam o do esporte (js/sports.js).
+// São o que o gerador usa; sem elas nos seletores, esportes gerados (ex.: Basquete)
+// ficavam sem modalidade para escolher e o ranking não abria.
+function catalogModalitiesWithRankingModel(sports) {
+  return CATALOG_MODALITIES.map((modality) => ({
+    ...modality,
+    rankingModel: modality.rankingModel
+      ?? sportById(modality.sportId, sports)?.rankingModel
+      ?? "cumulative",
+  }));
+}
+
 async function reloadSports() {
-  [state.sports, state.modalities] = await Promise.all([
+  const [sports, legacyModalities] = await Promise.all([
     getAllSports(),
     getAllModalities(),
   ]);
+  state.sports = sports;
+  // Une as modalidades legadas (persistidas, usadas por presets e simulação) com
+  // as do catálogo (usadas pelo gerador), sem duplicar por id. Assim os seletores
+  // de modalidade — ranking, temporadas, etc. — enxergam tudo que tem dados.
+  const catalog = catalogModalitiesWithRankingModel(sports);
+  const seen = new Set(legacyModalities.map((modality) => modality.id));
+  state.modalities = [
+    ...legacyModalities,
+    ...catalog.filter((modality) => !seen.has(modality.id)),
+  ];
   setupSportOptions();
 }
 
@@ -3316,6 +3606,25 @@ async function ensureGeography() {
 
 async function reloadResults() {
   state.results = await getAllResults();
+}
+
+// Garante o atributo Rivais em todo atleta e clube (inclusive saves antigos).
+async function ensureRivalsAttribute() {
+  const peopleMissing = state.people.filter((person) => !Array.isArray(person.rivals));
+  if (peopleMissing.length) {
+    const updated = peopleMissing.map((person) => ({ ...person, rivals: [] }));
+    await savePeople(updated);
+    const byId = new Map(updated.map((person) => [person.id, person]));
+    state.people = state.people.map((person) => byId.get(person.id) ?? person);
+    state.ranking = combineRanking(state.people, state.rankingEntries);
+  }
+  const clubsMissing = state.clubs.filter((club) => !Array.isArray(club.rivals));
+  if (clubsMissing.length) {
+    const updated = clubsMissing.map((club) => ({ ...club, rivals: [] }));
+    await saveClubs(updated);
+    const byId = new Map(updated.map((club) => [club.id, club]));
+    state.clubs = state.clubs.map((club) => byId.get(club.id) ?? club);
+  }
 }
 
 // Carrega os clubes/equipes persistidos. A estrutura existe para os esportes de
@@ -3365,10 +3674,10 @@ async function handleCompetitionSubmit(submitEvent) {
     ? elements.competitionSeasonName.value.trim()
     : null;
   const selectedSport = sportById(elements.competitionSport.value, state.sports);
-  const selectedModality = modalityById(
-    elements.competitionDiscipline.value,
-    state.modalities,
-  );
+  // A modalidade escolhida vem do catálogo (js/modalities.js); com fallback para
+  // as modalidades legadas, para o caso de editar uma competição antiga.
+  const selectedModality = catalogModalityById(elements.competitionDiscipline.value)
+    ?? modalityById(elements.competitionDiscipline.value, state.modalities);
   const isMixedSport = selectedSport
     ? entityTypeForSport(selectedSport.id, state.sports) === "mista"
     : false;
@@ -3378,6 +3687,12 @@ async function handleCompetitionSubmit(submitEvent) {
     name: elements.competitionName.value.trim(),
     sportId: selectedSport?.id ?? null,
     modalityId: selectedModality?.id ?? null,
+    eventTypeId: elements.competitionEventType.value
+      || resolveCompetitionTaxonomy({
+        sportId: selectedSport?.id ?? null,
+        modalityId: selectedModality?.id ?? null,
+      }).eventTypeId
+      || null,
     sport: selectedSport?.name ?? "",
     discipline: selectedModality?.name ?? "",
     scoringSystemId: elements.competitionScoringSystem.value,
@@ -3432,6 +3747,8 @@ async function handleCompetitionSubmit(submitEvent) {
       ? "yearly"
       : "none",
     prestige: Number(elements.competitionPrestige.value),
+    tier: Number(elements.competitionTier.value)
+      || tierForPrestige(Number(elements.competitionPrestige.value)),
     rankingPoints: Number(elements.competitionRankingPoints.value),
     slots: Number(elements.competitionSlots.value),
     minimumRanking: null,
@@ -3446,12 +3763,126 @@ async function handleCompetitionSubmit(submitEvent) {
     return;
   }
 
+  // Etapa de temporada NOVA: expande a competição em N rodadas, cada uma com os
+  // confrontos entre os participantes (equipes ou atletas), como o preset do
+  // futebol. Editar uma etapa existente segue salvando só ela.
+  if (competitionModel === "season_stage" && !existing) {
+    const rounds = Number(elements.competitionSeasonRounds.value);
+    const spacingDays = Number(elements.competitionSeasonRoundSpacing.value);
+    const meetings = Number(elements.competitionSeasonMeetings.value);
+    const roundErrors = validateSeasonStageRoundInputs({ rounds, spacingDays, meetings });
+    if (roundErrors.length) {
+      elements.competitionFormError.textContent = roundErrors.join(" ");
+      return;
+    }
+    const built = buildSeasonStageRoundCompetitions(
+      competition,
+      { rounds, spacingDays, meetings },
+      now,
+    );
+    if (built.error) {
+      elements.competitionFormError.textContent = built.error;
+      return;
+    }
+    await saveCompetitionsWithEvents(built.items);
+    await reloadCompetitionsAndEvents();
+    closeCompetitionDialog();
+    render();
+    showToast(`Campeonato criado com ${built.items.length} rodada(s) no calendário.`);
+    return;
+  }
+
   await saveCompetitionWithEvent(competition, buildCalendarEvent(competition));
   await reloadCompetitionsAndEvents();
   closeCompetitionDialog();
   render();
   showToast(existing ? "Competição atualizada." : "Competição criada e adicionada ao calendário.");
   setTimeout(openDueInvitationIfAny, 0);
+}
+
+function validateSeasonStageRoundInputs({ rounds, spacingDays, meetings }) {
+  const errors = [];
+  if (!Number.isInteger(rounds) || rounds < 1 || rounds > 380) {
+    errors.push("A quantidade de rodadas deve ser um inteiro entre 1 e 380.");
+  }
+  if (!Number.isInteger(spacingDays) || spacingDays < 1 || spacingDays > 365) {
+    errors.push("O espaçamento entre rodadas deve ser um inteiro entre 1 e 365 dias.");
+  }
+  if (!Number.isInteger(meetings) || meetings < 1 || meetings > 10) {
+    errors.push("Os confrontos por adversário devem ser um inteiro entre 1 e 10.");
+  }
+  return errors;
+}
+
+// Participantes de um campeonato de temporada: os melhores do esporte/modalidade
+// dentro da abrangência — clubes quando o esporte aceita equipes, senão atletas —
+// limitados ao total de vagas. Devolve a lista de ids que entram nos confrontos.
+function seasonLeagueParticipantIds(competition) {
+  const allows = ENTITY_TYPES[entityTypeForSport(competition.sportId, state.sports)]
+    ?? ENTITY_TYPES.atleta;
+  const limit = Math.max(2, Number(competition.slots) || 2);
+  if (allows.allowsClubs) {
+    return clubInvitationCandidates(state.clubs, competition)
+      .slice(0, limit)
+      .map(({ personId }) => personId);
+  }
+  return buildScopedRanking(rankingForSport(state.ranking, competition), competition)
+    .slice(0, limit)
+    .map(({ personId }) => personId);
+}
+
+// Expande uma competição "Etapa de temporada" em N rodadas. Cada rodada é uma
+// competição própria (tipo "league") com os confrontos daquela rodada
+// (roundFixtures), nomeada "Nome do campeonato - Rodada N", espaçada pelos dias
+// escolhidos. Os confrontos vêm de um round-robin com `meetings` voltas por dupla;
+// se N passar do tamanho do round-robin, os confrontos se repetem em ciclo.
+function buildSeasonStageRoundCompetitions(base, { rounds, spacingDays, meetings }, timestamp) {
+  const participantIds = seasonLeagueParticipantIds(base);
+  if (participantIds.length < 2) {
+    return {
+      error:
+        "Não há participantes suficientes (mínimo 2) para gerar os confrontos. "
+        + "Gere atletas/clubes deste esporte e modalidade antes de criar o campeonato.",
+    };
+  }
+  const fixtureRounds = buildFixtures(participantIds, meetings);
+  if (!fixtureRounds.length) {
+    return { error: "Não foi possível montar os confrontos deste campeonato." };
+  }
+  const seasonBaseName = (base.seasonName ?? base.name).trim();
+  const items = [];
+  for (let round = 1; round <= rounds; round += 1) {
+    const roundFixtures = fixtureRounds[(round - 1) % fixtureRounds.length];
+    const startDate = addDays(base.startDate, (round - 1) * spacingDays);
+    const suffix = String(round).padStart(2, "0");
+    const competition = {
+      ...base,
+      id: `${base.id}_r${suffix}`,
+      calendarEventId: `${base.calendarEventId}_r${suffix}`,
+      name: `${seasonBaseName} - Rodada ${round}`,
+      type: "league",
+      qualification: "ranking",
+      mixedCombination: null,
+      mixedSlots: null,
+      qualifierTargetCompetitionId: null,
+      qualifierSlots: null,
+      startDate,
+      endDate: startDate,
+      recurrence: "yearly",
+      slots: participantIds.length,
+      participantIds,
+      roundFixtures,
+      seasonRound: round,
+      seasonRoundCount: rounds,
+      seasonFinalRound: round === rounds,
+      seasonRoundSpacingDays: spacingDays,
+      seasonMeetings: meetings,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    items.push({ competition, calendarEvent: buildCalendarEvent(competition) });
+  }
+  return { items };
 }
 
 async function handleDeleteCompetition() {
@@ -3736,11 +4167,32 @@ function findPendingInvitation(referenceDate = state.world.currentDate) {
     )[0] ?? null;
 }
 
+// Candidatos ao convite conforme o tipo de entidade do esporte: atletas (vindos
+// do ranking do esporte), equipes (clubes do esporte/modalidade) ou ambos, no
+// caso misto. Todos saem no mesmo formato, então o seletor os exibe igual.
 function invitationCandidates(competition) {
-  return buildScopedRanking(
-    rankingForSport(state.ranking, competition),
-    competition,
-  );
+  const allows = ENTITY_TYPES[entityTypeForSport(competition.sportId, state.sports)]
+    ?? ENTITY_TYPES.atleta;
+  const candidates = [];
+  if (allows.allowsAthletes) {
+    candidates.push(...buildScopedRanking(
+      rankingForSport(state.ranking, competition),
+      competition,
+    ));
+  }
+  if (allows.allowsClubs) {
+    candidates.push(...clubInvitationCandidates(state.clubs, competition));
+  }
+  return candidates;
+}
+
+// Rótulo do participante do convite conforme o esporte: "equipe" para esportes só
+// de equipes, "participante" para mistos e "atleta" para os de atleta.
+function invitationEntityNoun(competition) {
+  const allows = ENTITY_TYPES[entityTypeForSport(competition?.sportId, state.sports)]
+    ?? ENTITY_TYPES.atleta;
+  if (allows.allowsAthletes && allows.allowsClubs) return "participante";
+  return allows.allowsClubs ? "equipe" : "atleta";
 }
 
 function updateInvitationCounter() {
@@ -3764,7 +4216,8 @@ function renderInvitationAthletes() {
   if (!candidates.length) {
     const empty = document.createElement("p");
     empty.className = "empty-state";
-    empty.textContent = "Nenhum atleta elegível encontrado.";
+    empty.textContent =
+      `Nenhuma ${invitationEntityNoun(active.competition)} elegível encontrada.`;
     elements.invitationAthletes.append(empty);
     updateInvitationCounter();
     return;
@@ -3862,8 +4315,9 @@ async function handleInvitationSubmit(submitEvent) {
     ? Math.min(2, active.capacity)
     : 1;
   if (active.selectedPersonIds.size < minimumSelection) {
+    const noun = invitationEntityNoun(active.competition);
     elements.invitationFormError.textContent =
-      `Escolha ao menos ${minimumSelection} atleta${minimumSelection === 1 ? "" : "s"} para concluir os convites.`;
+      `Escolha ao menos ${minimumSelection} ${noun}${minimumSelection === 1 ? "" : "s"} para concluir os convites.`;
     return;
   }
 
@@ -3941,13 +4395,21 @@ function teamRatingByPersonIdFor({ sportId, modalityId }) {
 // Resolve os clubes participantes de uma liga e simula UMA rodada, acumulando as
 // rodadas anteriores da mesma temporada para montar a classificação corrente.
 function simulateLeagueForCompetition(competition) {
-  const clubsById = new Map(state.clubs.map((club) => [club.id, club]));
+  // Os "clubes" da liga podem ser equipes ou atletas: o simulador só precisa de
+  // id, nome, país e rating, que ambos têm. Resolvemos os participantes tanto de
+  // clubes quanto de atletas para cobrir ligas de equipe e de atletas.
+  const entityById = new Map([
+    ...state.clubs.map((club) => [club.id, club]),
+    ...state.people.map((person) => [person.id, person]),
+  ]);
   let clubs = (competition.participantIds ?? [])
-    .map((id) => clubsById.get(id))
+    .map((id) => entityById.get(id))
     .filter(Boolean);
   if (!clubs.length) {
     clubs = state.clubs.filter((club) =>
-      club.sportId === competition.sportId && club.modalityId === competition.modalityId);
+      club.sportId === competition.sportId
+      && club.modalityId === competition.modalityId
+      && matchesEventType(club, competition));
   }
   if (clubs.length < 2) return null;
 
@@ -3970,6 +4432,45 @@ function simulateLeagueForCompetition(competition) {
   return result;
 }
 
+// Ajusta o momentum dos participantes de um resultado (atletas ou clubes) e
+// persiste. O momentum passa a variar conforme o desempenho frente à expectativa
+// de posição (ver js/momentum.js), mantido no intervalo -5..+5.
+async function applyMomentumFromResult(result) {
+  const entityById = new Map();
+  state.people.forEach((person) => entityById.set(person.id, person));
+  state.clubs.forEach((club) => entityById.set(club.id, club));
+
+  const deltas = momentumDeltasForResult(result, entityById);
+  if (!deltas.size) return;
+
+  const updatedPeople = [];
+  const updatedClubs = [];
+  const timestamp = `${result.occurrenceEnd}T23:59:59.000Z`;
+  for (const [id, delta] of deltas) {
+    const entity = entityById.get(id);
+    if (!entity || !delta) continue;
+    const nextMomentum = clampMomentum((entity.momentum ?? 0) + delta);
+    if (nextMomentum === entity.momentum) continue;
+    const updated = { ...entity, momentum: nextMomentum, updatedAt: timestamp };
+    if (entity.isClub) updatedClubs.push(updated);
+    else updatedPeople.push(updated);
+  }
+
+  if (updatedPeople.length) {
+    await savePeople(updatedPeople);
+    const byId = new Map(updatedPeople.map((person) => [person.id, person]));
+    state.people = state.people.map((person) => byId.get(person.id) ?? person);
+  }
+  if (updatedClubs.length) {
+    await saveClubs(updatedClubs);
+    const byId = new Map(updatedClubs.map((club) => [club.id, club]));
+    state.clubs = state.clubs.map((club) => byId.get(club.id) ?? club);
+  }
+  if (updatedPeople.length || updatedClubs.length) {
+    state.ranking = combineRanking(state.people, state.rankingEntries);
+  }
+}
+
 async function processSimulationDate(isoDate) {
   const scheduled = occurrencesBetween(state.competitions, isoDate, isoDate)
     .filter((competition) => competition.occurrenceEnd === isoDate)
@@ -3980,13 +4481,16 @@ async function processSimulationDate(isoDate) {
     const resultId = `result_${occurrence.id}_${occurrence.occurrenceStart}`;
     if (state.results.some((result) => result.id === resultId)) continue;
 
-    // Esportes só de equipes (futebol) usam o simulador de liga: a temporada
-    // inteira (turno e returno) é resolvida de uma vez, com tabela e campeão.
-    if (entityTypeForSport(occurrence.sportId, state.sports) === "equipe") {
+    // Rodadas de liga (têm confrontos definidos) e esportes só de equipes usam o
+    // simulador de liga: cada rodada resolve seus confrontos, com placares e tabela
+    // acumulada. Vale para equipes e para atletas (confrontos como no futebol).
+    if (Array.isArray(occurrence.roundFixtures)
+      || entityTypeForSport(occurrence.sportId, state.sports) === "equipe") {
       const simulated = simulateLeagueForCompetition(occurrence);
       if (simulated) {
         await saveCompetitionResult(simulated, []);
         state.results.push(simulated);
+        await applyMomentumFromResult(simulated);
         simulatedCount += 1;
       }
       continue;
@@ -4027,6 +4531,7 @@ async function processSimulationDate(isoDate) {
       ...rankingEntries,
     ];
     state.ranking = combineRanking(state.people, state.rankingEntries);
+    await applyMomentumFromResult(result);
     simulatedCount += 1;
   }
 
@@ -4172,6 +4677,7 @@ async function loadCurrentGame() {
   await reloadUserPresets();
   await seedFromUserData();
   await ensureRosterForImportedPresets();
+  await ensureRivalsAttribute();
   await resetSeasonRankingsIfNeeded(state.world.currentDate);
   recomputeRollingRankings(state.world.currentDate);
   state.selectedDate = state.world.currentDate;
@@ -4255,12 +4761,553 @@ async function handleSetup(submitEvent) {
   await Promise.all([reloadResults(), reloadCompetitionEntries(), reloadClubs()]);
   await reloadUserPresets();
   await seedFromUserData();
+  await ensureRivalsAttribute();
   state.selectedDate = state.world.currentDate;
   state.viewDate = parseISODate(state.world.currentDate);
   elements.setupDialog.close();
   render();
   showToast("Mundo criado com calendário vazio e ranking de 100 pessoas.");
+  // Opção do novo save: abrir o gerador para escolher em quais esportes gerar.
+  if (elements.setupUseGenerator?.checked) openGeneratorDialog();
 }
+
+// ---------------------------------------------------------------------------
+// Gerador de atletas e clubes (novo save e saves em andamento).
+// ---------------------------------------------------------------------------
+
+// Gera e persiste as entidades dos esportes escolhidos. O bundle do faker é
+// carregado por import dinâmico só aqui, para não pesar na inicialização.
+// Sequência incremental para garantir ids únicos entre gerações da mesma sessão
+// (mesmo no mesmo milissegundo). Combinada com o tempo, também não colide entre
+// saves/sessões diferentes.
+let generatorBatchSeq = 0;
+
+// Resolve os países da abrangência escolhida: um país específico, todos os de um
+// continente, ou o mundo inteiro (nenhum filtro).
+function generatorSelectedCountries() {
+  const countryId = elements.generatorCountry.value;
+  if (countryId) return state.countries.filter((country) => country.id === countryId);
+  const continentId = elements.generatorContinent.value;
+  if (continentId) return state.countries.filter((country) => country.continentId === continentId);
+  return state.countries;
+}
+
+// Modalidades escolhidas: uma específica ou todas as do catálogo do esporte.
+function generatorSelectedModalities(sportId) {
+  const modalityId = elements.generatorModality.value;
+  if (modalityId) {
+    const modality = catalogModalityById(modalityId);
+    return modality ? [modality] : [];
+  }
+  return catalogModalitiesForSport(sportId);
+}
+
+async function runGeneratorSelection({ sportId, modalities, countries, total }) {
+  generatorBatchSeq += 1;
+  const seed = Date.now() + generatorBatchSeq;
+  const batchId = `${Date.now().toString(36)}${generatorBatchSeq.toString(36)}`;
+  const { fakerByGroup } = await import("./vendor/faker-names.js");
+  const nameGen = createNameGenerator(fakerByGroup, { seed });
+  const sport = sportById(sportId, state.sports);
+  const timestamp = `${state.world?.currentDate ?? "2026-01-01"}T00:00:00.000Z`;
+  const { people, clubs } = generateSelectionEntities({
+    sport,
+    modalities,
+    countries,
+    total,
+    nameGen,
+    rng: createRng(seed),
+    timestamp,
+    batchId,
+  });
+  // Atletas: além de salvar, criam/atualizam as entradas de ranking da modalidade
+  // (reconstruídas a partir de todos os atletas dela, então gerações sucessivas
+  // se acumulam). Clubes: basta persistir e recarregar.
+  if (people.length) await applyRosterPeople(people, timestamp);
+  if (clubs.length) {
+    await saveClubs(clubs);
+    await reloadClubs();
+  }
+  return { people: people.length, clubs: clubs.length };
+}
+
+// Preenche o seletor de modalidades do gerador conforme o esporte escolhido.
+function updateGeneratorModalitySelect() {
+  const modalities = catalogModalitiesForSport(elements.generatorSport.value);
+  replaceSelectOptions(elements.generatorModality, modalities, "Todas as modalidades");
+  elements.generatorModality.value = "";
+}
+
+// Atualiza o texto de ajuda com o que a seleção vai gerar.
+function updateGeneratorHelp() {
+  const modalityCount = elements.generatorModality.value
+    ? 1
+    : catalogModalitiesForSport(elements.generatorSport.value).length;
+  const count = Number(elements.generatorCount.value) || 0;
+  const scope = elements.generatorCountry.value
+    ? "no país escolhido"
+    : elements.generatorContinent.value
+      ? "distribuídas pelos países do continente"
+      : "distribuídas por todos os países";
+  elements.generatorHelp.textContent = modalityCount
+    ? `Gera ${count} entidade(s) por modalidade (${modalityCount} modalidade(s)), ${scope}. `
+      + "Atletas ou clubes conforme a modalidade."
+    : "Este esporte não tem modalidades no catálogo.";
+}
+
+function renderGeneratorLog() {
+  const entries = state.generatorLog ?? [];
+  elements.generatorLog.replaceChildren();
+  elements.generatorLogEmpty.classList.toggle("hidden", entries.length > 0);
+  for (const entry of entries) {
+    const item = document.createElement("li");
+    item.textContent = entry;
+    elements.generatorLog.append(item);
+  }
+}
+
+function openGeneratorDialog() {
+  const sports = [...state.sports]
+    .filter((sport) => catalogModalitiesForSport(sport.id).length)
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  replaceSelectOptions(elements.generatorSport, sports, "Escolha o esporte");
+  elements.generatorSport.value = sports[0]?.id ?? "";
+  updateGeneratorModalitySelect();
+  replaceSelectOptions(
+    elements.generatorContinent,
+    [...state.continents].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+    "Todos os continentes",
+  );
+  elements.generatorContinent.value = "";
+  updateGeneratorCountrySelect();
+  elements.generatorCount.value = 10;
+  elements.generatorStatus.textContent = "";
+  elements.generatorError.textContent = "";
+  elements.generatorRun.disabled = false;
+  state.generatorLog = [];
+  renderGeneratorLog();
+  updateGeneratorHelp();
+  if (!elements.generatorDialog.open) elements.generatorDialog.showModal();
+}
+
+// Países do continente escolhido (ou todos), para o seletor de país do gerador.
+function updateGeneratorCountrySelect() {
+  const continentId = elements.generatorContinent.value;
+  const countries = (continentId
+    ? state.countries.filter((country) => country.continentId === continentId)
+    : state.countries
+  ).slice().sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+  replaceSelectOptions(elements.generatorCountry, countries, "Todos os países");
+  elements.generatorCountry.value = "";
+}
+
+function closeGeneratorDialog() {
+  if (elements.generatorDialog.open) elements.generatorDialog.close();
+}
+
+async function handleGeneratorSubmit(submitEvent) {
+  submitEvent.preventDefault();
+  elements.generatorError.textContent = "";
+  const sportId = elements.generatorSport.value;
+  const sport = sportById(sportId, state.sports);
+  if (!sport) {
+    elements.generatorError.textContent = "Escolha um esporte.";
+    return;
+  }
+  const modalities = generatorSelectedModalities(sportId);
+  if (!modalities.length) {
+    elements.generatorError.textContent = "Este esporte não tem modalidades para gerar.";
+    return;
+  }
+  const total = Number(elements.generatorCount.value);
+  if (!Number.isInteger(total) || total < 1 || total > 2000) {
+    elements.generatorError.textContent = "A quantidade deve ser um inteiro entre 1 e 2000.";
+    return;
+  }
+  const countries = generatorSelectedCountries();
+  if (!countries.length) {
+    elements.generatorError.textContent = "Não há países na abrangência escolhida.";
+    return;
+  }
+
+  elements.generatorRun.disabled = true;
+  elements.generatorDone.disabled = true;
+  elements.generatorStatus.textContent = "Gerando… isso pode levar alguns segundos.";
+  try {
+    const { people, clubs } = await runGeneratorSelection({
+      sportId, modalities, countries, total,
+    });
+    const scopeLabel = elements.generatorCountry.value
+      ? state.countries.find((c) => c.id === elements.generatorCountry.value)?.name
+      : elements.generatorContinent.value
+        ? state.continents.find((c) => c.id === elements.generatorContinent.value)?.name
+        : "Mundo";
+    const modalityLabel = elements.generatorModality.value
+      ? catalogModalityById(elements.generatorModality.value)?.name
+      : "Todas as modalidades";
+    state.generatorLog = [
+      `${sport.name} · ${modalityLabel} · ${scopeLabel}: ${people} atleta(s) e ${clubs} clube(s).`,
+      ...(state.generatorLog ?? []),
+    ];
+    elements.generatorStatus.textContent = `Gerados ${people} atleta(s) e ${clubs} clube(s). Escolha outra seleção ou conclua.`;
+    renderGeneratorLog();
+    // Recompõe a interface por baixo do diálogo (que continua aberto), para que os
+    // seletores de Equipes/rankings já enxerguem as entidades recém-geradas.
+    render();
+    renderEntitiesView();
+  } catch (error) {
+    console.error(error);
+    elements.generatorError.textContent = error?.message ?? "Falha ao gerar entidades.";
+  } finally {
+    elements.generatorRun.disabled = false;
+    elements.generatorDone.disabled = false;
+  }
+}
+
+function handleGeneratorDone() {
+  const total = (state.generatorLog ?? []).length;
+  closeGeneratorDialog();
+  render();
+  renderEntitiesView();
+  if (total) showToast(`Gerador concluído: ${total} geração(ões) nesta sessão.`);
+}
+
+// ---------------------------------------------------------------------------
+// Editor in-game de clubes e atletas: filtra por modalidade/continente/país e
+// edita nome e rating de vários de uma vez. Aberto pelo menu de ferramentas.
+// ---------------------------------------------------------------------------
+
+const ENTITY_EDITOR_MAX_ROWS = 300;
+
+function entityEditorSource() {
+  return elements.entityEditorKind.value === "clubs" ? state.clubs : state.people;
+}
+
+function entityEditorFilters() {
+  return {
+    modalityId: elements.entityEditorModality.value,
+    continentId: elements.entityEditorContinent.value,
+    countryId: elements.entityEditorCountry.value,
+  };
+}
+
+function entityEditorMatches() {
+  const filters = entityEditorFilters();
+  return entityEditorSource().filter((entity) => matchesEntityFilters(entity, filters));
+}
+
+// Preenche os seletores de modalidade/continente/país a partir das entidades do
+// tipo escolhido (só aparecem opções com entidades). Preserva a seleção quando
+// possível.
+function updateEntityEditorFilterOptions() {
+  const source = entityEditorSource();
+  const modalityKeep = elements.entityEditorModality.value;
+  replaceSelectOptions(
+    elements.entityEditorModality,
+    distinctEntityOptions(source, (e) => e.modalityId, (e) => modalityDisplayName(e.modalityId)),
+    "Todas as modalidades",
+  );
+  if ([...elements.entityEditorModality.options].some((o) => o.value === modalityKeep)) {
+    elements.entityEditorModality.value = modalityKeep;
+  }
+
+  const continentKeep = elements.entityEditorContinent.value;
+  replaceSelectOptions(
+    elements.entityEditorContinent,
+    distinctEntityOptions(
+      source,
+      (e) => e.continentId,
+      (e) => state.continents.find((c) => c.id === e.continentId)?.name ?? e.continentId,
+    ),
+    "Todos os continentes",
+  );
+  if ([...elements.entityEditorContinent.options].some((o) => o.value === continentKeep)) {
+    elements.entityEditorContinent.value = continentKeep;
+  }
+
+  const continentId = elements.entityEditorContinent.value;
+  const byContinent = continentId
+    ? source.filter((e) => e.continentId === continentId)
+    : source;
+  const countryKeep = elements.entityEditorCountry.value;
+  replaceSelectOptions(
+    elements.entityEditorCountry,
+    distinctEntityOptions(byContinent, (e) => e.countryId, (e) => e.countryName ?? e.countryId),
+    "Todos os países",
+  );
+  if ([...elements.entityEditorCountry.options].some((o) => o.value === countryKeep)) {
+    elements.entityEditorCountry.value = countryKeep;
+  }
+}
+
+function renderEntityEditorList() {
+  const matches = entityEditorMatches()
+    .slice()
+    .sort((a, b) => (b.baseRating ?? 0) - (a.baseRating ?? 0)
+      || a.name.localeCompare(b.name, "pt-BR"));
+  const kindLabel = elements.entityEditorKind.value === "clubs" ? "clube(s)" : "atleta(s)";
+  const shown = matches.slice(0, ENTITY_EDITOR_MAX_ROWS);
+
+  elements.entityEditorList.replaceChildren();
+  elements.entityEditorError.textContent = "";
+  elements.entityEditorEmpty.classList.toggle("hidden", matches.length > 0);
+  if (!matches.length) {
+    elements.entityEditorEmpty.textContent =
+      "Nenhuma entidade para esta seleção. Ajuste os filtros ou gere entidades.";
+    elements.entityEditorCount.textContent = "";
+    return;
+  }
+  elements.entityEditorCount.textContent = matches.length > shown.length
+    ? `${matches.length} ${kindLabel} — editando os ${shown.length} de maior rating. Filtre para ver os demais.`
+    : `${matches.length} ${kindLabel} nesta seleção.`;
+
+  const head = document.createElement("div");
+  head.className = "entity-editor-row entity-editor-head";
+  head.append(
+    Object.assign(document.createElement("span"), { textContent: "Nome" }),
+    Object.assign(document.createElement("span"), { textContent: "Local · Modalidade" }),
+    Object.assign(document.createElement("span"), { textContent: "Rating" }),
+  );
+  elements.entityEditorList.append(head);
+
+  for (const entity of shown) {
+    const row = document.createElement("div");
+    row.className = "entity-editor-row";
+    row.dataset.entityId = entity.id;
+
+    const nameInput = document.createElement("input");
+    nameInput.type = "text";
+    nameInput.maxLength = 60;
+    nameInput.value = entity.name;
+    nameInput.dataset.field = "name";
+
+    const meta = document.createElement("span");
+    meta.className = "entity-editor-meta";
+    meta.textContent = [
+      entity.countryName ?? entity.countryCode,
+      modalityDisplayName(entity.modalityId),
+    ].filter(Boolean).join(" · ");
+
+    const ratingInput = document.createElement("input");
+    ratingInput.type = "number";
+    ratingInput.min = String(MIN_RATING);
+    ratingInput.max = String(MAX_RATING);
+    ratingInput.step = "1";
+    ratingInput.value = entity.baseRating ?? "";
+    ratingInput.dataset.field = "rating";
+
+    row.append(nameInput, meta, ratingInput);
+    elements.entityEditorList.append(row);
+  }
+}
+
+function refreshEntityEditor() {
+  updateEntityEditorFilterOptions();
+  renderEntityEditorList();
+}
+
+function openEntityEditorDialog() {
+  elements.entityEditorKind.value = "athletes";
+  elements.entityEditorModality.value = "";
+  elements.entityEditorContinent.value = "";
+  elements.entityEditorCountry.value = "";
+  elements.entityEditorError.textContent = "";
+  refreshEntityEditor();
+  if (!elements.entityEditorDialog.open) elements.entityEditorDialog.showModal();
+}
+
+function closeEntityEditorDialog() {
+  if (elements.entityEditorDialog.open) elements.entityEditorDialog.close();
+}
+
+function collectEntityEditorEdits() {
+  return [...elements.entityEditorList.querySelectorAll(".entity-editor-row[data-entity-id]")]
+    .map((row) => ({
+      id: row.dataset.entityId,
+      name: row.querySelector('input[data-field="name"]').value,
+      rating: row.querySelector('input[data-field="rating"]').value,
+    }));
+}
+
+async function handleEntityEditorSave(submitEvent) {
+  submitEvent.preventDefault();
+  elements.entityEditorError.textContent = "";
+  const isClubs = elements.entityEditorKind.value === "clubs";
+  const source = isClubs ? state.clubs : state.people;
+  const { updated, errors } = applyEntityEdits(source, collectEntityEditorEdits(), {
+    timestamp: new Date().toISOString(),
+  });
+  elements.entityEditorList
+    .querySelectorAll(".entity-editor-row.invalid")
+    .forEach((row) => row.classList.remove("invalid"));
+  if (errors.length) {
+    const invalidIds = new Set(errors.map((e) => e.id));
+    let firstInvalid = null;
+    elements.entityEditorList
+      .querySelectorAll(".entity-editor-row[data-entity-id]")
+      .forEach((row) => {
+        if (invalidIds.has(row.dataset.entityId)) {
+          row.classList.add("invalid");
+          firstInvalid = firstInvalid ?? row;
+        }
+      });
+    elements.entityEditorError.textContent =
+      `Corrija ${errors.length} campo(s): ${errors[0].message}`;
+    firstInvalid?.scrollIntoView({ block: "center" });
+    return;
+  }
+  if (!updated.length) {
+    showToast("Nenhuma alteração para salvar.");
+    return;
+  }
+
+  elements.entityEditorSave.disabled = true;
+  try {
+    if (isClubs) {
+      await saveClubs(updated);
+      await reloadClubs();
+    } else {
+      await savePeople(updated);
+      await reloadRanking();
+    }
+    render();
+    renderEntitiesView();
+    refreshEntityEditor();
+    showToast(`${updated.length} alteração(ões) salva(s).`);
+  } catch (error) {
+    console.error(error);
+    elements.entityEditorError.textContent = error?.message ?? "Falha ao salvar as alterações.";
+  } finally {
+    elements.entityEditorSave.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Página Clubes/Atletas: top 3 por rating + filtros que só mostram opções com
+// entidades ativas (e se atualizam quando novas entidades são geradas).
+// ---------------------------------------------------------------------------
+
+function modalityDisplayName(modalityId) {
+  return catalogModalityById(modalityId)?.name
+    ?? modalityById(modalityId, state.modalities)?.name
+    ?? modalityId;
+}
+
+function matchesEntityFilters(entity, { sportId, modalityId, eventTypeId, continentId, countryId }) {
+  if (sportId && entity.sportId !== sportId) return false;
+  if (modalityId && entity.modalityId !== modalityId) return false;
+  if (eventTypeId && entity.eventTypeId !== eventTypeId) return false;
+  if (continentId && entity.continentId !== continentId) return false;
+  if (countryId && entity.countryId !== countryId) return false;
+  return true;
+}
+
+function distinctEntityOptions(entities, keyFn, labelFn) {
+  const seen = new Map();
+  for (const entity of entities) {
+    const key = keyFn(entity);
+    if (key && !seen.has(key)) seen.set(key, labelFn(entity));
+  }
+  return [...seen.entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+}
+
+// Reconstrói os quatro seletores em cascata a partir das entidades presentes,
+// preservando as seleções ainda válidas (replaceSelectOptions cuida disso).
+function refreshEntitiesFilters() {
+  const all = [...state.people, ...state.clubs];
+
+  replaceSelectOptions(
+    elements.entitiesSport,
+    distinctEntityOptions(all, (e) => e.sportId, (e) => sportById(e.sportId, state.sports)?.name ?? e.sportId),
+    "Todos os esportes",
+  );
+  const bySport = all.filter((e) => !elements.entitiesSport.value || e.sportId === elements.entitiesSport.value);
+
+  replaceSelectOptions(
+    elements.entitiesModality,
+    distinctEntityOptions(bySport, (e) => e.modalityId, (e) => modalityDisplayName(e.modalityId)),
+    "Todas as modalidades",
+  );
+  const byModality = bySport.filter((e) => !elements.entitiesModality.value || e.modalityId === elements.entitiesModality.value);
+
+  replaceSelectOptions(
+    elements.entitiesEventType,
+    distinctEntityOptions(byModality, (e) => e.eventTypeId, (e) => catalogEventTypeLabel(e.eventTypeId)),
+    "Todos os tipos de evento",
+  );
+  const byEventType = byModality.filter((e) => !elements.entitiesEventType.value || e.eventTypeId === elements.entitiesEventType.value);
+
+  replaceSelectOptions(
+    elements.entitiesContinent,
+    distinctEntityOptions(byEventType, (e) => e.continentId, (e) => state.continents.find((c) => c.id === e.continentId)?.name ?? e.continentId),
+    "Todos os continentes",
+  );
+  const byContinent = byEventType.filter((e) => !elements.entitiesContinent.value || e.continentId === elements.entitiesContinent.value);
+
+  replaceSelectOptions(
+    elements.entitiesCountry,
+    distinctEntityOptions(byContinent, (e) => e.countryId, (e) => e.countryName ?? e.countryId),
+    "Todos os países",
+  );
+}
+
+function topEntitiesByRating(entities, count = 3) {
+  return [...entities]
+    .sort((a, b) => (b.baseRating ?? 0) - (a.baseRating ?? 0)
+      || String(a.id).localeCompare(String(b.id)))
+    .slice(0, count);
+}
+
+function renderEntityTopList(listElement, entities) {
+  listElement.replaceChildren();
+  for (const entity of entities) {
+    const item = document.createElement("li");
+    item.className = "entities-top-item";
+    const rating = document.createElement("span");
+    rating.className = "entities-top-rating";
+    rating.textContent = entity.baseRating ?? "—";
+    const name = document.createElement("strong");
+    name.textContent = entity.name;
+    const meta = document.createElement("span");
+    meta.className = "entities-top-meta";
+    const eventLabel = entity.eventTypeId ? catalogEventTypeLabel(entity.eventTypeId) : "";
+    meta.textContent = [entity.countryName, modalityDisplayName(entity.modalityId), eventLabel]
+      .filter(Boolean).join(" · ");
+    item.append(rating, name, meta);
+    listElement.append(item);
+  }
+}
+
+function renderEntitiesTop() {
+  const filters = {
+    sportId: elements.entitiesSport.value,
+    modalityId: elements.entitiesModality.value,
+    eventTypeId: elements.entitiesEventType.value,
+    continentId: elements.entitiesContinent.value,
+    countryId: elements.entitiesCountry.value,
+  };
+  const athletes = topEntitiesByRating(state.people.filter((e) => matchesEntityFilters(e, filters)));
+  const clubs = topEntitiesByRating(state.clubs.filter((e) => matchesEntityFilters(e, filters)));
+  renderEntityTopList(elements.entitiesTopAthletes, athletes);
+  renderEntityTopList(elements.entitiesTopClubs, clubs);
+  elements.entitiesAthletesEmpty.classList.toggle("hidden", athletes.length > 0);
+  elements.entitiesClubsEmpty.classList.toggle("hidden", clubs.length > 0);
+}
+
+function renderEntitiesView() {
+  const hasEntities = state.people.length > 0 || state.clubs.length > 0;
+  elements.entitiesEmpty.classList.toggle("hidden", hasEntities);
+  refreshEntitiesFilters();
+  renderEntitiesTop();
+}
+
+function onEntitiesFilterChange() {
+  refreshEntitiesFilters();
+  renderEntitiesTop();
+}
+
 
 // ---------------------------------------------------------------------------
 // Editores in-game: países, presets, ligas e atletas/clubes.
@@ -4296,15 +5343,48 @@ async function applyRosterPeople(people, timestamp) {
   for (const [rankingId, { sportId, modalityId }] of affected) {
     const modalityPeople = state.people.filter((person) =>
       person.sportId === sportId && person.modalityId === modalityId);
-    const rankingModel = modalityById(modalityId, state.modalities)?.rankingModel ?? "cumulative";
-    entries.push(...buildInitialRanking(modalityPeople, timestamp, {
-      rankingId,
+    const rankingModel = sportId === "sport_boxing"
+  ? "elo"
+  : modalityById(modalityId, state.modalities)?.rankingModel
+    ?? sportById(sportId, state.sports)?.rankingModel
+    ?? "cumulative";
+const existingByPersonId = new Map(
+  state.rankingEntries
+    .filter((entry) => entry.rankingId === rankingId)
+    .map((entry) => [entry.personId, entry]),
+);
+
+const initialEntries = buildInitialRanking(
+  modalityPeople,
+  timestamp,
+  {
+    rankingId,
+    sportId,
+    modalityId,
+    rankingModel,
+    seasonYear,
+    startAtZero: rankingModel === "seasonal",
+  },
+);
+
+entries.push(
+  ...initialEntries.map((entry) => {
+    const existing = existingByPersonId.get(entry.personId);
+
+    if (
+      rankingModel === "elo"
+      && existing?.rankingModel === "elo"
+    ) {
+      return existing;
+    }
+
+    return {
+      ...entry,
       sportId,
       modalityId,
-      rankingModel,
-      seasonYear,
-      startAtZero: rankingModel === "seasonal",
-    }).map((entry) => ({ ...entry, sportId, modalityId })));
+    };
+  }),
+);
   }
   if (entries.length) {
     await saveRankingEntries(entries);
@@ -4384,6 +5464,38 @@ function showEditorChooser() {
     card.addEventListener("click", () => openEditor(type.id));
     elements.editorsChooser.append(card);
   });
+  // Gerador de atletas/clubes: abre um diálogo próprio (não segue o fluxo de
+  // colar .js dos demais editores).
+  const generatorCard = document.createElement("button");
+  generatorCard.type = "button";
+  generatorCard.className = "editor-choice";
+  const generatorTitle = document.createElement("strong");
+  generatorTitle.textContent = "Gerador de atletas/clubes";
+  const generatorDesc = document.createElement("span");
+  generatorDesc.textContent =
+    "Gera atletas e clubes escolhendo esporte, modalidade, abrangência (continente ou país) e quantidade — uma seleção por vez, sem fechar a janela.";
+  generatorCard.append(generatorTitle, generatorDesc);
+  generatorCard.addEventListener("click", () => {
+    closeEditorsDialog();
+    openGeneratorDialog();
+  });
+  elements.editorsChooser.append(generatorCard);
+
+  // Editor de clubes e atletas: diálogo próprio de edição em lote (nome e rating).
+  const entityEditorCard = document.createElement("button");
+  entityEditorCard.type = "button";
+  entityEditorCard.className = "editor-choice";
+  const entityEditorTitle = document.createElement("strong");
+  entityEditorTitle.textContent = "Editor de clubes e atletas";
+  const entityEditorDesc = document.createElement("span");
+  entityEditorDesc.textContent =
+    "Edita nome e rating de clubes ou atletas em lote, filtrando por modalidade, continente ou país.";
+  entityEditorCard.append(entityEditorTitle, entityEditorDesc);
+  entityEditorCard.addEventListener("click", () => {
+    closeEditorsDialog();
+    openEntityEditorDialog();
+  });
+  elements.editorsChooser.append(entityEditorCard);
 }
 
 function editorHintText(typeId) {
@@ -4453,6 +5565,13 @@ function buildEditorData(typeId, parsed) {
   }
   if (typeId === "roster") {
     const errors = validateRoster(parsed);
+    // Atletas/clubes só entram em esporte e modalidade que existam no catálogo.
+    if (parsed?.sportId && !sportById(parsed.sportId, state.sports)) {
+      errors.push(`Esporte inexistente: ${parsed.sportId}.`);
+    }
+    if (parsed?.modalityId && !modalityById(parsed.modalityId, state.modalities)) {
+      errors.push(`Modalidade inexistente: ${parsed.modalityId}.`);
+    }
     const { people, clubs } = errors.length ? { people: [], clubs: [] } : normalizeRoster(parsed);
     return {
       type: typeId,
@@ -4637,6 +5756,7 @@ function attachEventListeners() {
     applyModalityTeamRatingDefaults();
   });
   elements.competitionDiscipline.addEventListener("change", () => {
+    updateEventTypeSelect();
     updateQualifierTargetOptions();
     applyModalityTeamRatingDefaults();
   });
@@ -4655,6 +5775,7 @@ function attachEventListeners() {
   );
   elements.competitionEventFormat.addEventListener("change", updateEventFormatFields);
   elements.competitionResultMetric.addEventListener("change", updateEventFormatFields);
+  elements.competitionTier.addEventListener("change", updateTierHelp);
   elements.competitionGeographicScope.addEventListener(
     "change",
     () => updateCompetitionGeographyFields(),
@@ -4693,6 +5814,7 @@ function attachEventListeners() {
     state.season.roundIndex = null;
     renderSeasonSection();
   });
+  elements.tablesPreset.addEventListener("change", renderTablesSection);
   elements.setupForm.addEventListener("submit", handleSetup);
   elements.continueGameButton.addEventListener("click", handleContinueGame);
   elements.newGameButton.addEventListener("click", handleNewGame);
@@ -4735,6 +5857,54 @@ function attachEventListeners() {
     if (event.target === elements.invitationDialog) closeInvitationSelection();
   });
 
+  // Gerador de atletas/clubes
+  elements.generatorForm.addEventListener("submit", handleGeneratorSubmit);
+  elements.closeGeneratorDialog.addEventListener("click", closeGeneratorDialog);
+  elements.generatorDialog.addEventListener("click", (event) => {
+    if (event.target === elements.generatorDialog) closeGeneratorDialog();
+  });
+  elements.generatorDone.addEventListener("click", handleGeneratorDone);
+  elements.generatorSport.addEventListener("change", () => {
+    updateGeneratorModalitySelect();
+    updateGeneratorHelp();
+  });
+  elements.generatorModality.addEventListener("change", updateGeneratorHelp);
+  elements.generatorContinent.addEventListener("change", () => {
+    updateGeneratorCountrySelect();
+    updateGeneratorHelp();
+  });
+  elements.generatorCountry.addEventListener("change", updateGeneratorHelp);
+  elements.generatorCount.addEventListener("input", updateGeneratorHelp);
+
+  // Editor de clubes e atletas
+  elements.entityEditorForm.addEventListener("submit", handleEntityEditorSave);
+  elements.closeEntityEditorDialog.addEventListener("click", closeEntityEditorDialog);
+  elements.entityEditorClose.addEventListener("click", closeEntityEditorDialog);
+  elements.entityEditorDialog.addEventListener("click", (event) => {
+    if (event.target === elements.entityEditorDialog) closeEntityEditorDialog();
+  });
+  elements.entityEditorKind.addEventListener("change", () => {
+    elements.entityEditorModality.value = "";
+    elements.entityEditorContinent.value = "";
+    elements.entityEditorCountry.value = "";
+    refreshEntityEditor();
+  });
+  elements.entityEditorModality.addEventListener("change", renderEntityEditorList);
+  elements.entityEditorContinent.addEventListener("change", () => {
+    elements.entityEditorCountry.value = "";
+    refreshEntityEditor();
+  });
+  elements.entityEditorCountry.addEventListener("change", renderEntityEditorList);
+
+  // Filtros da página Clubes/Atletas
+  [
+    elements.entitiesSport,
+    elements.entitiesModality,
+    elements.entitiesEventType,
+    elements.entitiesContinent,
+    elements.entitiesCountry,
+  ].forEach((select) => select.addEventListener("change", onEntitiesFilterChange));
+
   elements.startDialog.addEventListener("cancel", (event) => event.preventDefault());
 
   elements.toolsButton.addEventListener("click", openEditorsDialog);
@@ -4758,6 +5928,7 @@ function initialize() {
   setupScoringSystemOptions();
   setupEventFormatOptions();
   setupTeamRatingOptions();
+  setupTierOptions();
   setupMixedQualificationOptions();
   setupPresetOptions();
   switchHub(state.activeHub);

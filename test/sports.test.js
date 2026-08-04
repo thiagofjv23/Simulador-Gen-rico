@@ -9,30 +9,32 @@ import {
   validateSportSelection,
 } from "../js/sports.js";
 
-test("o catálogo contém Tênis, Automobilismo, Atletismo e Futebol como entidades", () => {
-  assert.deepEqual(SPORTS.map(({ id, name }) => ({ id, name })), [
-    { id: "sport_tennis", name: "Tênis" },
-    { id: "sport_motorsport", name: "Automobilismo" },
-    { id: "sport_athletics", name: "Atletismo" },
-    { id: "sport_football", name: "Futebol" },
-  ]);
-  assert.equal(
-    SPORTS.find(({ id }) => id === "sport_motorsport").defaultScoringSystemId,
-    "formula1-grand-prix",
-  );
+test("o catálogo oficial tem 37 esportes com ids únicos", () => {
+  assert.equal(SPORTS.length, 37);
+  assert.equal(new Set(SPORTS.map(({ id }) => id)).size, 37);
+  // Esportes com dados/presets atuais.
+  assert.equal(SPORTS.find(({ id }) => id === "sport_tennis").name, "Tênis");
+  assert.equal(SPORTS.find(({ id }) => id === "sport_athletics").name, "Atletismo");
+  assert.equal(SPORTS.find(({ id }) => id === "sport_football").name, "Futebol");
+  assert.equal(SPORTS.find(({ id }) => id === "sport_motorsport").name, "Automobilismo");
+  // Alguns dos demais esportes.
+  assert.ok(SPORTS.some(({ id }) => id === "sport_basketball"));
+  assert.ok(SPORTS.some(({ id }) => id === "sport_volleyball"));
   assert.equal(
     SPORTS.find(({ id }) => id === "sport_athletics").rankingModel,
     "rolling",
   );
 });
 
-test("cada esporte declara o tipo de entidade que o disputa", () => {
+test("cada esporte declara um entityType válido", () => {
+  assert.ok(SPORTS.every(({ entityType }) => ["atleta", "equipe", "mista"].includes(entityType)));
+  // Tênis e atletismo são de atleta; futebol e basquete de equipe; automobilismo
+  // permanece misto (mista fica para uma etapa posterior nos demais esportes).
   assert.equal(SPORTS.find(({ id }) => id === "sport_tennis").entityType, "atleta");
   assert.equal(SPORTS.find(({ id }) => id === "sport_athletics").entityType, "atleta");
-  // Automobilismo é misto: atletas e equipes convivem no mesmo campeonato.
-  assert.equal(SPORTS.find(({ id }) => id === "sport_motorsport").entityType, "mista");
-  // Futebol é só de equipes.
   assert.equal(SPORTS.find(({ id }) => id === "sport_football").entityType, "equipe");
+  assert.equal(SPORTS.find(({ id }) => id === "sport_basketball").entityType, "equipe");
+  assert.equal(SPORTS.find(({ id }) => id === "sport_motorsport").entityType, "mista");
 });
 
 test("o futebol traz as duas ligas nacionais como modalidades", () => {
@@ -40,13 +42,24 @@ test("o futebol traz as duas ligas nacionais como modalidades", () => {
   assert.deepEqual(football, ["Campeonato Brasileiro Série A", "J1 League"]);
 });
 
-test("a Fórmula 1 usa rating de equipe com peso; as monopostos padrão não", () => {
+test("o automobilismo traz as cinco categorias como modalidades mistas", () => {
+  const motorsport = modalitiesForSport("sport_motorsport").map(({ name }) => name);
+  assert.deepEqual(motorsport, [
+    "Fórmula 1",
+    "Fórmula 2",
+    "Fórmula 3",
+    "Fórmula Regional Europeia",
+    "Fórmula Regional Oriente Médio",
+  ]);
+});
+
+test("a Fórmula 1 usa rating de equipe com peso; as demais categorias não", () => {
   // F1: carros construídos pela equipe influenciam a etapa.
   assert.deepEqual(teamRatingConfigForModality("modality_motorsport_formula1"), {
     teamRatingModel: "weighted",
     teamWeight: 60,
   });
-  // F2/F3/Regionais: chassi padrão, equipe não influencia (peso 0), mas seguem mistas.
+  // F2/F3/Regionais: chassi padrão, equipe não influencia (peso 0).
   for (const modalityId of [
     "modality_motorsport_formula2",
     "modality_motorsport_formula3",
@@ -58,7 +71,7 @@ test("a Fórmula 1 usa rating de equipe com peso; as monopostos padrão não", (
       teamWeight: 0,
     });
   }
-  // Modalidade de atleta puro: padrão independent, peso 0.
+  // Modalidade sem peso configurado usa o padrão independent/0.
   assert.deepEqual(teamRatingConfigForModality("modality_tennis_mens_singles"), {
     teamRatingModel: "independent",
     teamWeight: 0,
@@ -78,23 +91,15 @@ test("lista somente as modalidades vinculadas ao esporte escolhido", () => {
     ["Simples masculino"],
   );
   assert.deepEqual(modalitiesForSport("sport_unknown"), []);
-  assert.deepEqual(
-    modalitiesForSport("sport_motorsport").map(({ name }) => name),
-    [
-      "Fórmula 1",
-      "Fórmula 2",
-      "Fórmula 3",
-      "Fórmula Regional Europeia",
-      "Fórmula Regional Oriente Médio",
-    ],
-  );
+  // Esportes ainda sem modalidades cadastradas devolvem lista vazia.
+  assert.deepEqual(modalitiesForSport("sport_basketball"), []);
 });
 
 test("aceita uma modalidade pertencente ao esporte", () => {
   assert.deepEqual(
     validateSportSelection({
-      sportId: SPORTS[0].id,
-      modalityId: MODALITIES[0].id,
+      sportId: "sport_tennis",
+      modalityId: "modality_tennis_mens_singles",
     }),
     [],
   );

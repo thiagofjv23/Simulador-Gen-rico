@@ -167,10 +167,15 @@ export function buildRollingRankingEntries(results = [], {
 // usem o mesmo modelo).
 export function rollingModalities(modalities = MODALITIES, sports = SPORTS) {
   return modalities.filter((modality) => {
-    const own = modality.rankingModel;
-    const inherited = sportById(modality.sportId, sports)?.rankingModel;
-    return (own ?? inherited) === ROLLING_RANKING_MODEL;
-  });
+  // Boxe possui atualização própria por confronto e nunca deve ser
+  // reconstruído pelo ranking rolante.
+  if (modality.sportId === "sport_boxing") return false;
+
+  const own = modality.rankingModel;
+  const inherited = sportById(modality.sportId, sports)?.rankingModel;
+
+  return (own ?? inherited) === ROLLING_RANKING_MODEL;
+});
 }
 
 // Ponto único de integração para o app: recebe TODAS as entradas de ranking e
@@ -210,16 +215,52 @@ export function mergeRollingRanking(rankingEntries = [], results = [], {
   );
 
   const rebuilt = rolling.flatMap((modality) => {
-    const rankingId = rankingIdFor(modality.sportId, modality.id);
-    return buildRollingRankingEntries(results, {
-      sportId: modality.sportId,
-      modalityId: modality.id,
-      rankingId,
-      referenceDate,
-      previousPositionByPersonId: previousByRankingId.get(rankingId) ?? new Map(),
-      updatedAt,
-      modalities,
+  const rankingId = rankingIdFor(modality.sportId, modality.id);
+
+  const rankedEntries = buildRollingRankingEntries(results, {
+    sportId: modality.sportId,
+    modalityId: modality.id,
+    rankingId,
+    referenceDate,
+    previousPositionByPersonId: previousByRankingId.get(rankingId) ?? new Map(),
+    updatedAt,
+    modalities,
+  });
+
+  const rankedPersonIds = new Set(
+    rankedEntries.map((entry) => entry.personId),
+  );
+
+  const unrankedEntries = rankingEntries
+    .filter(
+      (entry) =>
+        entry.rankingId === rankingId
+        && !rankedPersonIds.has(entry.personId),
+    )
+    .sort(
+      (a, b) =>
+        a.position - b.position
+        || a.personId.localeCompare(b.personId),
+    )
+    .map((entry, index) => {
+      const position = rankedEntries.length + index + 1;
+
+      return {
+        ...entry,
+        points: 0,
+        eventsCount: 0,
+        validPerformances: 0,
+        ranked: false,
+        position,
+        previousPosition: entry.position ?? position,
+        sportId: modality.sportId,
+        modalityId: modality.id,
+                rankingModel: ROLLING_RANKING_MODEL,
+        updatedAt,
+      };
     });
+
+    return [...rankedEntries, ...unrankedEntries];
   });
 
   return [...preserved, ...rebuilt];

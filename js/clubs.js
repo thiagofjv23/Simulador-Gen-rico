@@ -16,7 +16,7 @@
 // puros). A integração com a simulação, os rankings e as telas é feita nas
 // etapas seguintes.
 
-import { hydratePersonGeography } from "./geography.js";
+import { hydratePersonGeography, matchesGeographicScope } from "./geography.js";
 
 export const ENTITY_TYPES = {
   atleta: {
@@ -128,6 +128,9 @@ export function createClub({
   gender = null,
   countryCode = null,
   memberPersonIds = [],
+  // Rivais: outros CLUBES escolhidos como rivais deste (lista de ids). Ainda sem
+  // função; existe para toda equipe (ver também createInitialPeople).
+  rivals = [],
   rosterType = "generic",
   presetId = null,
   createdAt = new Date().toISOString(),
@@ -146,6 +149,7 @@ export function createClub({
     entityType: "equipe",
     isClub: true,
     memberPersonIds: [...new Set(memberPersonIds)],
+    rivals: [...new Set(rivals)],
     rosterType,
     presetId,
     createdAt,
@@ -200,6 +204,33 @@ export function buildClubStandings(clubs = [], athleteEntries = []) {
       || b.club.baseRating - a.club.baseRating
       || a.club.name.localeCompare(b.club.name, "pt-BR"))
     .map((row, index) => ({ ...row, position: index + 1 }));
+}
+
+// Candidatos ao convite quando a competição aceita equipes. Filtra os clubes do
+// esporte da competição (restringindo à modalidade quando algum clube casa com
+// ela) pela abrangência geográfica, ordena por rating e devolve no mesmo formato
+// dos candidatos de atleta ({ personId, person, position, points, ... }), para
+// que o seletor de convites os exiba sem tratar clube e atleta de forma diferente.
+export function clubInvitationCandidates(clubs = [], competition = {}) {
+  const bySport = clubs.filter((club) => club.sportId === competition.sportId);
+  const byModality = competition.modalityId
+    ? bySport.filter((club) => club.modalityId === competition.modalityId)
+    : [];
+  const pool = byModality.length ? byModality : bySport;
+  return pool
+    .filter((club) => matchesGeographicScope(club, competition))
+    .sort((a, b) =>
+      (b.baseRating ?? 0) - (a.baseRating ?? 0)
+      || a.name.localeCompare(b.name, "pt-BR"))
+    .map((club, index) => ({
+      personId: club.id,
+      person: club,
+      position: index + 1,
+      previousPosition: index + 1,
+      worldPosition: index + 1,
+      previousWorldPosition: index + 1,
+      points: Math.round(Number(club.baseRating) || 0),
+    }));
 }
 
 // Clubes de uma modalidade, ordenados por rating (como os atletas no ranking).

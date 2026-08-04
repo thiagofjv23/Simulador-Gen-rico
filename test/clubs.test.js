@@ -9,6 +9,7 @@ import {
   MAX_TEAM_WEIGHT,
   buildClubStandings,
   clubIdFor,
+  clubInvitationCandidates,
   clubsForModality,
   createClub,
   groupClubsByName,
@@ -50,16 +51,21 @@ test("entityTypeInfo/label caem no padrão atleta para valores inválidos", () =
 });
 
 test("cada esporte declara seu tipo de entidade", () => {
-  assert.equal(entityTypeForSport("sport_tennis"), "atleta");
   assert.equal(entityTypeForSport("sport_athletics"), "atleta");
+  assert.equal(entityTypeForSport("sport_football"), "equipe");
+  // Automobilismo permanece o esporte misto de referência.
   assert.equal(entityTypeForSport("sport_motorsport"), "mista");
   // Esporte inexistente cai no padrão.
   assert.equal(entityTypeForSport("sport_unknown"), "atleta");
 });
 
 test("os helpers de esporte informam quem pode disputar", () => {
-  assert.equal(sportAllowsClubs("sport_tennis"), false);
-  assert.equal(sportAllowsAthletes("sport_tennis"), true);
+  // Atletismo é só de atletas.
+  assert.equal(sportAllowsClubs("sport_athletics"), false);
+  assert.equal(sportAllowsAthletes("sport_athletics"), true);
+  // Futebol é só de equipes.
+  assert.equal(sportAllowsClubs("sport_football"), true);
+  assert.equal(sportAllowsAthletes("sport_football"), false);
   // Automobilismo é misto: aceita atletas e equipes.
   assert.equal(sportAllowsClubs("sport_motorsport"), true);
   assert.equal(sportAllowsAthletes("sport_motorsport"), true);
@@ -93,6 +99,17 @@ test("createClub cria uma equipe com a mesma estrutura de um atleta", () => {
     "person_f1_charles-leclerc",
     "person_f1_lewis-hamilton",
   ]);
+});
+
+test("todo clube gerado tem o atributo Rivais (lista de ids)", () => {
+  const club = createClub({ id: "club_x", name: "X", sportId: "sport_football" });
+  assert.deepEqual(club.rivals, []);
+  const withRivals = createClub({
+    id: "club_y", name: "Y", sportId: "sport_football",
+    rivals: ["club_a", "club_b", "club_a"],
+  });
+  // Sem duplicatas.
+  assert.deepEqual(withRivals.rivals, ["club_a", "club_b"]);
 });
 
 test("um atleta comum não é confundido com um clube", () => {
@@ -228,3 +245,49 @@ test("validateClub exige identificador, nome e esporte", () => {
   assert.match(errors, /esporte/i);
   assert.match(errors, /rating/i);
 });
+
+test("clubInvitationCandidates lista as equipes do esporte por rating", () => {
+  const clubs = [
+    createClub({ id: "club_football_a", name: "Alfa FC", sportId: "sport_football", modalityId: "modality_football", baseRating: 70, countryCode: "BRA" }),
+    createClub({ id: "club_football_b", name: "Beta FC", sportId: "sport_football", modalityId: "modality_football", baseRating: 85, countryCode: "BRA" }),
+    createClub({ id: "club_basket_c", name: "Cesta EC", sportId: "sport_basketball", modalityId: "modality_basketball_5x5", baseRating: 90, countryCode: "USA" }),
+  ];
+  const candidates = clubInvitationCandidates(clubs, {
+    sportId: "sport_football",
+    modalityId: "modality_football",
+    geographicScope: "world",
+  });
+  // Só as equipes de futebol, ordenadas por rating (Beta antes de Alfa).
+  assert.deepEqual(candidates.map((c) => c.personId), ["club_football_b", "club_football_a"]);
+  assert.equal(candidates[0].position, 1);
+  assert.equal(candidates[0].person.name, "Beta FC");
+  assert.equal(candidates[0].points, 85);
+});
+
+test("clubInvitationCandidates respeita a abrangência geográfica", () => {
+  const clubs = [
+    createClub({ id: "club_football_br", name: "Brasil FC", sportId: "sport_football", modalityId: "modality_football", baseRating: 70, countryCode: "BRA" }),
+    createClub({ id: "club_football_jp", name: "Japão FC", sportId: "sport_football", modalityId: "modality_football", baseRating: 80, countryCode: "JPN" }),
+  ];
+  const candidates = clubInvitationCandidates(clubs, {
+    sportId: "sport_football",
+    modalityId: "modality_football",
+    geographicScope: "national",
+    countryId: "country_bra",
+  });
+  assert.deepEqual(candidates.map((c) => c.personId), ["club_football_br"]);
+});
+
+test("clubInvitationCandidates cai para o esporte quando a modalidade não casa", () => {
+  const clubs = [
+    createClub({ id: "club_football_a", name: "Alfa FC", sportId: "sport_football", modalityId: "modality_football", baseRating: 70, countryCode: "BRA" }),
+  ];
+  // Modalidade legada sem clubes correspondentes: usa todas as equipes do esporte.
+  const candidates = clubInvitationCandidates(clubs, {
+    sportId: "sport_football",
+    modalityId: "modality_football_brasileirao",
+    geographicScope: "world",
+  });
+  assert.deepEqual(candidates.map((c) => c.personId), ["club_football_a"]);
+});
+

@@ -1,6 +1,8 @@
 import { createClub, clubIdFor } from "./clubs.js";
 import { entityTypeForSport } from "./sports.js";
 import { buildFixtures } from "./league.js";
+import { resolveCompetitionTaxonomy } from "./catalog.js";
+import { tierForPrestige } from "./competition.js";
 
 const ATP_2026_TOURNAMENTS = [
   ["brisbane", "Brisbane International presented by ANZ", "2026-01-05", "2026-01-11", "Brisbane, Austrália", "Dura", "ATP 250"],
@@ -591,20 +593,47 @@ const FORMULA_REGIONAL_ME_2026_DRIVERS = [
 // ranking rolante e resolução de etapa (baterias + tempo nas corridas;
 // ranqueamento individual + distância nos saltos e arremesso).
 // ---------------------------------------------------------------------------
-const ATHLETICS_MEETINGS = [
-  ["doha", "Doha", "2026-05-15", "2026-05-15"],
-  ["rome", "Roma", "2026-06-04", "2026-06-04"],
-  ["oslo", "Oslo", "2026-06-18", "2026-06-18"],
-  ["paris", "Paris", "2026-07-03", "2026-07-03"],
-  ["zurich", "Zurique", "2026-08-28", "2026-08-28"],
+// Calendário oficial da Wanda Diamond League 2026 (etapas e datas). Cada etapa
+// recebe um subconjunto das provas (os grupos A e B se alternam pelo calendário)
+// e a final de Zurique reúne todas. As provas acumulam pontos etapa a etapa
+// (a tabela da Diamond League) e o campeão de cada prova sai na final.
+const DIAMOND_LEAGUE_MEETINGS = [
+  ["xiamen", "Xiamen", "2026-04-26", "A"],
+  ["shaoxing", "Shaoxing", "2026-05-03", "B"],
+  ["doha", "Doha", "2026-05-15", "A"],
+  ["rabat", "Rabat", "2026-05-24", "B"],
+  ["eugene", "Eugene", "2026-05-30", "A"],
+  ["rome", "Roma", "2026-06-04", "B"],
+  ["oslo", "Oslo", "2026-06-11", "A"],
+  ["stockholm", "Estocolmo", "2026-06-14", "B"],
+  ["paris", "Paris", "2026-06-20", "A"],
+  ["monaco", "Mônaco", "2026-07-10", "B"],
+  ["london", "Londres", "2026-07-25", "A"],
+  ["silesia", "Silésia", "2026-08-16", "B"],
+  ["lausanne", "Lausanne", "2026-08-20", "A"],
+  ["brussels", "Bruxelas", "2026-08-28", "B"],
+  ["zurich", "Zurique", "2026-09-02", "FINAL"],
 ];
 
-function athleticsRounds(eventLabel) {
-  return ATHLETICS_MEETINGS.map(([id, city, startDate, endDate], index, all) => ({
+// Grupo (rotação pelo calendário) de cada prova do nosso elenco.
+const DIAMOND_LEAGUE_GROUPS = {
+  modality_athletics_100m: "A",
+  modality_athletics_1500m: "A",
+  modality_athletics_high_jump: "A",
+  modality_athletics_800m: "B",
+  modality_athletics_long_jump: "B",
+  modality_athletics_shot_put: "B",
+};
+
+// Etapas de uma prova: as etapas do seu grupo mais a final de Zurique.
+function diamondLeagueRounds(group, eventLabel) {
+  const meetings = DIAMOND_LEAGUE_MEETINGS
+    .filter(([, , , meetingGroup]) => meetingGroup === group || meetingGroup === "FINAL");
+  return meetings.map(([id, city, date, meetingGroup], index, all) => ({
     id,
-    name: `${eventLabel} — ${city}`,
-    startDate,
-    endDate,
+    name: `Diamond League ${eventLabel} — ${city}${meetingGroup === "FINAL" ? " (Final)" : ""}`,
+    startDate: date,
+    endDate: date,
     city,
     category: "Etapa",
     round: index + 1,
@@ -836,14 +865,23 @@ const ATHLETICS_SERIES = [
       ["steen", "Roger Steen", "USA", "Estados Unidos", "continent_north_america", 26, 83, 1],
     ]),
   },
-].map((series) => ({
-  scoringSystemId: "generic-proportional",
-  competitionModel: "standalone",
-  prestige: 80,
-  rankingPoints: 100,
-  ...series,
-  competitions: athleticsRounds(series.label),
-}));
+].map((series) => {
+  const slug = series.modalityId.replace("modality_athletics_", "");
+  return {
+    scoringSystemId: "generic-proportional",
+    // Cada prova é um campeonato de temporada (Diamond League): acumula pontos
+    // etapa a etapa numa tabela e coroa o campeão na final. Por convite.
+    competitionModel: "season_stage",
+    qualification: "invitation",
+    seasonId: `diamond-league-${slug}`,
+    seasonName: `Diamond League — ${series.label}`,
+    prestige: 88,
+    rankingPoints: 100,
+    slots: 16,
+    ...series,
+    competitions: diamondLeagueRounds(DIAMOND_LEAGUE_GROUPS[series.modalityId] ?? "A", series.label),
+  };
+});
 
 const CATEGORY_SETTINGS = {
   "ATP 250": { prestige: 55, rankingPoints: 250, slots: 28 },
@@ -949,9 +987,9 @@ export const CALENDAR_PRESETS = [
   },
   {
     id: "world-athletics-2026",
-    name: "Liga Mundial de Atletismo — 2026",
+    name: "Diamond League — 2026",
     description:
-      "Circuito de 5 encontros (Doha, Roma, Oslo, Paris e a final de Zurique) com 6 provas — 100 m, 800 m, 1500 m, salto em distância, salto em altura e arremesso de peso — e 48 atletas reais. Cada prova tem ranking rolante próprio (média das melhores marcas na janela) e resolução de etapa: baterias com tempo nas corridas, marca direta de distância nos saltos e arremesso.",
+      "Wanda Diamond League 2026 com o calendário oficial (Xiamen a Zurique) em 6 provas — 100 m, 800 m, 1500 m, salto em distância, salto em altura e arremesso de peso. Cada prova é um campeonato de temporada por convite: acumula pontos etapa a etapa (a tabela da Diamond League) e o campeão sai na final de Zurique. Resolução de etapa por prova: baterias com tempo nas corridas, marca direta de distância nos saltos e arremesso.",
     sportId: "sport_athletics",
     sportName: "Atletismo",
     sourceUrl: "https://worldathletics.org/",
@@ -1057,10 +1095,17 @@ export function presetSeries(preset) {
       sportName: series.sportName ?? preset.sportName,
       modalityId: series.modalityId,
       modalityName: series.modalityName,
+      // Tipo de evento explícito do catálogo (opcional); quando ausente, é
+      // resolvido pela modalidade (inclusive via mapa de compatibilidade).
+      eventTypeId: series.eventTypeId ?? null,
       scoringSystemId: series.scoringSystemId ?? preset.scoringSystemId ?? "generic-proportional",
       competitionModel: series.competitionModel ?? preset.competitionModel ?? "standalone",
       seasonId: series.seasonId ?? null,
       seasonName: series.seasonName ?? null,
+      // Critério de classificação e número de vagas da série (opções já
+      // existentes do criador de competições). Padrão: por ranking.
+      qualification: series.qualification ?? "ranking",
+      slots: series.slots ?? null,
       // Nível na pirâmide FIA (metadado; categorias de mesmo tier convivem lado
       // a lado com rankings próprios, como a Fórmula Regional Europeia e a do
       // Oriente Médio, ambas no Tier 4).
@@ -1085,11 +1130,14 @@ export function presetSeries(preset) {
     sportName: preset.sportName,
     modalityId: preset.modalityId,
     modalityName: preset.modalityName,
+    eventTypeId: preset.eventTypeId ?? null,
     scoringSystemId: preset.scoringSystemId ?? "generic-proportional",
     competitionModel: preset.competitionModel ?? "standalone",
     seasonId: preset.seasonId ?? null,
     seasonName: preset.seasonName ?? null,
     tier: preset.tier ?? null,
+    qualification: preset.qualification ?? "ranking",
+    slots: preset.slots ?? null,
     eventFormat: preset.eventFormat ?? null,
     resultMetric: preset.resultMetric ?? null,
     markType: preset.markType ?? null,
@@ -1170,8 +1218,10 @@ export function buildPresetCompetitions(preset, timestamp = new Date().toISOStri
       const settings = CATEGORY_SETTINGS[tournament.category] ?? {
         prestige: series.prestige ?? 100,
         rankingPoints: series.rankingPoints ?? 25,
-        slots: series.athletes?.length ?? 22,
+        slots: series.slots ?? series.athletes?.length ?? 22,
       };
+      // Por convite, o jogador escolhe os participantes; não há elenco fixo.
+      const byInvitation = series.qualification === "invitation";
       const stableId = `preset_${preset.id}_${seriesKey}${tournament.id}`;
       return {
         id: stableId,
@@ -1180,10 +1230,17 @@ export function buildPresetCompetitions(preset, timestamp = new Date().toISOStri
         name: tournament.name,
         sportId: series.sportId,
         modalityId: series.modalityId,
+        eventTypeId: resolveCompetitionTaxonomy({
+          sportId: series.sportId,
+          modalityId: series.modalityId,
+          eventTypeId: series.eventTypeId,
+        }).eventTypeId,
         sport: series.sportName,
         discipline: series.modalityName,
+        // Tier explícito (ex.: pirâmide FIA) ou sugerido pelo prestígio.
+        tier: series.tier ?? tierForPrestige(settings.prestige),
         type: isSeasonStage ? "league" : "championship",
-        qualification: "ranking",
+        qualification: series.qualification ?? "ranking",
         geographicScope: "world",
         continentId: null,
         countryId: null,
@@ -1206,7 +1263,7 @@ export function buildPresetCompetitions(preset, timestamp = new Date().toISOStri
         seasonRound: tournament.round ?? null,
         seasonRoundCount: isSeasonStage ? series.competitions.length : null,
         seasonFinalRound: Boolean(tournament.finalRound),
-        participantIds: isSeasonStage ? participantIds : null,
+        participantIds: isSeasonStage && !byInvitation ? participantIds : null,
         notes: [
           tournament.city,
           tournament.surface,
@@ -1227,6 +1284,9 @@ export function buildPresetPeople(preset, timestamp = new Date().toISOString()) 
   // já existente (mesmo nome em outra categoria) não são duplicados.
   return resolvePresetRoster(preset).peopleToCreate.map((person) => ({
     ...person,
+    // Todo atleta de preset recebe o atributo Rivais (lista de ids, sem função
+    // ainda), preservando o que já vier definido.
+    rivals: person.rivals ?? [],
     createdAt: person.createdAt ?? timestamp,
     updatedAt: timestamp,
   }));
@@ -1284,8 +1344,15 @@ export function buildLeaguePresetCompetitions(preset, timestamp = new Date().toI
         name: `${league.competitionName} — Rodada ${round}`,
         sportId: "sport_football",
         modalityId: league.modalityId,
+        eventTypeId: resolveCompetitionTaxonomy({
+          sportId: "sport_football",
+          modalityId: league.modalityId,
+          eventTypeId: league.eventTypeId,
+        }).eventTypeId,
         sport: "Futebol",
         discipline: league.modalityName,
+        // Tier explícito da liga ou sugerido pelo prestígio (1ª divisão = alta).
+        tier: league.tier ?? tierForPrestige(league.prestige),
         type: "league",
         qualification: "ranking",
         geographicScope: "national",

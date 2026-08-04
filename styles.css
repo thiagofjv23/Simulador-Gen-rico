@@ -584,6 +584,60 @@ h2 {
   font-size: 0.58rem;
 }
 
+.entity-editor-list {
+  max-height: 46vh;
+  overflow-y: auto;
+  border: 1px solid rgb(148 163 184 / 20%);
+  border-radius: 10px;
+}
+
+.entity-editor-row {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1.4fr) 88px;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 10px;
+  border-bottom: 1px solid rgb(148 163 184 / 14%);
+}
+
+.entity-editor-row:last-child {
+  border-bottom: none;
+}
+
+.entity-editor-row.invalid {
+  background: rgb(220 38 38 / 10%);
+}
+
+.entity-editor-row.invalid input {
+  border-color: #dc2626;
+}
+
+.entity-editor-row input {
+  width: 100%;
+}
+
+.entity-editor-row .entity-editor-meta {
+  font-size: 0.68rem;
+  color: #647397;
+}
+
+.entity-editor-head {
+  position: sticky;
+  top: 0;
+  background: var(--surface, #fff);
+  font-size: 0.66rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #647397;
+  z-index: 1;
+}
+
+@media (prefers-color-scheme: dark) {
+  .entity-editor-head {
+    background: #1b2233;
+  }
+}
+
 .ranking-country {
   min-width: 160px;
 }
@@ -665,6 +719,13 @@ h2 {
 
 .teams-list {
   margin-top: 16px;
+}
+
+.tables-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 8px;
 }
 
 .league-matches {
@@ -1116,6 +1177,11 @@ h2 {
 .badge.prestige {
   border-color: rgb(57 214 163 / 28%);
   color: #72e6c0;
+}
+
+.badge.tier {
+  border-color: rgb(245 197 91 / 32%);
+  color: #f5c55b;
 }
 
 .badge.simulated {
@@ -2328,4 +2394,122 @@ h2 {
   font-variant-numeric: tabular-nums;
   color: var(--accent);
   white-space: nowrap;
+}
+
+/* Gerador de atletas/clubes */
+.generator-actions-top {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.generator-sports {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px 14px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px 2px;
+  border: 1px solid rgb(148 163 184 / 18%);
+  border-radius: 10px;
+}
+
+.generator-sport {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.generator-sport input:disabled + span {
+  opacity: 0.5;
+}
+
+.generator-log-wrap {
+  margin-top: 12px;
+}
+
+.generator-log-title {
+  margin: 0 0 6px;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #647397;
+}
+
+.generator-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 160px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.generator-log li {
+  padding: 6px 10px;
+  border: 1px solid rgb(148 163 184 / 20%);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  background: rgb(148 163 184 / 8%);
+}
+
+/* Página Clubes/Atletas */
+.entities-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.entities-top {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+.entities-top-column h3 {
+  margin: 0 0 10px;
+}
+
+.entities-top-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.entities-top-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  column-gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  border: 1px solid rgb(148 163 184 / 18%);
+  border-radius: 12px;
+  background: rgb(148 163 184 / 6%);
+}
+
+.entities-top-rating {
+  grid-row: 1 / span 2;
+  font-size: 1.4rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.entities-top-item strong {
+  align-self: end;
+}
+
+.entities-top-meta {
+  grid-column: 2;
+  font-size: 0.82rem;
+  opacity: 0.75;
 }

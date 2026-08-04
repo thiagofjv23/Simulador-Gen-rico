@@ -3,6 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "build:names": "esbuild build/faker-entry.js --bundle --format=esm --minify --outfile=js/vendor/faker-names.js"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^10.5.0",
+    "esbuild": "^0.25.0"
   }
 }

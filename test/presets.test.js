@@ -3,11 +3,13 @@ import assert from "node:assert/strict";
 
 import {
   CALENDAR_PRESETS,
+  buildLeaguePresetCompetitions,
   buildPresetClubs,
   buildPresetCompetitions,
   buildPresetPeople,
   presetById,
 } from "../js/presets.js";
+import { resolveCompetitionTaxonomy } from "../js/catalog.js";
 
 const FIA = presetById("fia-ecosystem-2026");
 const F1_MODALITY = "modality_motorsport_formula1";
@@ -22,6 +24,37 @@ test("o catálogo de presets contém ATP, Ecossistema FIA, Atletismo e Futebol",
   assert.ok(presetById("world-athletics-2026"));
   assert.ok(FIA);
   assert.equal(buildPresetCompetitions(FIA).length, 24 + 14 + 10 + 8 + 4);
+});
+
+test("toda competição de preset está atrelada a tipo de evento e tier", () => {
+  for (const preset of CALENDAR_PRESETS) {
+    const competitions = preset.kind === "league"
+      ? buildLeaguePresetCompetitions(preset)
+      : buildPresetCompetitions(preset);
+    for (const competition of competitions) {
+      assert.ok(competition.eventTypeId, `${competition.name} sem eventTypeId`);
+      assert.ok(
+        Number.isInteger(competition.tier) && competition.tier >= 1 && competition.tier <= 4,
+        `${competition.name} com tier inválida`,
+      );
+      // O tipo de evento resolvido bate com o gravado.
+      assert.equal(
+        resolveCompetitionTaxonomy(competition).eventTypeId,
+        competition.eventTypeId,
+      );
+    }
+  }
+});
+
+test("a pirâmide FIA usa as tiers 1..4 (F1→Regional) via Open Wheel", () => {
+  const byModality = (modalityId) =>
+    buildPresetCompetitions(FIA).find((c) => c.modalityId === modalityId);
+  assert.equal(byModality(F1_MODALITY).tier, 1);
+  assert.equal(byModality(F2_MODALITY).tier, 2);
+  assert.equal(byModality(F3_MODALITY).tier, 3);
+  assert.equal(byModality(FREC_MODALITY).tier, 4);
+  assert.equal(byModality(F1_MODALITY).eventTypeId, "event_motorsport_formula1");
+  assert.equal(byModality(FRECME_MODALITY).eventTypeId, "event_motorsport_formula_regional_middle_east");
 });
 
 test("a Fórmula 1 do ecossistema cria 24 etapas anuais de três dias", () => {
@@ -144,20 +177,32 @@ test("todas as 60 etapas do ecossistema têm IDs estáveis e únicos", () => {
   assert.ok(competitions.every(({ presetId }) => presetId === "fia-ecosystem-2026"));
 });
 
-test("o catálogo inclui a Liga Mundial de Atletismo com formato/métrica por prova", () => {
+test("a Diamond League usa o calendário 2026, temporada por convite e formato por prova", () => {
   const preset = presetById("world-athletics-2026");
   assert.ok(preset);
   const competitions = buildPresetCompetitions(preset);
-  // 6 provas x 5 encontros.
-  assert.equal(competitions.length, 30);
-  assert.equal(new Set(competitions.map(({ id }) => id)).size, 30);
+  // 6 provas x 8 etapas (7 do grupo + a final de Zurique).
+  assert.equal(competitions.length, 48);
+  assert.equal(new Set(competitions.map(({ id }) => id)).size, 48);
   assert.ok(competitions.every(({ sportId }) => sportId === "sport_athletics"));
-  assert.ok(competitions.every(({ competitionModel }) => competitionModel === "standalone"));
+  // Campeonato de temporada, por convite, sem elenco fixo (o jogador escolhe).
+  assert.ok(competitions.every(({ competitionModel }) => competitionModel === "season_stage"));
+  assert.ok(competitions.every(({ qualification }) => qualification === "invitation"));
+  assert.ok(competitions.every(({ participantIds }) => participantIds === null));
 
-  const race = competitions.find(({ modalityId }) => modalityId === "modality_athletics_100m");
-  assert.equal(race.eventFormat, "heats");
-  assert.equal(race.resultMetric, "direct-mark");
-  assert.equal(race.markType, "time");
+  const races = competitions
+    .filter(({ modalityId }) => modalityId === "modality_athletics_100m")
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
+  assert.equal(races.length, 8);
+  assert.equal(races[0].seasonId, "diamond-league-100m");
+  assert.equal(races[0].eventFormat, "heats");
+  assert.equal(races[0].resultMetric, "direct-mark");
+  assert.equal(races[0].markType, "time");
+  // Datas oficiais 2026: primeira etapa em Xiamen, final em Zurique.
+  assert.equal(races[0].startDate, "2026-04-26");
+  assert.equal(races.at(-1).startDate, "2026-09-02");
+  assert.equal(races.at(-1).seasonFinalRound, true);
+  assert.ok(races.slice(0, -1).every(({ seasonFinalRound }) => seasonFinalRound === false));
 
   const jump = competitions.find(({ modalityId }) => modalityId === "modality_athletics_long_jump");
   assert.equal(jump.eventFormat, "individual-ranking");
@@ -165,9 +210,8 @@ test("o catálogo inclui a Liga Mundial de Atletismo com formato/métrica por pr
   assert.equal(jump.markType, "distance");
 
   const people = buildPresetPeople(preset, "2026-01-01T00:00:00.000Z");
-  assert.equal(people.length, 48); // 6 provas x 8 atletas
   assert.ok(people.every(({ sportId }) => sportId === "sport_athletics"));
-  assert.equal(people.find(({ name }) => name === "Noah Lyles").baseRating, 95);
+  assert.ok(people.some(({ name }) => name === "Noah Lyles"));
 });
 
 test("o ecossistema FIA deriva as equipes dos nomes dos pilotos", () => {
@@ -256,6 +300,14 @@ test("converte o preset em competições mundiais de tênis com IDs estáveis", 
   );
   assert.ok(competitions.every(({ geographicScope }) => geographicScope === "world"));
   assert.ok(competitions.every(({ qualification }) => qualification !== "open"));
+});
+
+test("todo atleta de preset tem o atributo Rivais", () => {
+  for (const id of ["atp-world-tour-2026", "world-athletics-2026", "fia-ecosystem-2026"]) {
+    const people = buildPresetPeople(presetById(id), "2026-01-01T00:00:00.000Z");
+    assert.ok(people.length > 0);
+    assert.ok(people.every(({ rivals }) => Array.isArray(rivals)));
+  }
 });
 
 test("o preset da ATP carrega o top 50 real de 2026 como elenco oficial", () => {
