@@ -343,7 +343,14 @@ export function validateCompetition(competition, { competitions = [] } = {}) {
   errors.push(...validateCompetitionRelations(competition, competitions));
 
   return errors;
-}
+  if (
+  competition.sportId === "sport_boxing"
+  && competition.slots !== 2
+) {
+  errors.push(
+    "Nesta primeira versão do Elo, uma competição de Boxe deve possuir exatamente duas vagas.",
+  );
+  }
 
 export function buildCalendarEvent(competition) {
   return {
