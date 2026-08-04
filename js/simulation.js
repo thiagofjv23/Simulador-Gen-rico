@@ -9,6 +9,10 @@ import {
 import { pointsForPosition, scoringSystemLabel } from "./scoring.js";
 import { resolveStage } from "./eventformat.js";
 import { applyResultMetric } from "./metric.js";
+import {
+  BOXING_SPORT_ID,
+  updateBoxingElo,
+} from "./elo.js";
 
 function clamp(value, minimum, maximum) {
   return Math.min(maximum, Math.max(minimum, value));
