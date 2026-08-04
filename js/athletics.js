@@ -167,10 +167,15 @@ export function buildRollingRankingEntries(results = [], {
 // usem o mesmo modelo).
 export function rollingModalities(modalities = MODALITIES, sports = SPORTS) {
   return modalities.filter((modality) => {
-    const own = modality.rankingModel;
-    const inherited = sportById(modality.sportId, sports)?.rankingModel;
-    return (own ?? inherited) === ROLLING_RANKING_MODEL;
-  });
+  // Boxe possui atualização própria por confronto e nunca deve ser
+  // reconstruído pelo ranking rolante.
+  if (modality.sportId === "sport_boxing") return false;
+
+  const own = modality.rankingModel;
+  const inherited = sportById(modality.sportId, sports)?.rankingModel;
+
+  return (own ?? inherited) === ROLLING_RANKING_MODEL;
+});
 }
 
 // Ponto único de integração para o app: recebe TODAS as entradas de ranking e
