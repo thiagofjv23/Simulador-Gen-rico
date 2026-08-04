@@ -57,7 +57,7 @@ export const SPORTS = [
     id: "sport_boxing",
     name: "Boxe",
     defaultScoringSystemId: "judged-rounds",
-    rankingModel: "rolling",
+    rankingModel:"elo",
     entityType: "atleta",
   },
   {
